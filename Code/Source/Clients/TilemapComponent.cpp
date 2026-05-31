@@ -31,10 +31,17 @@ namespace Diorama
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
+                // No AppearsInAddComponentMenu: this lightweight runtime component is
+                // built from EditorTilemapComponent via BuildGameEntity, never added
+                // directly. Listing it in the Add Component menu collides with the
+                // editor component's identical "Tilemap" name, so a name lookup
+                // (FindComponentTypeIdsByEntityType) could resolve this preview-less,
+                // request-bus-less runtime component instead of the editor one. The
+                // EditContext stays so a built game entity's config is still
+                // inspectable.
                 editContext->Class<TilemapComponent>("Tilemap", "Draws a world-space grid of atlas tiles through Atom")
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
                     ->Attribute(AZ::Edit::Attributes::Category, "Diorama")
-                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
                     ->DataElement(AZ::Edit::UIHandlers::Default, &TilemapComponent::m_config, "Config", "Tilemap configuration")
                     ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly);
