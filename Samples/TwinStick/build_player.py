@@ -25,6 +25,7 @@ Run in the editor:
     --runpython /path/to/o3de-diorama/Samples/TwinStick/build_player.py
 """
 import azlmbr
+import azlmbr.asset as asset
 import azlmbr.bus as bus
 import azlmbr.editor as editor
 import azlmbr.entity
@@ -35,6 +36,8 @@ diorama = azlmbr.diorama
 
 PLAYER_TEXTURE = "diorama/textures/sample_sprite.png"
 PLAYER_SCRIPT = "diorama/twinstick/scripts/twin_stick_player.lua"
+# The Lua Script component references the compiled product (.luac), not the source.
+PLAYER_SCRIPT_PRODUCT = "diorama/twinstick/scripts/twin_stick_player.luac"
 PLAYER_INPUT = "diorama/twinstick/input/twin_stick.inputbindings"
 
 
@@ -55,8 +58,27 @@ def add_component(eid, display_name):
         log("WARN: component type not found: {}".format(display_name))
         return None
     outcome = editor.EditorComponentAPIBus(bus.Broadcast, "AddComponentsOfType", eid, [type_id])
+    if not outcome.IsSuccess():
+        log("WARN: failed to add component: {}".format(display_name))
+        return None
     log("added component: {}".format(display_name))
-    return outcome
+    return outcome.GetValue()[0]
+
+
+def asset_id(product_path):
+    # Null type Uuid matches by product path regardless of asset type.
+    return asset.AssetCatalogRequestBus(bus.Broadcast, "GetAssetIdByPath", product_path, math.Uuid(), False)
+
+
+def set_property(component_id, path, value):
+    # Best-effort: log a warning instead of failing the whole build if a property
+    # path differs in this engine version.
+    if component_id is None:
+        return False
+    ok = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component_id, path, value).IsSuccess()
+    if not ok:
+        log("WARN: could not set property '{}'".format(path))
+    return ok
 
 
 def open_default_level():
@@ -94,21 +116,34 @@ def main():
     diorama.DioramaSpriteRequestBus(bus.Event, "SetBillboard", eid, True)
     diorama.DioramaSpriteRequestBus(bus.Event, "SetSortOffset", eid, 10.0)
 
-    # Gameplay: standard O3DE components. Their asset/config properties are set
-    # best-effort here; the README lists the exact properties for a prefab or
-    # manual setup. These names match the editor's Add Component menu.
-    add_component(eid, "PhysX Dynamic Rigid Body")
+    # Gameplay: standard O3DE components, wired through the editor API so the
+    # player is playable without manual steps. Display names match the editor's
+    # Add Component menu (verified in 26.05).
+    rigid_body = add_component(eid, "PhysX Dynamic Rigid Body")
+    # Top-down game: no gravity; motion is velocity-driven in the XY plane.
+    set_property(rigid_body, "Configuration|Gravity enabled", False)
+
+    # The collider lets the player bump arena walls and enemies. If this warns,
+    # the collider's Add Component display name differs in your engine version;
+    # add it by hand and size it to the sprite.
     add_component(eid, "PhysX Collider")
-    add_component(eid, "Lua Script")
-    add_component(eid, "Input to Event Bindings")
+
+    lua = add_component(eid, "Lua Script")
+    set_property(lua, "Script", asset_id(PLAYER_SCRIPT_PRODUCT))
+
+    # Component display name is "Input" (StartingPointInput); the bindings-asset
+    # property is "Input to event bindings".
+    inp = add_component(eid, "Input")
+    set_property(inp, "Input to event bindings", asset_id(PLAYER_INPUT))
+
+    tag = add_component(eid, "Tag")
+    set_property(tag, "Tags", ["Player"])
 
     # Verify the Diorama side took (no screenshot needed).
     info = diorama.DioramaSpriteRequestBus(bus.Event, "GetSpriteInfo", eid)
     log("sprite texturePath={} billboard={} size={}x{}".format(
         info.texturePath, info.billboard, info.width, info.height))
     log("player entity id={}".format(eid.ToString() if hasattr(eid, "ToString") else eid))
-    log("Set the Lua Script asset to '{}' and the Input bindings to '{}' (see README).".format(
-        PLAYER_SCRIPT, PLAYER_INPUT))
     log("done")
 
 

@@ -101,7 +101,10 @@ def build_player():
     add_component(eid, "PhysX Dynamic Rigid Body")
     add_component(eid, "PhysX Collider")
     add_component(eid, "Lua Script")
-    add_component(eid, "Input to Event Bindings")
+    # Component display name is "Input" (StartingPointInput), not "Input to Event
+    # Bindings". build_player.py wires the script/bindings/tag in full; this
+    # capstone leaves the asset refs to the README checklist.
+    add_component(eid, "Input")
     add_component(eid, "Tag")
     return eid
 
