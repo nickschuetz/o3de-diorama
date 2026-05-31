@@ -11,6 +11,7 @@
 #include <Clients/SpriteRequestHandler.h>
 #include <Diorama/SpriteComponentConfig.h>
 
+#include <AzCore/Component/TickBus.h>
 #include <AzToolsFramework/ToolsComponents/EditorComponentBase.h>
 
 namespace Diorama
@@ -22,7 +23,9 @@ namespace Diorama
     //! play it builds the lightweight runtime SpriteComponent through
     //! BuildGameEntity. All Qt and AzToolsFramework dependencies stay in this
     //! editor module so the runtime client stays lean.
-    class EditorSpriteComponent final : public AzToolsFramework::Components::EditorComponentBase
+    class EditorSpriteComponent final
+        : public AzToolsFramework::Components::EditorComponentBase
+        , private AZ::TickBus::Handler
     {
     public:
         AZ_EDITOR_COMPONENT(Diorama::EditorSpriteComponent, EditorSpriteComponentTypeId, AzToolsFramework::Components::EditorComponentBase);
@@ -48,8 +51,18 @@ namespace Diorama
         // Called by the edit context when a property changes; refreshes the preview.
         AZ::u32 OnConfigChanged();
 
+        // AZ::TickBus::Handler. Used only to coalesce request-bus edits: a single
+        // tick after one or more edits, persist the change to the prefab once.
+        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
+
+        // Mark the entity dirty so request-bus edits to m_config (e.g. an agent
+        // setting the texture/size) are captured into the prefab on save, matching
+        // how an inspector edit persists. Coalesced via OnTick.
+        void SchedulePersist();
+
         SpriteComponentConfig m_config;
         SpritePresenter m_presenter;
         SpriteRequestHandler m_requestHandler;
+        bool m_persistPending = false;
     };
 } // namespace Diorama
