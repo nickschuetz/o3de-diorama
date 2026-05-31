@@ -95,9 +95,16 @@ at runtime.
   still get full editor tooling.
 - **Integration over reinvention.** Diorama builds on existing O3DE systems
   (transforms, prefabs, scripting, physics) instead of inventing parallel ones.
-- **A path designed to scale.** Rendering starts with Atom dynamic draw for
-  correctness and clarity, and is structured to move to a batched feature
-  processor as sprite counts grow.
+- **A path designed to scale.** Rendering goes through a batched Atom feature
+  processor: sprites and tilemap tiles that share a texture collapse into one
+  draw call, so a busy scene stays cheap.
+
+For the full design with diagrams (module split, data model, persistence, and
+the render path) see [Docs/architecture.md](Docs/architecture.md). In-depth
+references live under [Docs/reference/](Docs/reference/): every
+[Sprite](Docs/reference/sprite-component.md) and
+[Tilemap](Docs/reference/tilemap-component.md) parameter, and the typed
+[bus API](Docs/reference/api.md) for scripts and agents.
 
 ## Roadmap
 

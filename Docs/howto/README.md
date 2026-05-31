@@ -19,6 +19,20 @@ example under [../examples](../examples).
 All rungs of the ladder now have a written guide, from a single sprite to the
 complete twin-stick capstone.
 
+## Reference
+
+The guides teach by building. For exhaustive, parameter-by-parameter detail and
+the design, see:
+
+- [Architecture](../architecture.md): the module split, data model, persistence,
+  and render path, with diagrams.
+- [Sprite component reference](../reference/sprite-component.md): every Sprite
+  parameter in depth.
+- [Tilemap component reference](../reference/tilemap-component.md): every Tilemap
+  parameter in depth.
+- [API reference](../reference/api.md): the typed `DioramaSpriteRequestBus` and
+  `DioramaTilemapRequestBus` for scripts and agents.
+
 ## Runnable examples
 
 | Example | Script |
