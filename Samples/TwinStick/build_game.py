@@ -99,7 +99,7 @@ def build_player():
     diorama.DioramaSpriteRequestBus(bus.Event, "SetBillboard", eid, True)
     diorama.DioramaSpriteRequestBus(bus.Event, "SetSortOffset", eid, 10.0)
     add_component(eid, "PhysX Dynamic Rigid Body")
-    add_component(eid, "PhysX Collider")
+    add_component(eid, "PhysX Primitive Collider")
     add_component(eid, "Lua Script")
     # Component display name is "Input" (StartingPointInput), not "Input to Event
     # Bindings". build_player.py wires the script/bindings/tag in full; this

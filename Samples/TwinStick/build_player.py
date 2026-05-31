@@ -10,9 +10,9 @@ The player is built like a real O3DE game entity:
   - Transform                  (placement)
   - Diorama Sprite             (the visual; billboards to face the top-down camera)
   - PhysX Dynamic Rigid Body   (movement integrated by physics; gravity off)
-  - PhysX Collider             (so walls and enemies collide)
+  - PhysX Primitive Collider   (so walls and enemies collide)
   - Lua Script                 (twin_stick_player.lua: input -> velocity + facing)
-  - Input to Event Bindings    (twin_stick.inputbindings: WASD/mouse/gamepad)
+  - Input                      (twin_stick.inputbindings: WASD/mouse/gamepad)
 
 The Diorama sprite is configured through the typed DioramaSpriteRequestBus (no
 property-path strings). The standard O3DE components are added by type and their
@@ -126,7 +126,7 @@ def main():
     # The collider lets the player bump arena walls and enemies. If this warns,
     # the collider's Add Component display name differs in your engine version;
     # add it by hand and size it to the sprite.
-    add_component(eid, "PhysX Collider")
+    add_component(eid, "PhysX Primitive Collider")
 
     lua = add_component(eid, "Lua Script")
     set_property(lua, "Script", asset_id(PLAYER_SCRIPT_PRODUCT))
