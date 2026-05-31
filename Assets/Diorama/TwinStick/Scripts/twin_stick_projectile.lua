@@ -64,7 +64,9 @@ function TwinStickProjectile:OnCollisionBegin(otherEntityId, contacts)
     local isEnemy = TagComponentRequestBus.Event.HasTag(otherEntityId, self.enemyTag)
     if isEnemy then
         -- Award score: tell the "Game"-tagged controller an enemy was killed.
-        local game = TagGlobalRequestBus.Event.RequestTaggedEntities(self.gameTag)
+        -- The event reflects to scripting as "Get Entity By Tag"; O3DE's Lua binding
+        -- strips spaces, so the callable name is GetEntityByTag (returns one entity).
+        local game = TagGlobalRequestBus.Event.GetEntityByTag(self.gameTag)
         if game ~= nil and game:IsValid() then
             GameplayNotificationBus.Event.OnEventBegin(GameplayNotificationId(game, "EnemyKilled", "float"), 1.0)
         end

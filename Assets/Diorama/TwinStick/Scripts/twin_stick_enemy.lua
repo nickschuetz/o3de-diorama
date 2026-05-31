@@ -36,7 +36,10 @@ function TwinStickEnemy:OnDeactivate()
 end
 
 function TwinStickEnemy:OnTick(deltaTime, scriptTime)
-    local player = TagGlobalRequestBus.Event.RequestTaggedEntities(self.playerTag)
+    -- The "get entity by tag" event reflects to scripting as "Get Entity By Tag";
+    -- O3DE's Lua binding strips the spaces, so the callable name is GetEntityByTag.
+    -- It is addressed by the tag's Crc32 and returns the (single) tagged entity.
+    local player = TagGlobalRequestBus.Event.GetEntityByTag(self.playerTag)
     if player == nil or not player:IsValid() then
         return
     end
