@@ -5,13 +5,12 @@
  * SPDX-License-Identifier: Apache-2.0 OR MIT
  */
 
+#include <Clients/DioramaAssetUtils.h>
 #include <Clients/SpritePresenter.h>
 #include <Clients/SpriteRequestHandler.h>
 
 #include <AzCore/Math/MathUtils.h>
 #include <AzFramework/Asset/AssetCatalogBus.h>
-
-#include <Atom/RPI.Reflect/Asset/AssetUtils.h>
 
 namespace Diorama
 {
@@ -56,8 +55,7 @@ namespace Diorama
             return true;
         }
 
-        const AZ::Data::AssetId assetId =
-            AZ::RPI::AssetUtils::GetAssetIdForProductPath(AZStd::string(productPath).c_str(), AZ::RPI::AssetUtils::TraceLevel::Warning);
+        const AZ::Data::AssetId assetId = ResolveStreamingImageAssetId(productPath);
         if (!assetId.IsValid())
         {
             return false;

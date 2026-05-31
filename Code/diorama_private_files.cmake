@@ -2,6 +2,7 @@
 set(FILES
     Source/DioramaModuleInterface.cpp
     Source/DioramaModuleInterface.h
+    Source/Clients/DioramaAssetUtils.h
     Source/Clients/DioramaSystemComponent.cpp
     Source/Clients/DioramaSystemComponent.h
     Source/Clients/SpriteComponent.cpp
