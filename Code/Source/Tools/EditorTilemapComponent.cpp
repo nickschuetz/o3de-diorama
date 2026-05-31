@@ -75,14 +75,47 @@ namespace Diorama
                 m_presenter.SetConfig(m_config);
                 AzToolsFramework::ToolsApplicationEvents::Bus::Broadcast(
                     &AzToolsFramework::ToolsApplicationEvents::InvalidatePropertyDisplay, AzToolsFramework::Refresh_Values);
+                // A request-bus edit changes m_config in place but, unlike an
+                // inspector edit, does not go through the property editor, so the
+                // prefab never learns about it and the change is lost on save.
+                // Schedule a one-shot dirty so the new config is persisted.
+                SchedulePersist();
             });
     }
 
     void EditorTilemapComponent::Deactivate()
     {
+        AZ::TickBus::Handler::BusDisconnect();
+        m_persistPending = false;
         m_requestHandler.Disconnect();
         m_presenter.Disconnect();
         AzToolsFramework::Components::EditorComponentBase::Deactivate();
+    }
+
+    void EditorTilemapComponent::SchedulePersist()
+    {
+        m_persistPending = true;
+        // Coalesce a burst of edits (e.g. a script writing every tile) into a
+        // single persist on the next tick rather than one undo step per edit.
+        if (!AZ::TickBus::Handler::BusIsConnected())
+        {
+            AZ::TickBus::Handler::BusConnect();
+        }
+    }
+
+    void EditorTilemapComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    {
+        AZ::TickBus::Handler::BusDisconnect();
+        if (!m_persistPending)
+        {
+            return;
+        }
+        m_persistPending = false;
+
+        // MarkEntityDirty inside an undo batch records the component's new state
+        // into the prefab DOM, so save (and undo/redo) capture the edited tilemap.
+        AzToolsFramework::ScopedUndoBatch undoBatch("Edit Diorama Tilemap");
+        undoBatch.MarkEntityDirty(GetEntityId());
     }
 
     void EditorTilemapComponent::BuildGameEntity(AZ::Entity* gameEntity)
