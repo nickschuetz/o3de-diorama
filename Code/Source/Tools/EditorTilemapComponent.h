@@ -11,7 +11,6 @@
 #include <Clients/TilemapRequestHandler.h>
 #include <Diorama/TilemapComponentConfig.h>
 
-#include <AzCore/Component/TickBus.h>
 #include <AzToolsFramework/ToolsComponents/EditorComponentBase.h>
 
 namespace Diorama
@@ -23,9 +22,7 @@ namespace Diorama
     //! play it builds the lightweight runtime TilemapComponent through
     //! BuildGameEntity. All Qt and AzToolsFramework dependencies stay in this
     //! editor module so the runtime client stays lean.
-    class EditorTilemapComponent final
-        : public AzToolsFramework::Components::EditorComponentBase
-        , private AZ::TickBus::Handler
+    class EditorTilemapComponent final : public AzToolsFramework::Components::EditorComponentBase
     {
     public:
         AZ_EDITOR_COMPONENT(
@@ -52,18 +49,15 @@ namespace Diorama
         // Called by the edit context when a property changes; refreshes the preview.
         AZ::u32 OnConfigChanged();
 
-        // AZ::TickBus::Handler. Used only to coalesce request-bus edits: a single
-        // tick after one or more edits, persist the change to the prefab once.
-        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
-
-        // Mark the entity dirty so the (possibly script-driven) request-bus edits
-        // to m_config are captured into the prefab on save; coalesced via OnTick so
-        // a burst of SetTile calls becomes one undo step instead of hundreds.
-        void SchedulePersist();
+        // Mark the entity dirty so the (possibly script-driven) request-bus edits to
+        // m_config are captured into the prefab on save. Done synchronously per edit
+        // so a scripted edit-then-save reliably bakes (see the .cpp for why this
+        // cannot defer); one SetTile maps to one undo step, matching how painting a
+        // tile in the inspector records one undo step.
+        void PersistConfig();
 
         TilemapComponentConfig m_config;
         TilemapPresenter m_presenter;
         TilemapRequestHandler m_requestHandler;
-        bool m_persistPending = false;
     };
 } // namespace Diorama

@@ -78,43 +78,37 @@ namespace Diorama
                 // A request-bus edit changes m_config in place but, unlike an
                 // inspector edit, does not go through the property editor, so the
                 // prefab never learns about it and the change is lost on save.
-                // Schedule a one-shot dirty so the new config is persisted, keeping
-                // agent-authored sprites on par with inspector-authored ones.
-                SchedulePersist();
+                // Persist it now so the new config is baked, keeping agent-authored
+                // sprites on par with inspector-authored ones.
+                PersistConfig();
             });
     }
 
     void EditorSpriteComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
-        m_persistPending = false;
         m_requestHandler.Disconnect();
         m_presenter.Disconnect();
         AzToolsFramework::Components::EditorComponentBase::Deactivate();
     }
 
-    void EditorSpriteComponent::SchedulePersist()
+    void EditorSpriteComponent::PersistConfig()
     {
-        m_persistPending = true;
-        // Coalesce a burst of edits into a single persist on the next tick rather
-        // than one undo step per request-bus verb.
-        if (!AZ::TickBus::Handler::BusIsConnected())
-        {
-            AZ::TickBus::Handler::BusConnect();
-        }
-    }
-
-    void EditorSpriteComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
-    {
-        AZ::TickBus::Handler::BusDisconnect();
-        if (!m_persistPending)
+        // Only an actualized entity may touch the undo/prefab system. During prefab
+        // construction or propagation the entity can be inactive and a request-bus
+        // edit must not dirty it (mirrors EditorComponentBase::SetDirty's guard).
+        AZ::Entity* entity = GetEntity();
+        if (!entity || entity->GetState() != AZ::Entity::State::Active)
         {
             return;
         }
-        m_persistPending = false;
 
-        // MarkEntityDirty inside an undo batch records the component's new state
-        // into the prefab DOM, so save (and undo/redo) capture the edited sprite.
+        // Record the new config into the prefab DOM synchronously. This cannot be
+        // deferred to a later tick to coalesce a burst: there is no pre-save hook
+        // (OnSaveLevel fires AFTER the level is written), so a scripted edit that
+        // immediately saves the level would outrun a deferred dirty and bake the
+        // old config. MarkEntityDirty is a no-op outside an undo batch, and the
+        // batch commits the entity's DOM delta when it closes here, so the edit is
+        // captured before control returns to the caller (and before any save).
         AzToolsFramework::ScopedUndoBatch undoBatch("Edit Diorama Sprite");
         undoBatch.MarkEntityDirty(GetEntityId());
     }
