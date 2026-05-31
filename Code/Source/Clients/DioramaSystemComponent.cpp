@@ -38,8 +38,15 @@ namespace Diorama
         incompatible.push_back(AZ_CRC_CE("DioramaService"));
     }
 
-    void DioramaSystemComponent::GetRequiredServices([[maybe_unused]] AZ::ComponentDescriptor::DependencyArrayType& required)
+    void DioramaSystemComponent::GetRequiredServices(AZ::ComponentDescriptor::DependencyArrayType& required)
     {
+        // Activate after the Atom RPI system so FeatureProcessorFactory::Get() is
+        // valid when we register the sprite feature processor. Without this the
+        // editor happens to order us correctly, but standalone runtimes (the
+        // GameLauncher) activate us first and Get() returns null, crashing on
+        // RegisterFeatureProcessor. This mirrors how every other feature-processor
+        // gem (CoreLights, Common, SkinnedMesh, ...) declares the dependency.
+        required.push_back(AZ_CRC_CE("RPISystem"));
     }
 
     void DioramaSystemComponent::GetDependentServices([[maybe_unused]] AZ::ComponentDescriptor::DependencyArrayType& dependent)
