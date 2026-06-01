@@ -93,7 +93,7 @@
                         </Class>
                         <Class name="Input" field="element" type="{546C9EBC-90EF-4F03-891A-0736BE2A487E}" version="2" specializationTypeId="{546C9EBC-90EF-4F03-891A-0736BE2A487E}">
                             <Class name="AZStd::string" field="Input Device Type" type="{EF8FF807-DDEE-4EB0-B678-4CA3A2C490A4}" value="gamepad" specializationTypeId="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
-                            <Class name="AZStd::string" field="Input Name" type="{EF8FF807-DDEE-4EB0-B678-4CA3A2C490A4}" value="gamepad_trigger_r" specializationTypeId="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
+                            <Class name="AZStd::string" field="Input Name" type="{EF8FF807-DDEE-4EB0-B678-4CA3A2C490A4}" value="gamepad_trigger_r2" specializationTypeId="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
                             <Class name="float" field="Event Value Multiplier" type="{EA2C3E90-AFBE-44D4-A90D-FAAF79BAF93D}" value="1.0000000" specializationTypeId="{EA2C3E90-AFBE-44D4-A90D-FAAF79BAF93D}"/>
                             <Class name="float" field="Dead Zone" type="{EA2C3E90-AFBE-44D4-A90D-FAAF79BAF93D}" value="0.2000000" specializationTypeId="{EA2C3E90-AFBE-44D4-A90D-FAAF79BAF93D}"/>
                         </Class>

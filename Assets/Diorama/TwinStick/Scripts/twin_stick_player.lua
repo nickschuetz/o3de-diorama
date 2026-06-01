@@ -39,6 +39,7 @@ local TwinStickPlayer = {
     Properties = {
         MoveSpeed = { default = 8.0, description = "Movement speed in world units per second" },
         AimDeadZone = { default = 0.05, description = "Ignore aim input below this magnitude" },
+        TurnSpeed = { default = 8.0, description = "How fast the sprite rotates toward the aim, in radians per second (lower = slower/less sensitive)" },
         ProjectilePrefab = { default = SpawnableScriptAssetRef(), description = "Projectile prefab to fire" },
         FireCooldown = { default = 0.2, description = "Minimum seconds between shots" },
         MuzzleOffset = { default = 0.6, description = "Spawn distance ahead of the player" },
@@ -52,7 +53,13 @@ function TwinStickPlayer:OnActivate()
     self.aimY = 0.0
     -- Last non-zero aim, kept so firing has a direction even between flicks.
     self.aimDir = Vector3(1.0, 0.0, 0.0)
-    self.facingLeft = false
+    self.aimYaw = 0.0      -- target yaw from the latest aim input
+    self.facingYaw = 0.0   -- current (smoothed) sprite yaw, eased toward aimYaw
+
+    -- Turn the sprite billboard off so it lies flat on the ground (in the world
+    -- XY plane) and can be visibly rotated to face the aim direction. A billboard
+    -- always faces the camera and ignores entity rotation, so aim would not show.
+    DioramaSpriteRequestBus.Event.SetBillboard(self.entityId, false)
 
     -- Firing state.
     self.firing = false
@@ -145,22 +152,41 @@ function TwinStickPlayer:OnTick(deltaTime, scriptTime)
         RigidBodyRequestBus.Event.SetLinearVelocity(self.entityId, Vector3(0.0, 0.0, 0.0))
     end
 
-    -- Aim: when the player aims, remember the direction and face the sprite that
-    -- way. Mouse deltas arrive as one-shot per-frame values; gamepad stick values
-    -- are re-sent each tick.
+    -- Aim: when the player aims, set the TARGET facing; the sprite then eases
+    -- toward it (below) instead of snapping, so a fast mouse flick does not
+    -- instantly spin the sprite. Mouse deltas arrive as one-shot per-frame values
+    -- (and are normalized, so their magnitude does not affect turn speed); gamepad
+    -- stick values are re-sent each tick.
     local aimLen = math.sqrt(self.aimX * self.aimX + self.aimY * self.aimY)
     if aimLen > self.Properties.AimDeadZone then
         self.aimDir = Vector3(self.aimX / aimLen, self.aimY / aimLen, 0.0)
-        local shouldFaceLeft = self.aimX < 0.0
-        if shouldFaceLeft ~= self.facingLeft then
-            self.facingLeft = shouldFaceLeft
-            -- Express facing through the Diorama sprite bus (horizontal flip).
-            DioramaSpriteRequestBus.Event.SetFlip(self.entityId, self.facingLeft, false)
-        end
+        self.aimYaw = atan2(self.aimDir.y, self.aimDir.x)
     end
     -- Mouse deltas do not "release", so clear them each frame.
     self.aimX = 0.0
     self.aimY = 0.0
+
+    -- Smoothly rotate the current facing toward the target yaw, capped at
+    -- TurnSpeed radians/second (lower = slower, less sensitive). Take the
+    -- shortest angular path by wrapping the delta into [-pi, pi].
+    local dyaw = self.aimYaw - self.facingYaw
+    while dyaw > math.pi do dyaw = dyaw - 2.0 * math.pi end
+    while dyaw < -math.pi do dyaw = dyaw + 2.0 * math.pi end
+    local maxStep = self.Properties.TurnSpeed * deltaTime
+    if dyaw > maxStep then
+        dyaw = maxStep
+    elseif dyaw < -maxStep then
+        dyaw = -maxStep
+    end
+    self.facingYaw = self.facingYaw + dyaw
+    -- Apply: a Diorama sprite quad spans the entity local X (right) and Z (up)
+    -- axes, so its surface normal is local Y. Tilt -90 deg about world X to lay it
+    -- flat facing the top-down camera (local Y -> world +Z), then yaw about world Z
+    -- so it points toward the aim. Composing (worldZ yaw) * (worldX tilt) keeps the
+    -- spin flat in the screen plane.
+    local tilt = Quaternion.CreateRotationX(-math.pi * 0.5)
+    local yaw = Quaternion.CreateRotationZ(self.facingYaw)
+    TransformBus.Event.SetWorldRotationQuaternion(self.entityId, yaw * tilt)
 
     -- Firing: spawn a projectile toward the aim direction, rate-limited by the
     -- cooldown. Holding fire auto-fires at the cooldown rate.
