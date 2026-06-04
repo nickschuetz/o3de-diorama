@@ -29,6 +29,10 @@ namespace Diorama
                 &DioramaLookRequestBus::Events::SetBloomThreshold,
                 { { { "threshold", "HDR brightness above which a pixel blooms; clamped >= 0." } } })
             ->Event(
+                "SetBloomKnee",
+                &DioramaLookRequestBus::Events::SetBloomKnee,
+                { { { "knee", "Softness of the bloom threshold edge, 0..1." } } })
+            ->Event(
                 "SetBloomIntensity",
                 &DioramaLookRequestBus::Events::SetBloomIntensity,
                 { { { "intensity", "Bloom strength; clamped >= 0." } } })

@@ -37,6 +37,8 @@ namespace Diorama
         //! HDR brightness above which a pixel blooms; clamped >= 0. Sprites written
         //! brighter than this (e.g. via the emissive channel) glow.
         virtual void SetBloomThreshold(float threshold) = 0;
+        //! Softness of the bloom threshold edge, 0..1 (clamped).
+        virtual void SetBloomKnee(float knee) = 0;
         //! Bloom strength; clamped >= 0.
         virtual void SetBloomIntensity(float intensity) = 0;
         //! Turn the edge darkening (vignette) on or off.

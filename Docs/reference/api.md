@@ -302,6 +302,7 @@ Atom's `PostProcessFeatureProcessor` (how-to [14-glow](../howto/14-glow.md)).
 | ---- | --------------------------- | ------- | -------- | ------ |
 | `SetBloomEnabled` | `enabled: bool` | void | None. | Toggle the glow. |
 | `SetBloomThreshold` | `threshold: float` | void | `>= 0`. | HDR brightness above which a pixel glows. |
+| `SetBloomKnee` | `knee: float` | void | `0..1`. | Softness of the bloom threshold edge. |
 | `SetBloomIntensity` | `intensity: float` | void | `>= 0`. | Bloom strength. |
 | `SetVignetteEnabled` | `enabled: bool` | void | None. | Toggle the edge darkening. |
 | `SetVignetteIntensity` | `intensity: float` | void | `0..1`. | Vignette strength. |

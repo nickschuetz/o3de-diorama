@@ -198,6 +198,12 @@ namespace Diorama
         ApplyLook();
     }
 
+    void DioramaLookComponent::SetBloomKnee(float knee)
+    {
+        m_config.m_bloomKnee = LookClamp01(knee);
+        ApplyLook();
+    }
+
     void DioramaLookComponent::SetBloomIntensity(float intensity)
     {
         m_config.m_bloomIntensity = LookNonNeg(intensity);

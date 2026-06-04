@@ -83,6 +83,7 @@ namespace Diorama
         // DioramaLookRequests
         void SetBloomEnabled(bool enabled) override;
         void SetBloomThreshold(float threshold) override;
+        void SetBloomKnee(float knee) override;
         void SetBloomIntensity(float intensity) override;
         void SetVignetteEnabled(bool enabled) override;
         void SetVignetteIntensity(float intensity) override;
