@@ -21,21 +21,32 @@ public-facing, because a self-hosted runner that executes pull-request code is a
 security risk for fork contributions; bring one online only for trusted runs and
 take it offline afterward.
 
+The workflow has two legs, gated identically: a **Linux** leg
+(`runs-on: [self-hosted, o3de]`, `scripts/ci_build_test.sh`) and a **Windows**
+leg (`runs-on: [self-hosted, o3de, windows]`, `scripts/ci_build_test.ps1`). Each
+leg only runs when a matching runner is online, so you can enable just one, or
+both. Windows is O3DE's primary platform, so the Windows leg is the one that
+confirms the gem builds and tests there, not only on Linux.
+
 ## What the runner needs
 
-- A machine with O3DE **26.05** installed (the SDK, with `scripts/o3de.sh` and
-  `bin/Linux/<config>/Default/AzTestRunner`).
+- A machine with O3DE **26.05** installed (the SDK). On Linux that means
+  `scripts/o3de.sh` and `bin/Linux/<config>/Default/AzTestRunner`; on Windows,
+  `scripts\o3de.bat` and `bin\Windows\<config>\Default\AzTestRunner.exe`.
 - The engine 3rdParty packages (default `~/.o3de/3rdParty`).
 - A host O3DE project to build the gem through (any project with the standard
   layout; this repo is developed against a `DioramaSandbox` project).
-- Build tooling matching the engine: CMake, Ninja (`ninja-build`), a C++
-  toolchain, and clang.
+- Build tooling matching the engine: CMake plus, on Linux, Ninja
+  (`ninja-build`) and a clang toolchain; on Windows, Visual Studio 2022 (the
+  C++ workload) and its CMake.
 
 ## One-time setup
 
 1. **Register a self-hosted runner** on the repository (GitHub: Settings →
-   Actions → Runners → New self-hosted runner) and give it the labels
-   `self-hosted` and `o3de`. The workflow targets `runs-on: [self-hosted, o3de]`.
+   Actions → Runners → New self-hosted runner). For a Linux runner give it the
+   labels `self-hosted` and `o3de` (the Linux leg targets
+   `runs-on: [self-hosted, o3de]`). For a Windows runner add a third label,
+   `windows` (the Windows leg targets `runs-on: [self-hosted, o3de, windows]`).
 
 2. **Tell the workflow where the engine and project are.** Set these as
    repository variables (Settings → Secrets and variables → Actions →
@@ -48,6 +59,12 @@ take it offline afterward.
 
    The build script reads both. `GEM_PATH` defaults to the checked-out repo.
 
+   If one runner is Linux and another is Windows and their paths differ, set the
+   Windows-specific variables `O3DE_ENGINE_PATH_WINDOWS` and
+   `DIORAMA_PROJECT_WINDOWS` (e.g. `C:\O3DE\26.05.0` and
+   `C:\projects\DioramaSandbox`); the Windows leg prefers those and falls back to
+   the common variables when they are unset.
+
 ## Triggering it
 
 - **Manually**: Actions → `build-test` → Run workflow.
@@ -56,17 +73,21 @@ take it offline afterward.
 
 ## What it does
 
-`scripts/ci_build_test.sh` (which the workflow calls, and which you can run
-locally with the same environment variables):
+`scripts/ci_build_test.sh` (Linux) and `scripts/ci_build_test.ps1` (Windows) are
+the two build scripts the workflow calls, and which you can run locally with the
+same environment variables. Both do the same four steps:
 
-1. Registers this gem as an external subdirectory with the engine.
-2. Configures the host project with `Ninja Multi-Config`.
-3. Builds `Diorama`, `Diorama.Editor`, and `Diorama.Tests`.
-4. Runs the unit tests through `AzTestRunner` and fails on any test failure.
+1. Register this gem as an external subdirectory with the engine.
+2. Configure the host project (Linux: `Ninja Multi-Config`; Windows:
+   `Visual Studio 17 2022`, overridable with `CMAKE_GENERATOR`).
+3. Build `Diorama`, `Diorama.Editor`, and `Diorama.Tests`.
+4. Run the unit tests through `AzTestRunner` and fail on any test failure.
 
 ## Running the script locally
 
-The same script works on a developer machine:
+The same scripts work on a developer machine.
+
+Linux:
 
 ```bash
 O3DE_ENGINE_PATH=/opt/O3DE/26.05.0 \
@@ -74,8 +95,18 @@ DIORAMA_PROJECT=/path/to/DioramaSandbox \
 ./scripts/ci_build_test.sh
 ```
 
+Windows (PowerShell):
+
+```powershell
+$env:O3DE_ENGINE_PATH = "C:\O3DE\26.05.0"
+$env:DIORAMA_PROJECT  = "C:\projects\DioramaSandbox"
+.\scripts\ci_build_test.ps1
+```
+
 Optional overrides: `BUILD_CONFIG` (default `profile`), `BUILD_DIR`,
-`TEST_FILTER`, `GEM_PATH`.
+`TEST_FILTER`, `GEM_PATH`. Windows also accepts `CMAKE_GENERATOR` and
+`AZ_TEST_RUNNER` (full path to `AzTestRunner.exe`, if it is not at the derived
+default).
 
 ## Not covered
 

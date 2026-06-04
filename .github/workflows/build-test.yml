@@ -3,10 +3,17 @@ name: build-test
 # Builds the gem through a host O3DE project and runs its unit tests.
 #
 # This needs the full O3DE 26.05 SDK, a host project, and 3rdParty packages,
-# which GitHub-hosted runners do not have. It therefore runs ONLY on a
-# self-hosted runner labelled `o3de` (see docs/ci-self-hosted-runner.md for
-# setup). It is opt-in: triggered manually, or on PRs/pushes that a maintainer
-# has labelled, so ordinary contributors are never blocked by missing hardware.
+# which GitHub-hosted runners do not have. It therefore runs ONLY on self-hosted
+# runners labelled `o3de` (see docs/ci-self-hosted-runner.md for setup). It is
+# opt-in: triggered manually, or on PRs/pushes that a maintainer has labelled, so
+# ordinary contributors are never blocked by missing hardware.
+#
+# Two legs, gated identically: Linux (`[self-hosted, o3de]`, ci_build_test.sh)
+# and Windows (`[self-hosted, o3de, windows]`, ci_build_test.ps1). The Windows
+# leg is skipped automatically when no matching runner is online, so it is safe
+# to keep enabled before a Windows runner exists; bring one online to activate
+# it. Windows is O3DE's primary platform, so this is the gate that confirms the
+# gem builds and tests there, not just on Linux.
 #
 # The lint workflow (lint.yml) remains the always-on gate on GitHub-hosted
 # runners; this one is the heavier, environment-dependent complement.
@@ -20,8 +27,8 @@ permissions:
   contents: read
 
 jobs:
-  build-test:
-    name: build and unit test
+  build-test-linux:
+    name: build and unit test (Linux)
     # Only attempt on a self-hosted runner that advertises the O3DE SDK. The
     # PR path additionally requires the `ci:build` label so the heavy job runs
     # only when a maintainer asks for it.
@@ -48,3 +55,35 @@ jobs:
           BUILD_CONFIG: profile
           TEST_FILTER: "SpriteUVTest.*:SpriteAnimationTest.*:SpriteBatchPlanTest.*"
         run: ./scripts/ci_build_test.sh
+
+  build-test-windows:
+    name: build and unit test (Windows)
+    # Gated identically to the Linux leg. Requires a self-hosted Windows runner
+    # labelled `o3de` + `windows` with the O3DE SDK and a host project; until one
+    # is online this job is simply queued/skipped and never blocks a PR. Windows
+    # is O3DE's primary platform, so this confirms the gem builds and tests there.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:build')
+    runs-on: [self-hosted, o3de, windows]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show environment
+        shell: pwsh
+        run: |
+          Write-Host "engine : $($env:O3DE_ENGINE_PATH ?? '<unset>')"
+          Write-Host "project: $($env:DIORAMA_PROJECT ?? '<unset>')"
+          Write-Host "runner : $([System.Environment]::OSVersion.VersionString)"
+
+      - name: Build and test
+        # Variables can be Windows-specific (e.g. an O3DE_ENGINE_PATH_WINDOWS)
+        # if the Linux and Windows runners share the repo; fall back to the
+        # common ones otherwise.
+        shell: pwsh
+        env:
+          O3DE_ENGINE_PATH: ${{ vars.O3DE_ENGINE_PATH_WINDOWS || vars.O3DE_ENGINE_PATH }}
+          DIORAMA_PROJECT: ${{ vars.DIORAMA_PROJECT_WINDOWS || vars.DIORAMA_PROJECT }}
+          BUILD_CONFIG: profile
+          TEST_FILTER: "SpriteUVTest.*:SpriteAnimationTest.*:SpriteBatchPlanTest.*"
+        run: .\scripts\ci_build_test.ps1
