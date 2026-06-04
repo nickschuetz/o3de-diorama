@@ -210,6 +210,7 @@ Drives a **2D Particle Emitter** (how-to [09-particles](../howto/09-particles.md
 | `SetGravity` | `x, y: float` | void | Per-particle acceleration. |
 | `SetLifetime` | `minSeconds, maxSeconds: float` | void | Particle lifetime range. |
 | `SetSpeed` | `minSpeed, maxSpeed: float` | void | Initial speed range. |
+| `SetSpin` | `minRadiansPerSecond, maxRadiansPerSecond: float` | void | Per-particle spin range (signed; negative = clockwise). |
 | `SetDirection` | `degrees, spreadDegrees: float` | void | Emission direction and cone. |
 | `SetStartColor` / `SetEndColor` | `r, g, b, a: float` | void | Color over life (`0..1`). |
 | `SetStartSize` / `SetEndSize` | `size: float` | void | Size over life. |

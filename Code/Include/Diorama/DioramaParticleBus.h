@@ -62,6 +62,8 @@ namespace Diorama
         virtual void SetLifetime(float minSeconds, float maxSeconds) = 0;
         //! Initial speed range in world units/sec (clamped non-negative, min<=max).
         virtual void SetSpeed(float minSpeed, float maxSpeed) = 0;
+        //! Per-particle angular velocity range in radians/sec (signed; min/max as given).
+        virtual void SetSpin(float minRadiansPerSecond, float maxRadiansPerSecond) = 0;
         //! Emission direction (degrees) and cone spread (degrees; 360 = radial).
         virtual void SetDirection(float degrees, float spreadDegrees) = 0;
         //! Color at birth (channels clamped 0..1).

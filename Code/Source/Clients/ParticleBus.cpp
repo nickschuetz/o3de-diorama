@@ -78,6 +78,11 @@ namespace Diorama
                 { { { "minSpeed", "Slowest initial speed; clamped non-negative." },
                     { "maxSpeed", "Fastest initial speed; clamped to >= min." } } })
             ->Event(
+                "SetSpin",
+                &DioramaParticleRequestBus::Events::SetSpin,
+                { { { "minRadiansPerSecond", "Slowest per-particle spin (signed; negative = clockwise)." },
+                    { "maxRadiansPerSecond", "Fastest per-particle spin (signed)." } } })
+            ->Event(
                 "SetDirection",
                 &DioramaParticleRequestBus::Events::SetDirection,
                 { { { "degrees", "Emission direction in degrees (0 = +X, 90 = +Y)." },

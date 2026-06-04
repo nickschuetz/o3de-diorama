@@ -122,6 +122,16 @@ namespace Diorama
                     ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
+                        &DioramaParticleConfig::m_spinMin,
+                        "Spin Min",
+                        "Slowest per-particle spin (radians/sec; signed, negative = clockwise)")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaParticleConfig::m_spinMax,
+                        "Spin Max",
+                        "Fastest per-particle spin (radians/sec; signed)")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
                         &DioramaParticleConfig::m_directionDegrees,
                         "Direction",
                         "Emission direction in degrees (0 = +X, 90 = +Y)")
@@ -467,6 +477,14 @@ namespace Diorama
     {
         m_config.m_speedMin = ParticleNonNeg(minSpeed);
         m_config.m_speedMax = AZ::GetMax(m_config.m_speedMin, ParticleNonNeg(maxSpeed));
+    }
+
+    void ParticleEmitterComponent::SetSpin(float minRadiansPerSecond, float maxRadiansPerSecond)
+    {
+        // Spin is signed (negative = clockwise), so no non-negative clamp; the spawn
+        // path samples uniformly across [min, max] regardless of their order.
+        m_config.m_spinMin = minRadiansPerSecond;
+        m_config.m_spinMax = maxRadiansPerSecond;
     }
 
     void ParticleEmitterComponent::SetDirection(float degrees, float spreadDegrees)

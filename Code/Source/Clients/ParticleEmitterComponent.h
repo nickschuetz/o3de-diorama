@@ -113,6 +113,7 @@ namespace Diorama
         void SetGravity(float x, float y) override;
         void SetLifetime(float minSeconds, float maxSeconds) override;
         void SetSpeed(float minSpeed, float maxSpeed) override;
+        void SetSpin(float minRadiansPerSecond, float maxRadiansPerSecond) override;
         void SetDirection(float degrees, float spreadDegrees) override;
         void SetStartColor(float r, float g, float b, float a) override;
         void SetEndColor(float r, float g, float b, float a) override;

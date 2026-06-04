@@ -9,14 +9,26 @@
 
 #include <AzCore/Component/ComponentApplication.h>
 #include <AzCore/Component/Entity.h>
+#include <AzCore/Serialization/EditContext.h>
+#include <AzCore/Serialization/SerializeContext.h>
 
+#include <Clients/Collider2DComponent.h>
+#include <Clients/DioramaCRTComponent.h>
+#include <Clients/DioramaCamera2DComponent.h>
+#include <Clients/DioramaLightComponent.h>
+#include <Clients/DioramaParallaxComponent.h>
+#include <Clients/DioramaUIComponent.h>
+#include <Clients/ParticleEmitterComponent.h>
 #include <Clients/SpriteAnimation.h>
 #include <Clients/SpriteBatchPlan.h>
 #include <Clients/SpriteComponent.h>
 #include <Clients/SpritePresenter.h>
 #include <Clients/SpriteRequestHandler.h>
+#include <Clients/TilemapComponent.h>
+#include <Diorama/DioramaLightConfig.h>
 #include <Diorama/SpriteBus.h>
 #include <Diorama/SpriteComponentConfig.h>
+#include <Diorama/TilemapComponentConfig.h>
 
 namespace Diorama
 {
@@ -669,5 +681,102 @@ namespace Diorama
         EXPECT_NEAR(info.m_width, 5.0f, 1e-5f);
         EXPECT_NEAR(info.m_height, 6.0f, 1e-5f);
         EXPECT_NEAR(info.m_sortOffset, 2.0f, 1e-5f);
+    }
+
+    // ---- AI / human parity guard --------------------------------------------
+    // Every field a component config serializes is persisted into the prefab and
+    // can be written by an agent (over the request bus or by hand-authored JSON).
+    // For parity, the same field must be visible to a human in the editor
+    // Inspector, which means it needs an EditContext DataElement. A field that is
+    // serialized but has no DataElement is an AI-only / hand-edit-only knob the
+    // human cannot see or change in the Inspector: a parity regression.
+    //
+    // The EditContext records a DataElement by setting the matching serialize
+    // ClassElement's m_editData. So the check is: for every non-base serialized
+    // element of each config, m_editData must be non-null (or the field must be
+    // explicitly allowlisted as not-Inspector-editable by design).
+    //
+    // Each config is reflected standalone into a fresh SerializeContext that owns
+    // its own EditContext (created *before* the Reflect call, so the config's
+    // `if (auto* ec = sc->GetEditContext())` block runs). No ComponentApplication
+    // is stood up: the configs reflect in isolation, so the guard cannot be
+    // perturbed by, or perturb, engine-wide reflection.
+    template<typename ConfigT>
+    AZStd::vector<AZStd::string> SerializedFieldsMissingFromInspector()
+    {
+        AZ::SerializeContext serializeContext;
+        serializeContext.CreateEditContext();
+        ConfigT::Reflect(&serializeContext);
+
+        AZStd::vector<AZStd::string> missing;
+        const AZ::SerializeContext::ClassData* classData = serializeContext.FindClassData(azrtti_typeid<ConfigT>());
+        if (classData == nullptr)
+        {
+            // Sentinel: a config that reflected nothing is itself a failure the
+            // caller surfaces (an empty "missing" list would falsely pass).
+            missing.push_back("<config-not-reflected>");
+            return missing;
+        }
+        for (const AZ::SerializeContext::ClassElement& element : classData->m_elements)
+        {
+            if (element.m_flags & AZ::SerializeContext::ClassElement::FLG_BASE_CLASS)
+            {
+                continue;
+            }
+            if (element.m_editData == nullptr)
+            {
+                missing.push_back(element.m_name);
+            }
+        }
+        return missing;
+    }
+
+    // Fail the current test if ConfigT serializes a field that has no Inspector
+    // DataElement and is not in allowlist. allowlist holds fields that are
+    // serialized-but-not-Inspector by design (bulk data authored by tools/scripts).
+    template<typename ConfigT>
+    void ExpectInspectorParity(const char* name, std::initializer_list<const char*> allowlist)
+    {
+        AZStd::vector<AZStd::string> offenders;
+        for (const AZStd::string& field : SerializedFieldsMissingFromInspector<ConfigT>())
+        {
+            bool allowed = false;
+            for (const char* allow : allowlist)
+            {
+                if (field == allow)
+                {
+                    allowed = true;
+                    break;
+                }
+            }
+            if (!allowed)
+            {
+                offenders.push_back(field);
+            }
+        }
+
+        AZStd::string joined;
+        for (const AZStd::string& field : offenders)
+        {
+            joined += field;
+            joined += " ";
+        }
+        EXPECT_TRUE(offenders.empty()) << name
+                                       << " serializes field(s) with no Inspector DataElement (AI/hand-edit only): " << joined.c_str();
+    }
+
+    TEST(ParityGuardTest, EverySerializedConfigField_HasAnInspectorControl)
+    {
+        ExpectInspectorParity<SpriteComponentConfig>("SpriteComponentConfig", {});
+        ExpectInspectorParity<DioramaParticleConfig>("DioramaParticleConfig", {});
+        ExpectInspectorParity<DioramaLightConfig>("DioramaLightConfig", {});
+        ExpectInspectorParity<DioramaParallaxConfig>("DioramaParallaxConfig", {});
+        ExpectInspectorParity<Collider2DConfig>("Collider2DConfig", {});
+        ExpectInspectorParity<DioramaUIConfig>("DioramaUIConfig", {});
+        ExpectInspectorParity<DioramaCRTConfig>("DioramaCRTConfig", {});
+        ExpectInspectorParity<DioramaCamera2DConfig>("DioramaCamera2DConfig", {});
+        // m_tiles is the bulk integer grid, authored by the paint tool / request
+        // bus / build script, not hand-typed cell by cell in the Inspector.
+        ExpectInspectorParity<TilemapComponentConfig>("TilemapComponentConfig", { "tiles" });
     }
 } // namespace Diorama
