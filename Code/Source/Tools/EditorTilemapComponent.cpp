@@ -6,8 +6,13 @@
  */
 
 #include <Clients/TilemapComponent.h>
+#include <Clients/TilemapPaint.h>
 #include <Tools/EditorTilemapComponent.h>
+#include <Tools/EditorTilemapPaintComponentMode.h>
 
+#include <AzCore/Component/TransformBus.h>
+#include <AzCore/Math/MathUtils.h>
+#include <AzCore/Math/Transform.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/EditContextConstants.inl>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -18,10 +23,16 @@ namespace Diorama
 {
     void EditorTilemapComponent::Reflect(AZ::ReflectContext* context)
     {
+        EditorTilemapPaintComponentMode::Reflect(context);
+
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
-            serializeContext->Class<EditorTilemapComponent, AzToolsFramework::Components::EditorComponentBase>()->Version(1)->Field(
-                "Config", &EditorTilemapComponent::m_config);
+            serializeContext->Class<EditorTilemapComponent, AzToolsFramework::Components::EditorComponentBase>()
+                ->Version(2)
+                ->Field("Config", &EditorTilemapComponent::m_config)
+                ->Field("ActiveTile", &EditorTilemapComponent::m_activeTile)
+                ->Field("BrushSize", &EditorTilemapComponent::m_brushSize)
+                ->Field("PaintMode", &EditorTilemapComponent::m_componentModeDelegate);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -32,7 +43,26 @@ namespace Diorama
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
                     ->DataElement(AZ::Edit::UIHandlers::Default, &EditorTilemapComponent::m_config, "Config", "Tilemap configuration")
                     ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
-                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorTilemapComponent::OnConfigChanged);
+                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorTilemapComponent::OnConfigChanged)
+                    ->ClassElement(AZ::Edit::ClassElements::Group, "Painting")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &EditorTilemapComponent::m_activeTile,
+                        "Active Tile",
+                        "Atlas cell index a left-drag paints in the paint mode")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &EditorTilemapComponent::m_brushSize,
+                        "Brush Size",
+                        "Square brush edge length in cells")
+                    ->Attribute(AZ::Edit::Attributes::Min, 1)
+                    ->Attribute(AZ::Edit::Attributes::Max, 16)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &EditorTilemapComponent::m_componentModeDelegate,
+                        "Paint",
+                        "Enter the viewport paint mode: left-drag paints the active tile, right-drag erases");
             }
         }
     }
@@ -81,10 +111,18 @@ namespace Diorama
                 // Persist it now so the new config is baked.
                 PersistConfig();
             });
+
+        // The paint Component Mode reaches back through this bus, and the delegate
+        // adds the "Paint" button + enters the mode when the user clicks it.
+        TilemapPaintEditorRequestBus::Handler::BusConnect(GetEntityId());
+        m_componentModeDelegate.ConnectWithSingleComponentMode<EditorTilemapComponent, EditorTilemapPaintComponentMode>(
+            AZ::EntityComponentIdPair(GetEntityId(), GetId()), nullptr);
     }
 
     void EditorTilemapComponent::Deactivate()
     {
+        m_componentModeDelegate.Disconnect();
+        TilemapPaintEditorRequestBus::Handler::BusDisconnect();
         m_requestHandler.Disconnect();
         m_presenter.Disconnect();
         AzToolsFramework::Components::EditorComponentBase::Deactivate();
@@ -124,5 +162,75 @@ namespace Diorama
         // Push the edited values to the live preview immediately.
         m_presenter.SetConfig(m_config);
         return AZ::Edit::PropertyRefreshLevels::None;
+    }
+
+    int EditorTilemapComponent::GetPaintActiveTile() const
+    {
+        return m_activeTile;
+    }
+
+    int EditorTilemapComponent::GetPaintBrushSize() const
+    {
+        return m_brushSize < 1 ? 1 : m_brushSize;
+    }
+
+    int EditorTilemapComponent::GetPaintColumns() const
+    {
+        return m_config.GetColumns();
+    }
+
+    int EditorTilemapComponent::GetPaintRows() const
+    {
+        return m_config.GetRows();
+    }
+
+    int EditorTilemapComponent::GetPaintTileAt(int col, int row) const
+    {
+        return m_config.GetTile(col, row);
+    }
+
+    bool EditorTilemapComponent::PaintWorldRayToCell(
+        const AZ::Vector3& rayOrigin, const AZ::Vector3& rayDirection, int& outCol, int& outRow) const
+    {
+        // Bring the world ray into the tilemap's local space, where the grid lies on
+        // the Y = 0 (XZ) plane, intersect that plane, then resolve the cell.
+        AZ::Transform worldTransform = AZ::Transform::CreateIdentity();
+        AZ::TransformBus::EventResult(worldTransform, GetEntityId(), &AZ::TransformBus::Events::GetWorldTM);
+        const AZ::Transform inverse = worldTransform.GetInverse();
+        const AZ::Vector3 localOrigin = inverse.TransformPoint(rayOrigin);
+        const AZ::Vector3 localDirection = inverse.TransformPoint(rayOrigin + rayDirection) - localOrigin;
+
+        if (AZ::GetAbs(localDirection.GetY()) < 1e-6f)
+        {
+            return false; // ray parallel to the grid plane
+        }
+        const float t = -localOrigin.GetY() / localDirection.GetY();
+        if (t < 0.0f)
+        {
+            return false; // grid plane is behind the ray origin
+        }
+        const AZ::Vector3 localHit = localOrigin + localDirection * t;
+        return m_config.LocalPositionToCell(localHit, outCol, outRow);
+    }
+
+    void EditorTilemapComponent::PaintCells(const AZStd::vector<TilemapPaint::Cell>& cells, int tileId)
+    {
+        bool changed = false;
+        for (const TilemapPaint::Cell& cell : cells)
+        {
+            if (m_config.GetTile(cell.m_col, cell.m_row) != tileId)
+            {
+                m_config.SetTile(cell.m_col, cell.m_row, tileId);
+                changed = true;
+            }
+        }
+        if (!changed)
+        {
+            return;
+        }
+        m_presenter.SetConfig(m_config);
+        // The paint mode holds the stroke's outer undo batch open; marking the entity
+        // dirty here records this stamp into it (and bakes into the prefab on save).
+        PersistConfig();
     }
 } // namespace Diorama

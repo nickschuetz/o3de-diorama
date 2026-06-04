@@ -10,7 +10,9 @@
 #include <Clients/TilemapPresenter.h>
 #include <Clients/TilemapRequestHandler.h>
 #include <Diorama/TilemapComponentConfig.h>
+#include <Tools/TilemapPaintEditorBus.h>
 
+#include <AzToolsFramework/ComponentMode/ComponentModeDelegate.h>
 #include <AzToolsFramework/ToolsComponents/EditorComponentBase.h>
 
 namespace Diorama
@@ -22,7 +24,9 @@ namespace Diorama
     //! play it builds the lightweight runtime TilemapComponent through
     //! BuildGameEntity. All Qt and AzToolsFramework dependencies stay in this
     //! editor module so the runtime client stays lean.
-    class EditorTilemapComponent final : public AzToolsFramework::Components::EditorComponentBase
+    class EditorTilemapComponent final
+        : public AzToolsFramework::Components::EditorComponentBase
+        , private TilemapPaintEditorRequestBus::Handler
     {
     public:
         AZ_EDITOR_COMPONENT(
@@ -46,6 +50,15 @@ namespace Diorama
         void BuildGameEntity(AZ::Entity* gameEntity) override;
 
     private:
+        // TilemapPaintEditorRequestBus (the paint Component Mode talks to us through this)
+        int GetPaintActiveTile() const override;
+        int GetPaintBrushSize() const override;
+        int GetPaintColumns() const override;
+        int GetPaintRows() const override;
+        int GetPaintTileAt(int col, int row) const override;
+        bool PaintWorldRayToCell(const AZ::Vector3& rayOrigin, const AZ::Vector3& rayDirection, int& outCol, int& outRow) const override;
+        void PaintCells(const AZStd::vector<TilemapPaint::Cell>& cells, int tileId) override;
+
         // Called by the edit context when a property changes; refreshes the preview.
         AZ::u32 OnConfigChanged();
 
@@ -59,5 +72,12 @@ namespace Diorama
         TilemapComponentConfig m_config;
         TilemapPresenter m_presenter;
         TilemapRequestHandler m_requestHandler;
+
+        //! Detects entry into the viewport paint Component Mode and creates it.
+        AzToolsFramework::ComponentModeFramework::ComponentModeDelegate m_componentModeDelegate;
+        //! Atlas tile id a left stroke paints (clamped to the atlas at use).
+        int m_activeTile = 0;
+        //! Square brush edge length in cells.
+        int m_brushSize = 1;
     };
 } // namespace Diorama

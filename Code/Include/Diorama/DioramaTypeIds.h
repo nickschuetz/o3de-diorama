@@ -87,6 +87,10 @@ namespace Diorama
     // Audio convenience TypeIds (fire-and-forget one-shot over MiniAudio)
     inline constexpr const char* DioramaAudioRequestsTypeId = "{51D41A62-96D1-4A9A-A9E6-4C8D3F7D62F1}";
 
+    // Tilemap paint tool (editor-only): component mode + mode<->component bus
+    inline constexpr const char* EditorTilemapPaintComponentModeTypeId = "{2A7F9B0C-1D3E-4F5A-8B6C-7D8E9F0A1B2C}";
+    inline constexpr const char* TilemapPaintEditorRequestsTypeId = "{3B8A0C1D-2E4F-4A6B-9C7D-8E9F0A1B2C3D}";
+
     // 2D post-processing "look" profile TypeIds (drives Atom bloom + vignette)
     inline constexpr const char* DioramaLookConfigTypeId = "{6F2B1A4C-3D5E-4A8B-9C7D-1E2F3A4B5C6D}";
     inline constexpr const char* DioramaLookComponentTypeId = "{7A3C2B5D-4E6F-4B9C-8D1E-2F3A4B5C6D7E}";
