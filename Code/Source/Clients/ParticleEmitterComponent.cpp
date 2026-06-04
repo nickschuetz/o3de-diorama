@@ -19,6 +19,8 @@
 #include <Atom/RPI.Public/Scene.h>
 #include <Atom/RPI.Reflect/Asset/AssetUtils.h>
 
+#include <cmath>
+
 namespace Diorama
 {
     namespace
@@ -337,7 +339,7 @@ namespace Diorama
         const float half = m_config.m_spreadDegrees * 0.5f;
         const float angleDeg = m_config.m_directionDegrees + (m_rng.GetRandomFloat() * 2.0f - 1.0f) * half;
         const float angleRad = angleDeg * ParticleDegToRad;
-        const AZ::Vector2 velocity(cosf(angleRad) * speed, sinf(angleRad) * speed);
+        const AZ::Vector2 velocity(std::cos(angleRad) * speed, std::sin(angleRad) * speed);
         const float spin = m_config.m_spinMin + (m_config.m_spinMax - m_config.m_spinMin) * m_rng.GetRandomFloat();
 
         m_particles.push_back(Particles2D::Spawn(AZ::Vector2(world.GetX(), world.GetY()), velocity, life, 0.0f, spin));

@@ -14,6 +14,8 @@
 #include <AzCore/std/sort.h>
 #include <AzCore/std/utils.h>
 
+#include <cmath>
+
 // Pure, header-only 2D collision core for Diorama. It operates entirely in a 2D
 // plane (AZ::Vector2); projecting an entity's world transform onto the chosen
 // plane is the component layer's job, so this core has no engine dependencies and
@@ -98,8 +100,8 @@ namespace Diorama::Collision2D
 
         if (ta == ShapeType::Box && tb == ShapeType::Box)
         {
-            const float dx = fabsf(a.m_center.GetX() - b.m_center.GetX());
-            const float dy = fabsf(a.m_center.GetY() - b.m_center.GetY());
+            const float dx = std::fabs(a.m_center.GetX() - b.m_center.GetX());
+            const float dy = std::fabs(a.m_center.GetY() - b.m_center.GetY());
             return dx <= (a.m_shape.m_halfExtents.GetX() + b.m_shape.m_halfExtents.GetX()) &&
                 dy <= (a.m_shape.m_halfExtents.GetY() + b.m_shape.m_halfExtents.GetY());
         }
@@ -149,7 +151,7 @@ namespace Diorama::Collision2D
             {
                 return false;
             }
-            const float sqrtDisc = sqrtf(disc);
+            const float sqrtDisc = std::sqrt(disc);
             float t = -b - sqrtDisc; // near root
             if (t < 0.0f)
             {
@@ -179,7 +181,7 @@ namespace Diorama::Collision2D
         const float dy = dir.GetY();
 
         // X slab.
-        if (fabsf(dx) < 1e-8f)
+        if (std::fabs(dx) < 1e-8f)
         {
             if (ox < minX || ox > maxX)
             {
@@ -204,7 +206,7 @@ namespace Diorama::Collision2D
         }
 
         // Y slab.
-        if (fabsf(dy) < 1e-8f)
+        if (std::fabs(dy) < 1e-8f)
         {
             if (oy < minY || oy > maxY)
             {

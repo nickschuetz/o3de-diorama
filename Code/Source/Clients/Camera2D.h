@@ -10,6 +10,8 @@
 #include <AzCore/Math/Vector2.h>
 #include <AzCore/base.h>
 
+#include <cmath>
+
 // Pure, header-only math for the 2D camera component (Docs/design/2d-camera.md).
 // These are the frame-rate-independent building blocks of camera follow: smoothing,
 // deadzone, bounds, lookahead, pixel snapping, and trauma-based screen shake. They
@@ -39,7 +41,7 @@ namespace Diorama::Camera2D
         {
             return target;
         }
-        const float factor = 1.0f - expf(-deltaTime / smoothTime);
+        const float factor = 1.0f - std::exp(-deltaTime / smoothTime);
         return current + (target - current) * factor;
     }
 
@@ -109,8 +111,8 @@ namespace Diorama::Camera2D
         {
             return pos;
         }
-        const float x = floorf(pos.GetX() * pixelsPerUnit + 0.5f) / pixelsPerUnit;
-        const float y = floorf(pos.GetY() * pixelsPerUnit + 0.5f) / pixelsPerUnit;
+        const float x = std::floor(pos.GetX() * pixelsPerUnit + 0.5f) / pixelsPerUnit;
+        const float y = std::floor(pos.GetY() * pixelsPerUnit + 0.5f) / pixelsPerUnit;
         return AZ::Vector2(x, y);
     }
 
@@ -143,6 +145,6 @@ namespace Diorama::Camera2D
     //! supplies the angle from smooth noise so this stays deterministic and testable.
     inline AZ::Vector2 ShakeOffset(float magnitude, float angle)
     {
-        return AZ::Vector2(cosf(angle) * magnitude, sinf(angle) * magnitude);
+        return AZ::Vector2(std::cos(angle) * magnitude, std::sin(angle) * magnitude);
     }
 } // namespace Diorama::Camera2D
