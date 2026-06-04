@@ -14,6 +14,8 @@ set(FILES
     Source/Clients/SpriteAnimation.h
     Source/Clients/SpriteBatchPlan.h
     Source/Clients/SkeletalClip.h
+    Source/Clients/AsepriteImport.h
+    Source/Clients/AsepriteImport.cpp
     Source/Clients/Collision2D.h
     Source/Clients/Collision2DBus.cpp
     Source/Clients/Collision2DSystemComponent.cpp
@@ -53,6 +55,9 @@ set(FILES
     Source/Clients/DioramaSkeletalClipComponent.cpp
     Source/Clients/DioramaSkeletalClipComponent.h
     Source/Clients/SkeletalBus.cpp
+    Source/Clients/DioramaAsepriteComponent.cpp
+    Source/Clients/DioramaAsepriteComponent.h
+    Source/Clients/AsepriteBus.cpp
     Source/Clients/DioramaParallaxComponent.cpp
     Source/Clients/DioramaParallaxComponent.h
     Source/Clients/ParallaxBus.cpp

@@ -107,6 +107,14 @@ namespace Diorama
     inline constexpr const char* SkeletalKeyframeDataTypeId = "{E5263728-93A4-4EBF-90D1-4C5D6E7F8091}";
     inline constexpr const char* SkeletalBoneTrackDataTypeId = "{F6374839-A4B5-4FC0-A1E2-5D6E7F809102}";
     inline constexpr const char* SkeletalEaseTypeId = "{0748594A-B5C6-40D1-B2F3-6E7F80910213}";
+    // Aseprite import TypeIds (sprite-sheet JSON -> frames + named tag animations)
+    inline constexpr const char* DioramaAsepriteConfigTypeId = "{1A2B3C4D-5E6F-4071-8192-A3B4C5D6E7F8}";
+    inline constexpr const char* DioramaAsepriteComponentTypeId = "{2B3C4D5E-6F70-4182-92A3-B4C5D6E7F809}";
+    inline constexpr const char* EditorDioramaAsepriteComponentTypeId = "{3C4D5E6F-7081-4293-A3B4-C5D6E7F8091A}";
+    inline constexpr const char* DioramaAsepriteRequestsTypeId = "{4D5E6F70-8192-43A4-B4C5-D6E7F8091A2B}";
+    inline constexpr const char* AsepriteFrameDataTypeId = "{5E6F7081-92A3-44B5-C5D6-E7F8091A2B3C}";
+    inline constexpr const char* AsepriteTagDataTypeId = "{6F708192-A3B4-45C6-D6E7-F8091A2B3C4D}";
+    inline constexpr const char* AsepriteDirectionTypeId = "{708192A3-B4C5-46D7-E7F8-091A2B3C4D5E}";
 
     // AI-facing 2D collision API TypeIds
     inline constexpr const char* Diorama2DColliderRequestsTypeId = "{908C687A-9799-4BD9-9E82-3368D3BAEA03}";

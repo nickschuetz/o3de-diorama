@@ -15,8 +15,8 @@ The Diorama request buses (`DioramaSpriteRequestBus`, `DioramaTilemapRequestBus`
 `DioramaCamera2DRequestBus`, `DioramaLightRequestBus`, `DioramaParticleRequestBus`,
 `DioramaParallaxRequestBus`, `Diorama2DColliderRequestBus`,
 `Diorama2DCollisionRequestBus`, `DioramaUIRequestBus`, `DioramaAudioRequestBus`,
-`DioramaCRTRequestBus`, `DioramaLookRequestBus`, `DioramaSkeletalRequestBus`) are
-the stable, typed, agent-facing API for driving the gem.
+`DioramaCRTRequestBus`, `DioramaLookRequestBus`, `DioramaSkeletalRequestBus`,
+`DioramaAsepriteRequestBus`) are the stable, typed, agent-facing API for driving the gem.
 The Sprite and Tilemap buses are documented in full first; the rest follow the same
 conventions and are listed after. They are a peer of the
 editor Inspector over the same backing configuration (`SpriteComponentConfig`,
@@ -323,6 +323,23 @@ transform over the clip (how-to [18-skeletal](../howto/18-skeletal.md)).
 | `SetLooping` | `looping: bool` | void | None. | Wrap at the end vs. hold the last frame. |
 | `SetDuration` | `seconds: float` | void | `> 0`. | Clip length the normalized time maps onto. |
 | `IsPlaying` | (none) | `bool` | n/a | True while the clip is advancing. |
+## DioramaAsepriteRequestBus
+
+Drives the **Aseprite Animation** component: it plays named animations (Aseprite
+tags) imported from an "Export Sprite Sheet" JSON by driving a Sprite on the same
+entity (its texture + per-frame UV), honoring per-frame durations and tag direction
+(how-to [19-aseprite](../howto/19-aseprite.md)).
+
+| Verb | Signature (after entity id) | Returns | Clamping | Effect |
+| ---- | --------------------------- | ------- | -------- | ------ |
+| `PlayTag` | `tagName: string` | void | Unknown name is ignored. | Play the named tag from its start. |
+| `Play` | (none) | void | None. | Resume the current tag. |
+| `Stop` | (none) | void | None. | Stop and hold the current frame. |
+| `SetFrame` | `frameIndex: int` | void | Clamped to the sheet. | Show a frame and stop. |
+| `SetSpeed` | `speed: float` | void | None (negative reverses). | Playback rate multiplier. |
+| `SetLooping` | `looping: bool` | void | None. | Wrap the current tag vs. hold the last frame. |
+| `IsPlaying` | (none) | `bool` | n/a | True while a tag is advancing. |
+| `GetCurrentFrame` | (none) | `int` | n/a | The frame index currently shown. |
 
 ## Query and verify (the verify loop)
 

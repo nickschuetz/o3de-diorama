@@ -12,7 +12,9 @@
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 
+#include <Clients/AsepriteImport.h>
 #include <Clients/Collider2DComponent.h>
+#include <Clients/DioramaAsepriteComponent.h>
 #include <Clients/DioramaCRTComponent.h>
 #include <Clients/DioramaCamera2DComponent.h>
 #include <Clients/DioramaLightComponent.h>
@@ -780,6 +782,7 @@ namespace Diorama
         ExpectInspectorParity<DioramaLookConfig>("DioramaLookConfig", {});
         ExpectInspectorParity<DioramaCamera2DConfig>("DioramaCamera2DConfig", {});
         ExpectInspectorParity<DioramaSkeletalClipConfig>("DioramaSkeletalClipConfig", {});
+        ExpectInspectorParity<DioramaAsepriteConfig>("DioramaAsepriteConfig", {});
         // m_tiles is the bulk integer grid, authored by the paint tool / request
         // bus / build script, not hand-typed cell by cell in the Inspector.
         ExpectInspectorParity<TilemapComponentConfig>("TilemapComponentConfig", { "tiles" });
@@ -855,5 +858,113 @@ namespace Diorama
         EXPECT_NEAR(SkeletalClip::ApplyEase(SkeletalClip::Ease::InOutQuad, 0.5f), 0.5f, 1e-4f);
         EXPECT_NEAR(SkeletalClip::ApplyEase(SkeletalClip::Ease::SmoothStep, 0.5f), 0.5f, 1e-4f);
         EXPECT_LT(SkeletalClip::ApplyEase(SkeletalClip::Ease::InQuad, 0.5f), 0.5f);
+    }
+
+    // ---- Aseprite import: JSON parse + playback timeline -----------------------
+    // The component is sprite-driven (it sets the sprite's texture + UV per frame),
+    // but the parse and the per-frame-duration / direction timeline are pure and
+    // tested here.
+
+    namespace
+    {
+        // A minimal Aseprite "Array" export: a 2-frame strip in a 32x16 atlas with a
+        // "walk" tag, frame 0 shows 100ms, frame 1 shows 200ms.
+        constexpr const char* kArrayJson = R"JSON(
+        {
+          "frames": [
+            { "frame": { "x": 0, "y": 0, "w": 16, "h": 16 }, "duration": 100 },
+            { "frame": { "x": 16, "y": 0, "w": 16, "h": 16 }, "duration": 200 }
+          ],
+          "meta": {
+            "image": "hero.png",
+            "size": { "w": 32, "h": 16 },
+            "frameTags": [ { "name": "walk", "from": 0, "to": 1, "direction": "forward" } ]
+          }
+        })JSON";
+
+        // The same two frames in the "Hash" form (frames keyed by name).
+        constexpr const char* kHashJson = R"JSON(
+        {
+          "frames": {
+            "hero 0.png": { "frame": { "x": 0, "y": 0, "w": 16, "h": 16 }, "duration": 100 },
+            "hero 1.png": { "frame": { "x": 16, "y": 0, "w": 16, "h": 16 }, "duration": 200 }
+          },
+          "meta": { "image": "hero.png", "size": { "w": 32, "h": 16 }, "frameTags": [] }
+        })JSON";
+    } // namespace
+
+    TEST(AsepriteImportTest, ParsesArrayForm)
+    {
+        Aseprite::Document doc;
+        ASSERT_TRUE(Aseprite::ParseDocument(kArrayJson, doc));
+        EXPECT_EQ(doc.m_imageName, "hero.png");
+        EXPECT_EQ(doc.m_atlasWidth, 32);
+        EXPECT_EQ(doc.m_atlasHeight, 16);
+        ASSERT_EQ(doc.m_frames.size(), 2u);
+        EXPECT_EQ(doc.m_frames[1].m_x, 16);
+        EXPECT_NEAR(doc.m_frames[0].m_durationSeconds, 0.1f, 1e-4f);
+        EXPECT_NEAR(doc.m_frames[1].m_durationSeconds, 0.2f, 1e-4f);
+        ASSERT_EQ(doc.m_tags.size(), 1u);
+        EXPECT_EQ(doc.m_tags[0].m_name, "walk");
+        EXPECT_EQ(doc.m_tags[0].m_direction, Aseprite::Direction::Forward);
+    }
+
+    TEST(AsepriteImportTest, ParsesHashFormInOrder)
+    {
+        Aseprite::Document doc;
+        ASSERT_TRUE(Aseprite::ParseDocument(kHashJson, doc));
+        ASSERT_EQ(doc.m_frames.size(), 2u);
+        EXPECT_EQ(doc.m_frames[0].m_x, 0);
+        EXPECT_EQ(doc.m_frames[1].m_x, 16);
+    }
+
+    TEST(AsepriteImportTest, MalformedJsonFails)
+    {
+        Aseprite::Document doc;
+        EXPECT_FALSE(Aseprite::ParseDocument("{ not valid", doc));
+        EXPECT_TRUE(doc.m_frames.empty());
+    }
+
+    TEST(AsepriteImportTest, FrameUVMapsPixelRectToAtlas)
+    {
+        Aseprite::FrameData frame{ 16, 0, 16, 16, 0.1f };
+        float uMin, vMin, uMax, vMax;
+        Aseprite::FrameUV(frame, 32, 16, uMin, vMin, uMax, vMax);
+        EXPECT_NEAR(uMin, 0.5f, 1e-4f);
+        EXPECT_NEAR(vMin, 0.0f, 1e-4f);
+        EXPECT_NEAR(uMax, 1.0f, 1e-4f);
+        EXPECT_NEAR(vMax, 1.0f, 1e-4f);
+    }
+
+    TEST(AsepriteImportTest, FrameAtTimeHonorsPerFrameDurations)
+    {
+        Aseprite::Document doc;
+        ASSERT_TRUE(Aseprite::ParseDocument(kArrayJson, doc));
+        const Aseprite::TagData& walk = doc.m_tags[0];
+        // 0..100ms -> frame 0; 100..300ms -> frame 1 (the 200ms frame).
+        EXPECT_EQ(Aseprite::FrameAtTime(doc, walk, 0.05f, true), 0);
+        EXPECT_EQ(Aseprite::FrameAtTime(doc, walk, 0.15f, true), 1);
+        EXPECT_EQ(Aseprite::FrameAtTime(doc, walk, 0.25f, true), 1);
+        // Loops: 0.3s == one full cycle -> back to frame 0.
+        EXPECT_EQ(Aseprite::FrameAtTime(doc, walk, 0.30f, true), 0);
+        // Non-looping holds the last frame past the cycle.
+        EXPECT_EQ(Aseprite::FrameAtTime(doc, walk, 5.0f, false), 1);
+    }
+
+    TEST(AsepriteImportTest, PingPongPlaylistDoesNotDuplicateEndpoints)
+    {
+        Aseprite::Document doc;
+        doc.m_frames = { { 0, 0, 8, 8, 0.1f }, { 8, 0, 8, 8, 0.1f }, { 16, 0, 8, 8, 0.1f } };
+        Aseprite::TagData tag;
+        tag.m_from = 0;
+        tag.m_to = 2;
+        tag.m_direction = Aseprite::Direction::PingPong;
+        const AZStd::vector<int> playlist = Aseprite::BuildPlaylist(doc, tag);
+        // 0,1,2,1 -> back to 0 at the loop (endpoints 0 and 2 not duplicated).
+        ASSERT_EQ(playlist.size(), 4u);
+        EXPECT_EQ(playlist[0], 0);
+        EXPECT_EQ(playlist[1], 1);
+        EXPECT_EQ(playlist[2], 2);
+        EXPECT_EQ(playlist[3], 1);
     }
 } // namespace Diorama

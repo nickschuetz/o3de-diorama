@@ -42,6 +42,7 @@ Each has a written guide and a runnable example.
 | Sound (SFX and music via MiniAudio) | [15-audio.md](15-audio.md) | Written |
 | Retro CRT Overlay (scanlines) | [16-crt.md](16-crt.md) | Written |
 | Skeletal Cutout Animation (keyframed bone rig) | [18-skeletal.md](18-skeletal.md) | Written |
+| Aseprite Animation Import (tags + per-frame timing) | [19-aseprite.md](19-aseprite.md) | Written |
 
 ## Tooling
 
