@@ -30,9 +30,59 @@ namespace Diorama
                     ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
                     ->DataElement(AZ::Edit::UIHandlers::Default, &EditorDioramaLookComponent::m_config, "Config", "2D look configuration")
-                    ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly);
+                    ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
+                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorDioramaLookComponent::OnConfigChanged);
             }
         }
+    }
+
+    void EditorDioramaLookComponent::Activate()
+    {
+        AzToolsFramework::Components::EditorComponentBase::Activate();
+        // Preview in the editor viewport. The viewport scene/feature processor may not
+        // be ready yet on activate; if so, retry on tick until it applies.
+        ApplyPreview();
+        if (!m_previewApplied)
+        {
+            AZ::TickBus::Handler::BusConnect();
+        }
+    }
+
+    void EditorDioramaLookComponent::Deactivate()
+    {
+        AZ::TickBus::Handler::BusDisconnect();
+        RemovePreview();
+        AzToolsFramework::Components::EditorComponentBase::Deactivate();
+    }
+
+    void EditorDioramaLookComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    {
+        ApplyPreview();
+        if (m_previewApplied)
+        {
+            AZ::TickBus::Handler::BusDisconnect();
+        }
+    }
+
+    AZ::u32 EditorDioramaLookComponent::OnConfigChanged()
+    {
+        ApplyPreview();
+        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+    }
+
+    void EditorDioramaLookComponent::ApplyPreview()
+    {
+        m_previewApplied = ApplyLookToScene(GetEntityId(), m_config);
+    }
+
+    void EditorDioramaLookComponent::RemovePreview()
+    {
+        if (!m_previewApplied)
+        {
+            return;
+        }
+        RemoveLookFromScene(GetEntityId());
+        m_previewApplied = false;
     }
 
     void EditorDioramaLookComponent::BuildGameEntity(AZ::Entity* gameEntity)

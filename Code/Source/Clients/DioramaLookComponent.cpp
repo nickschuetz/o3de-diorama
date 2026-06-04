@@ -120,9 +120,9 @@ namespace Diorama
         }
     }
 
-    bool DioramaLookComponent::ApplyLook()
+    bool ApplyLookToScene(AZ::EntityId entityId, const DioramaLookConfig& config)
     {
-        AZ::RPI::Scene* scene = AZ::RPI::Scene::GetSceneForEntityId(GetEntityId());
+        AZ::RPI::Scene* scene = AZ::RPI::Scene::GetSceneForEntityId(entityId);
         if (scene == nullptr)
         {
             return false;
@@ -133,7 +133,7 @@ namespace Diorama
             return false;
         }
 
-        AZ::Render::PostProcessSettingsInterface* settings = postProcess->GetOrCreateSettingsInterface(GetEntityId());
+        AZ::Render::PostProcessSettingsInterface* settings = postProcess->GetOrCreateSettingsInterface(entityId);
         if (settings == nullptr)
         {
             return false;
@@ -141,23 +141,39 @@ namespace Diorama
 
         if (AZ::Render::BloomSettingsInterface* bloom = settings->GetOrCreateBloomSettingsInterface())
         {
-            bloom->SetEnabled(m_config.m_bloomEnabled);
-            bloom->SetThreshold(LookNonNeg(m_config.m_bloomThreshold));
-            bloom->SetKnee(LookClamp01(m_config.m_bloomKnee));
-            bloom->SetIntensity(LookNonNeg(m_config.m_bloomIntensity));
+            bloom->SetEnabled(config.m_bloomEnabled);
+            bloom->SetThreshold(LookNonNeg(config.m_bloomThreshold));
+            bloom->SetKnee(LookClamp01(config.m_bloomKnee));
+            bloom->SetIntensity(LookNonNeg(config.m_bloomIntensity));
             bloom->OnConfigChanged();
         }
 
         if (AZ::Render::VignetteSettingsInterface* vignette = settings->GetOrCreateVignetteSettingsInterface())
         {
-            vignette->SetEnabled(m_config.m_vignetteEnabled);
-            vignette->SetIntensity(LookClamp01(m_config.m_vignetteIntensity));
+            vignette->SetEnabled(config.m_vignetteEnabled);
+            vignette->SetIntensity(LookClamp01(config.m_vignetteIntensity));
             vignette->OnConfigChanged();
         }
 
         settings->OnConfigChanged();
-        m_applied = true;
         return true;
+    }
+
+    void RemoveLookFromScene(AZ::EntityId entityId)
+    {
+        if (AZ::RPI::Scene* scene = AZ::RPI::Scene::GetSceneForEntityId(entityId))
+        {
+            if (auto* postProcess = scene->GetFeatureProcessor<AZ::Render::PostProcessFeatureProcessorInterface>())
+            {
+                postProcess->RemoveSettingsInterface(entityId);
+            }
+        }
+    }
+
+    bool DioramaLookComponent::ApplyLook()
+    {
+        m_applied = ApplyLookToScene(GetEntityId(), m_config);
+        return m_applied;
     }
 
     void DioramaLookComponent::RemoveLook()
@@ -166,13 +182,7 @@ namespace Diorama
         {
             return;
         }
-        if (AZ::RPI::Scene* scene = AZ::RPI::Scene::GetSceneForEntityId(GetEntityId()))
-        {
-            if (auto* postProcess = scene->GetFeatureProcessor<AZ::Render::PostProcessFeatureProcessorInterface>())
-            {
-                postProcess->RemoveSettingsInterface(GetEntityId());
-            }
-        }
+        RemoveLookFromScene(GetEntityId());
         m_applied = false;
     }
 

@@ -14,6 +14,16 @@
 
 namespace Diorama
 {
+    class DioramaLookConfig;
+
+    //! Apply a look config to the PostProcessFeatureProcessor of the scene that owns
+    //! entityId (per-entity post settings = a PostFxLayer). Returns false if the scene
+    //! or feature processor is not available yet. Shared by the runtime component and
+    //! the editor twin, so the editor previews the exact same result it will export.
+    bool ApplyLookToScene(AZ::EntityId entityId, const class DioramaLookConfig& config);
+    //! Remove entityId's post settings from its scene's feature processor.
+    void RemoveLookFromScene(AZ::EntityId entityId);
+
     //! Configuration for the 2D post-processing "look". Tuned for a 2D/2.5D scene:
     //! the defaults give a gentle glow on bright/emissive sprites plus a soft edge
     //! vignette, the look you would otherwise hand-build with Atom's PostFxLayer +
