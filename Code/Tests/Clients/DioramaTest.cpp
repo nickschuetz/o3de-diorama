@@ -31,6 +31,7 @@
 #include <Clients/SpriteRequestHandler.h>
 #include <Clients/TilemapComponent.h>
 #include <Diorama/DioramaLightBus.h>
+#include <Clients/TilemapPaint.h>
 #include <Diorama/DioramaLightConfig.h>
 #include <Diorama/SpriteBus.h>
 #include <Diorama/SpriteComponentConfig.h>
@@ -1000,5 +1001,97 @@ namespace Diorama
         float out = -1.0f;
         EXPECT_TRUE(prop->m_getter->InvokeResult(out, &info));
         EXPECT_FLOAT_EQ(out, 2.5f);
+    }
+
+    // ---- Tilemap paint tool: cell math + brush/rect/fill cores -----------------
+    // The editor paint mode is interactive (verified in the editor), but the math it
+    // relies on is pure and tested here: world->cell inversion and which cells a
+    // brush, rectangle, or flood fill cover. All outputs stay inside the grid.
+
+    TEST(TilemapPaintTest, LocalPositionToCell_RoundTripsWithGetTileLocalPosition)
+    {
+        TilemapComponentConfig config;
+        config.m_columns = 5;
+        config.m_rows = 3;
+        config.m_tileSize = AZ::Vector2(2.0f, 4.0f); // non-square to catch axis mixups
+
+        for (int row = 0; row < config.GetRows(); ++row)
+        {
+            for (int col = 0; col < config.GetColumns(); ++col)
+            {
+                const AZ::Vector3 center = config.GetTileLocalPosition(col, row);
+                int outCol = -99;
+                int outRow = -99;
+                const bool inBounds = config.LocalPositionToCell(center, outCol, outRow);
+                EXPECT_TRUE(inBounds);
+                EXPECT_EQ(outCol, col);
+                EXPECT_EQ(outRow, row);
+            }
+        }
+    }
+
+    TEST(TilemapPaintTest, LocalPositionToCell_YIsIgnored_AndOutOfGridReturnsFalse)
+    {
+        TilemapComponentConfig config;
+        config.m_columns = 4;
+        config.m_rows = 4;
+        config.m_tileSize = AZ::Vector2(1.0f, 1.0f);
+
+        // Same XZ at a different Y still maps to the same cell.
+        const AZ::Vector3 c = config.GetTileLocalPosition(2, 1);
+        int col = 0;
+        int row = 0;
+        EXPECT_TRUE(config.LocalPositionToCell(AZ::Vector3(c.GetX(), 123.0f, c.GetZ()), col, row));
+        EXPECT_EQ(col, 2);
+        EXPECT_EQ(row, 1);
+
+        // A point well outside the grid reports not-in-bounds.
+        int oc = 0;
+        int orow = 0;
+        EXPECT_FALSE(config.LocalPositionToCell(AZ::Vector3(1000.0f, 0.0f, 1000.0f), oc, orow));
+    }
+
+    TEST(TilemapPaintTest, BrushCells_SizeOneIsSingleCell_ThreeIsNineClampedAtEdge)
+    {
+        AZStd::vector<TilemapPaint::Cell> cells;
+
+        TilemapPaint::BrushCells(2, 2, 1, 8, 8, cells);
+        EXPECT_EQ(cells.size(), 1u);
+        EXPECT_EQ(cells[0].m_col, 2);
+        EXPECT_EQ(cells[0].m_row, 2);
+
+        TilemapPaint::BrushCells(2, 2, 3, 8, 8, cells); // interior 3x3
+        EXPECT_EQ(cells.size(), 9u);
+
+        TilemapPaint::BrushCells(0, 0, 3, 8, 8, cells); // corner: only +quadrant in grid
+        EXPECT_EQ(cells.size(), 4u);
+    }
+
+    TEST(TilemapPaintTest, RectCells_InclusiveAnyOrderAndClamped)
+    {
+        AZStd::vector<TilemapPaint::Cell> cells;
+        TilemapPaint::RectCells(3, 2, 1, 0, 8, 8, cells); // corners given high->low
+        EXPECT_EQ(cells.size(), 3u * 3u); // cols 1..3, rows 0..2
+
+        TilemapPaint::RectCells(-5, -5, 1, 1, 4, 4, cells); // clamps to 0..1 x 0..1
+        EXPECT_EQ(cells.size(), 2u * 2u);
+    }
+
+    TEST(TilemapPaintTest, FloodFill_SpreadsOverMatchingTilesOnly)
+    {
+        // 4x1 row: tiles [7,7,3,7]. Fill from col 0 covers the two leading 7s only;
+        // the 3 blocks it, so the trailing 7 is not reached.
+        const int grid[4] = { 7, 7, 3, 7 };
+        auto tileAt = [&](int col, [[maybe_unused]] int row)
+        {
+            return grid[col];
+        };
+        AZStd::vector<TilemapPaint::Cell> cells;
+        TilemapPaint::FloodFillCells(0, 0, 4, 1, tileAt, cells);
+        EXPECT_EQ(cells.size(), 2u);
+
+        // Out-of-grid seed yields nothing.
+        TilemapPaint::FloodFillCells(9, 9, 4, 1, tileAt, cells);
+        EXPECT_TRUE(cells.empty());
     }
 } // namespace Diorama

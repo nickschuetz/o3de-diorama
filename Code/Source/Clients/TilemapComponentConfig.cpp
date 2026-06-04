@@ -8,9 +8,12 @@
 #include <Diorama/TilemapComponentConfig.h>
 
 #include <AzCore/Asset/AssetSerializer.h>
+#include <AzCore/Math/MathUtils.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/EditContextConstants.inl>
 #include <AzCore/Serialization/SerializeContext.h>
+
+#include <cmath>
 
 namespace Diorama
 {
@@ -153,6 +156,24 @@ namespace Diorama
         const float x = (static_cast<float>(col) + 0.5f) * width - static_cast<float>(columns) * width * 0.5f;
         const float z = static_cast<float>(rows) * height * 0.5f - (static_cast<float>(row) + 0.5f) * height;
         return AZ::Vector3(x, 0.0f, z);
+    }
+
+    bool TilemapComponentConfig::LocalPositionToCell(const AZ::Vector3& localPosition, int& outCol, int& outRow) const
+    {
+        const int columns = GetColumns();
+        const int rows = GetRows();
+        // Tile size is clamped to a small positive epsilon to avoid divide-by-zero
+        // if an unconfigured/zero tile size reaches here.
+        const float width = AZ::GetMax(m_tileSize.GetX(), 1e-4f);
+        const float height = AZ::GetMax(m_tileSize.GetY(), 1e-4f);
+
+        // Exact inverse of GetTileLocalPosition: solve for the cell whose extent
+        // contains the point. floor maps any point within a cell to that cell index.
+        const float colF = (localPosition.GetX() + static_cast<float>(columns) * width * 0.5f) / width;
+        const float rowF = (static_cast<float>(rows) * height * 0.5f - localPosition.GetZ()) / height;
+        outCol = static_cast<int>(std::floor(colF));
+        outRow = static_cast<int>(std::floor(rowF));
+        return InBounds(outCol, outRow);
     }
 
     void TilemapComponentConfig::Reflect(AZ::ReflectContext* context)

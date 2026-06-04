@@ -113,5 +113,12 @@ namespace Diorama
         //! rows along -Z (row 0 at the top), centered so the grid's middle sits at
         //! the entity origin. Y is always 0.
         AZ::Vector3 GetTileLocalPosition(int col, int row) const;
+
+        //! Inverse of GetTileLocalPosition: map a local-space point (its Y is
+        //! ignored; the grid lies on the XZ plane) to the cell that contains it.
+        //! Writes the cell into outCol/outRow and returns true when the point lands
+        //! inside the grid. Out-of-grid points still write the (unclamped) cell they
+        //! map to but return false, so the caller can clamp or reject.
+        bool LocalPositionToCell(const AZ::Vector3& localPosition, int& outCol, int& outRow) const;
     };
 } // namespace Diorama
