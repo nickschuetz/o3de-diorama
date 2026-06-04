@@ -59,9 +59,28 @@ least 0), so a bad argument is corrected rather than crashing.
 1. Create an entity and add the **Tilemap** component (Diorama category).
 2. In **Atlas**, set the atlas texture and its columns/rows.
 3. In **Grid**, set the tilemap columns/rows and the tile size.
-4. Paint cells. Cell contents are authored through the request bus or a build
-   script (see the runnable example); the inspector exposes the atlas, grid, and
-   appearance, not the raw cell array.
+4. Paint cells. You can paint by hand in the viewport (next section), through the
+   request bus, or from a build script (see the runnable example); the inspector
+   exposes the atlas, grid, appearance, and paint settings, not the raw cell array.
+
+## Painting in the editor
+
+The Tilemap component has a viewport paint mode, the same workflow as
+GameMaker/Godot/Tiled:
+
+1. In the component's **Painting** group, set **Active Tile** (the atlas cell
+   index a left-drag paints) and **Brush Size** (the square brush edge in cells).
+2. Click **Edit** to enter the paint Component Mode (the button changes to
+   **Done**; the viewport shows the Tilemap mode).
+3. **Left-drag** over the grid to paint the active tile; **right-drag** to erase.
+   Each stroke (mouse down to up) is a single undo step, so **Ctrl+Z** removes a
+   whole stroke. Paints persist into the prefab on save.
+4. Click **Done** (or press **Esc**) to leave the mode.
+
+The cell under the cursor is found by intersecting the mouse ray with the
+tilemap's grid plane, so painting works at any camera angle. The brush, rectangle,
+and flood-fill cell math is the pure, unit-tested `TilemapPaint` core shared with
+any future scripted authoring.
 
 ## Runnable example
 

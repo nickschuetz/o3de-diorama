@@ -58,10 +58,14 @@ namespace Diorama
                         "Square brush edge length in cells")
                     ->Attribute(AZ::Edit::Attributes::Min, 1)
                     ->Attribute(AZ::Edit::Attributes::Max, 16)
+                    // No row label: the delegate renders the standard Edit/Done
+                    // component-mode button (its text is fixed by the framework), and
+                    // a name here would show as a stray label beside it. The enclosing
+                    // "Painting" group already says what it is.
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
                         &EditorTilemapComponent::m_componentModeDelegate,
-                        "Paint",
+                        "",
                         "Enter the viewport paint mode: left-drag paints the active tile, right-drag erases");
             }
         }
