@@ -20,4 +20,6 @@ set(FILES
     Source/Tools/EditorDioramaUIComponent.h
     Source/Tools/EditorDioramaCRTComponent.cpp
     Source/Tools/EditorDioramaCRTComponent.h
+    Source/Tools/EditorDioramaLookComponent.cpp
+    Source/Tools/EditorDioramaLookComponent.h
 )

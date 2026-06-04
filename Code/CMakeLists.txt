@@ -53,6 +53,7 @@ ly_add_target(
             AZ::AzFramework
             AZ::AtomCore
             Gem::Atom_RPI.Public
+            Gem::Atom_Feature_Common.Public
             Gem::MiniAudio.API
 )
 

@@ -13,6 +13,7 @@
 #include <Tools/EditorDioramaCRTComponent.h>
 #include <Tools/EditorDioramaCamera2DComponent.h>
 #include <Tools/EditorDioramaLightComponent.h>
+#include <Tools/EditorDioramaLookComponent.h>
 #include <Tools/EditorDioramaParallaxComponent.h>
 #include <Tools/EditorDioramaUIComponent.h>
 #include <Tools/EditorParticleEmitterComponent.h>
@@ -46,6 +47,7 @@ namespace Diorama
                     EditorDioramaParallaxComponent::CreateDescriptor(),
                     EditorDioramaUIComponent::CreateDescriptor(),
                     EditorDioramaCRTComponent::CreateDescriptor(),
+                    EditorDioramaLookComponent::CreateDescriptor(),
                 });
         }
 

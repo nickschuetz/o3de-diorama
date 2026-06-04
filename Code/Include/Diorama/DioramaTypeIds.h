@@ -87,6 +87,12 @@ namespace Diorama
     // Audio convenience TypeIds (fire-and-forget one-shot over MiniAudio)
     inline constexpr const char* DioramaAudioRequestsTypeId = "{51D41A62-96D1-4A9A-A9E6-4C8D3F7D62F1}";
 
+    // 2D post-processing "look" profile TypeIds (drives Atom bloom + vignette)
+    inline constexpr const char* DioramaLookConfigTypeId = "{6F2B1A4C-3D5E-4A8B-9C7D-1E2F3A4B5C6D}";
+    inline constexpr const char* DioramaLookComponentTypeId = "{7A3C2B5D-4E6F-4B9C-8D1E-2F3A4B5C6D7E}";
+    inline constexpr const char* EditorDioramaLookComponentTypeId = "{8B4D3C6E-5F70-4CAD-9E2F-3A4B5C6D7E8F}";
+    inline constexpr const char* DioramaLookRequestsTypeId = "{9C5E4D7F-6081-4DBE-AF3A-4B5C6D7E8F90}";
+
     // CRT scanline overlay TypeIds (retro screen effect)
     inline constexpr const char* DioramaCRTConfigTypeId = "{DAAA3172-91E6-4521-BFA5-E33F98267758}";
     inline constexpr const char* DioramaCRTComponentTypeId = "{C9606627-3FE6-42EA-AD87-EF46FF171D27}";

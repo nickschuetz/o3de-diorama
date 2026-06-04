@@ -46,6 +46,9 @@ set(FILES
     Source/Clients/DioramaCRTComponent.cpp
     Source/Clients/DioramaCRTComponent.h
     Source/Clients/CRTBus.cpp
+    Source/Clients/DioramaLookComponent.cpp
+    Source/Clients/DioramaLookComponent.h
+    Source/Clients/LookBus.cpp
     Source/Clients/DioramaParallaxComponent.cpp
     Source/Clients/DioramaParallaxComponent.h
     Source/Clients/ParallaxBus.cpp

@@ -15,7 +15,8 @@ The Diorama request buses (`DioramaSpriteRequestBus`, `DioramaTilemapRequestBus`
 `DioramaCamera2DRequestBus`, `DioramaLightRequestBus`, `DioramaParticleRequestBus`,
 `DioramaParallaxRequestBus`, `Diorama2DColliderRequestBus`,
 `Diorama2DCollisionRequestBus`, `DioramaUIRequestBus`, `DioramaAudioRequestBus`,
-`DioramaCRTRequestBus`) are the stable, typed, agent-facing API for driving the gem.
+`DioramaCRTRequestBus`, `DioramaLookRequestBus`) are the stable, typed, agent-facing
+API for driving the gem.
 The Sprite and Tilemap buses are documented in full first; the rest follow the same
 conventions and are listed after. They are a peer of the
 editor Inspector over the same backing configuration (`SpriteComponentConfig`,
@@ -291,6 +292,19 @@ Drives the **CRT Overlay** scanline post effect (how-to [16-crt](../howto/16-crt
 | `SetEnabled` | `enabled: bool` | void | Toggle the overlay. |
 | `SetScanlineDarkness` | `darkness: float` | void | Scanline strength (`0..1`). |
 | `SetScanlineSpacing` | `pixels: float` | void | Pixels between scanlines. |
+
+## DioramaLookRequestBus
+
+Drives the **2D Look** component: one component applying tuned bloom + vignette via
+Atom's `PostProcessFeatureProcessor` (how-to [14-glow](../howto/14-glow.md)).
+
+| Verb | Signature (after entity id) | Returns | Clamping | Effect |
+| ---- | --------------------------- | ------- | -------- | ------ |
+| `SetBloomEnabled` | `enabled: bool` | void | None. | Toggle the glow. |
+| `SetBloomThreshold` | `threshold: float` | void | `>= 0`. | HDR brightness above which a pixel glows. |
+| `SetBloomIntensity` | `intensity: float` | void | `>= 0`. | Bloom strength. |
+| `SetVignetteEnabled` | `enabled: bool` | void | None. | Toggle the edge darkening. |
+| `SetVignetteIntensity` | `intensity: float` | void | `0..1`. | Vignette strength. |
 
 ## Query and verify (the verify loop)
 

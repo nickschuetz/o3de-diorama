@@ -21,6 +21,37 @@ Bloom keys on HDR brightness (default threshold ~1.0). A normally lit sprite sit
 around 1.0 and barely blooms; to make a sprite *deliberately* glow, push it above
 1.0 with emissive.
 
+## One component: the 2D Look (Diorama)
+
+If you would rather not hand-add and tune PostFX Layer + Bloom + Vignette, add a
+single **2D Look** component (from the Diorama category) to any entity, e.g. the
+camera. It drives Atom's stock `PostProcessFeatureProcessor` with 2D-friendly
+defaults (bloom threshold `1.0`, knee `0.5`, intensity `0.5`, plus a gentle
+`0.3` vignette), so you get the look from one component and it still composes with
+any other post content in the scene. It uses the exact same engine bloom/vignette
+as the manual path above; it is just a tuned, one-stop front door. Removing the
+component cleanly removes its post settings.
+
+Because it is a real component, it is also drivable at runtime for AI/human parity
+through `DioramaLookRequestBus` (same convention as every other Diorama bus):
+
+```lua
+DioramaLookRequestBus.Event.SetBloomIntensity(entityId, 0.8)
+DioramaLookRequestBus.Event.SetBloomThreshold(entityId, 1.0)
+DioramaLookRequestBus.Event.SetVignetteIntensity(entityId, 0.4)
+DioramaLookRequestBus.Event.SetBloomEnabled(entityId, true)
+```
+
+```python
+import azlmbr.bus as bus
+import azlmbr.diorama as diorama
+
+diorama.DioramaLookRequestBus(bus.Event, "SetBloomIntensity", entityId, 0.8)
+```
+
+The component is the convenience layer; the emissive hook below is still what makes
+an individual sprite glow.
+
 ## The emissive hook (Diorama)
 
 A Diorama sprite can write above HDR 1.0 so it blooms, via an emissive term added

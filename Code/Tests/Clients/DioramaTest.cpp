@@ -16,6 +16,7 @@
 #include <Clients/DioramaCRTComponent.h>
 #include <Clients/DioramaCamera2DComponent.h>
 #include <Clients/DioramaLightComponent.h>
+#include <Clients/DioramaLookComponent.h>
 #include <Clients/DioramaParallaxComponent.h>
 #include <Clients/DioramaUIComponent.h>
 #include <Clients/ParticleEmitterComponent.h>
@@ -774,6 +775,7 @@ namespace Diorama
         ExpectInspectorParity<Collider2DConfig>("Collider2DConfig", {});
         ExpectInspectorParity<DioramaUIConfig>("DioramaUIConfig", {});
         ExpectInspectorParity<DioramaCRTConfig>("DioramaCRTConfig", {});
+        ExpectInspectorParity<DioramaLookConfig>("DioramaLookConfig", {});
         ExpectInspectorParity<DioramaCamera2DConfig>("DioramaCamera2DConfig", {});
         // m_tiles is the bulk integer grid, authored by the paint tool / request
         // bus / build script, not hand-typed cell by cell in the Inspector.

@@ -2,7 +2,11 @@
 
 Status: in progress (Tier-1 roadmap item). The emissive hook (deliverable 2) and the
 teaching how-to (deliverable 1) have shipped; see [howto/14-glow.md](../howto/14-glow.md).
-The CRT pass (deliverable 3) is pending.
+The v3 convenience component (the "Diorama Look": one component applying tuned bloom +
+vignette via Atom's PostProcessFeatureProcessor, drivable through DioramaLookRequestBus)
+has shipped (DioramaLookComponent + EditorDioramaLookComponent). The CRT scanline
+overlay shipped as an AuxGeom overlay (DioramaCRTComponent); the true warping CRT
+fullscreen pass (deliverable 3) is still pending.
 
 ## Goal
 
