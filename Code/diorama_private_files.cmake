@@ -50,6 +50,9 @@ set(FILES
     Source/Clients/DioramaLookComponent.cpp
     Source/Clients/DioramaLookComponent.h
     Source/Clients/LookBus.cpp
+    Source/Clients/DioramaSkeletalClipComponent.cpp
+    Source/Clients/DioramaSkeletalClipComponent.h
+    Source/Clients/SkeletalBus.cpp
     Source/Clients/DioramaParallaxComponent.cpp
     Source/Clients/DioramaParallaxComponent.h
     Source/Clients/ParallaxBus.cpp

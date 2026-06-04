@@ -17,6 +17,7 @@
 #include <Clients/DioramaLightComponent.h>
 #include <Clients/DioramaLookComponent.h>
 #include <Clients/DioramaParallaxComponent.h>
+#include <Clients/DioramaSkeletalClipComponent.h>
 #include <Clients/DioramaSystemComponent.h>
 #include <Clients/DioramaUIComponent.h>
 #include <Clients/ParticleEmitterComponent.h>
@@ -50,6 +51,7 @@ namespace Diorama
                 DioramaUIComponent::CreateDescriptor(),
                 DioramaCRTComponent::CreateDescriptor(),
                 DioramaLookComponent::CreateDescriptor(),
+                DioramaSkeletalClipComponent::CreateDescriptor(),
             });
     }
 

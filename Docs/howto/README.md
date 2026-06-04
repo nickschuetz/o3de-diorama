@@ -41,6 +41,7 @@ Each has a written guide and a runnable example.
 | Make it Glow (post-processing + emissive) | [14-glow.md](14-glow.md) | Written |
 | Sound (SFX and music via MiniAudio) | [15-audio.md](15-audio.md) | Written |
 | Retro CRT Overlay (scanlines) | [16-crt.md](16-crt.md) | Written |
+| Skeletal Cutout Animation (keyframed bone rig) | [18-skeletal.md](18-skeletal.md) | Written |
 
 ## Tooling
 

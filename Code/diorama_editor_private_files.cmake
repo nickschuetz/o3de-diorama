@@ -22,4 +22,6 @@ set(FILES
     Source/Tools/EditorDioramaCRTComponent.h
     Source/Tools/EditorDioramaLookComponent.cpp
     Source/Tools/EditorDioramaLookComponent.h
+    Source/Tools/EditorDioramaSkeletalClipComponent.cpp
+    Source/Tools/EditorDioramaSkeletalClipComponent.h
 )

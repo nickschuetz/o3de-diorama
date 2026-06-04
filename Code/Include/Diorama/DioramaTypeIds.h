@@ -99,6 +99,15 @@ namespace Diorama
     inline constexpr const char* EditorDioramaCRTComponentTypeId = "{B89BDCCD-A677-4BB4-940B-59BEE2550D9F}";
     inline constexpr const char* DioramaCRTRequestsTypeId = "{0D176FF2-664E-48FB-AE3C-91D045A95B44}";
 
+    // Skeletal cutout clip player TypeIds (transform-hierarchy keyframe animation)
+    inline constexpr const char* DioramaSkeletalClipConfigTypeId = "{A1E2C3D4-5F60-4A7B-8C9D-0E1F2A3B4C5D}";
+    inline constexpr const char* DioramaSkeletalClipComponentTypeId = "{B2F3D4E5-6071-4B8C-9DAE-1F2A3B4C5D6E}";
+    inline constexpr const char* EditorDioramaSkeletalClipComponentTypeId = "{C3041506-7182-4C9D-AEBF-2A3B4C5D6E7F}";
+    inline constexpr const char* DioramaSkeletalRequestsTypeId = "{D4152617-8293-4DAE-BFC0-3B4C5D6E7F80}";
+    inline constexpr const char* SkeletalKeyframeDataTypeId = "{E5263728-93A4-4EBF-90D1-4C5D6E7F8091}";
+    inline constexpr const char* SkeletalBoneTrackDataTypeId = "{F6374839-A4B5-4FC0-A1E2-5D6E7F809102}";
+    inline constexpr const char* SkeletalEaseTypeId = "{0748594A-B5C6-40D1-B2F3-6E7F80910213}";
+
     // AI-facing 2D collision API TypeIds
     inline constexpr const char* Diorama2DColliderRequestsTypeId = "{908C687A-9799-4BD9-9E82-3368D3BAEA03}";
     inline constexpr const char* Diorama2DCollisionNotificationsTypeId = "{3E9FB4C7-C577-450B-8CCA-9CEDF0964E06}";

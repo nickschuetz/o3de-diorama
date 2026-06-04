@@ -15,8 +15,8 @@ The Diorama request buses (`DioramaSpriteRequestBus`, `DioramaTilemapRequestBus`
 `DioramaCamera2DRequestBus`, `DioramaLightRequestBus`, `DioramaParticleRequestBus`,
 `DioramaParallaxRequestBus`, `Diorama2DColliderRequestBus`,
 `Diorama2DCollisionRequestBus`, `DioramaUIRequestBus`, `DioramaAudioRequestBus`,
-`DioramaCRTRequestBus`, `DioramaLookRequestBus`) are the stable, typed, agent-facing
-API for driving the gem.
+`DioramaCRTRequestBus`, `DioramaLookRequestBus`, `DioramaSkeletalRequestBus`) are
+the stable, typed, agent-facing API for driving the gem.
 The Sprite and Tilemap buses are documented in full first; the rest follow the same
 conventions and are listed after. They are a peer of the
 editor Inspector over the same backing configuration (`SpriteComponentConfig`,
@@ -306,6 +306,23 @@ Atom's `PostProcessFeatureProcessor` (how-to [14-glow](../howto/14-glow.md)).
 | `SetBloomIntensity` | `intensity: float` | void | `>= 0`. | Bloom strength. |
 | `SetVignetteEnabled` | `enabled: bool` | void | None. | Toggle the edge darkening. |
 | `SetVignetteIntensity` | `intensity: float` | void | `0..1`. | Vignette strength. |
+
+## DioramaSkeletalRequestBus
+
+Drives the **Skeletal Clip** component: a cutout (transform-hierarchy) keyframe
+animation player. The character is the entity hierarchy under the component's
+entity; each track names a descendant entity ("bone") and animates its local
+transform over the clip (how-to [18-skeletal](../howto/18-skeletal.md)).
+
+| Verb | Signature (after entity id) | Returns | Clamping | Effect |
+| ---- | --------------------------- | ------- | -------- | ------ |
+| `Play` | (none) | void | None. | Start or resume playback from the current time. |
+| `Stop` | (none) | void | None. | Stop and hold the current pose. |
+| `SetNormalizedTime` | `normalizedTime: float` | void | `0..1`. | Jump to a fraction of the duration and pose immediately. |
+| `SetSpeed` | `speed: float` | void | None (negative = reverse). | Playback rate multiplier. |
+| `SetLooping` | `looping: bool` | void | None. | Wrap at the end vs. hold the last frame. |
+| `SetDuration` | `seconds: float` | void | `> 0`. | Clip length the normalized time maps onto. |
+| `IsPlaying` | (none) | `bool` | n/a | True while the clip is advancing. |
 
 ## Query and verify (the verify loop)
 
