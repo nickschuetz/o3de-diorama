@@ -20,6 +20,7 @@
 #include <Clients/DioramaParallaxComponent.h>
 #include <Clients/DioramaUIComponent.h>
 #include <Clients/ParticleEmitterComponent.h>
+#include <Clients/SkeletalClip.h>
 #include <Clients/SpriteAnimation.h>
 #include <Clients/SpriteBatchPlan.h>
 #include <Clients/SpriteComponent.h>
@@ -780,5 +781,77 @@ namespace Diorama
         // m_tiles is the bulk integer grid, authored by the paint tool / request
         // bus / build script, not hand-typed cell by cell in the Inspector.
         ExpectInspectorParity<TilemapComponentConfig>("TilemapComponentConfig", { "tiles" });
+    }
+
+    // ---- Skeletal cutout clip player: keyframe sampling + easing ----------------
+    // The clip-player component is transform-driven (verified in the editor/game),
+    // but the sampling it relies on is pure and tested here: holding before/after the
+    // clip, interpolating between keys, and the easing curves.
+
+    TEST(SkeletalClipTest, SampleTrack_EmptyTrackIsIdentity)
+    {
+        const SkeletalClip::Pose pose = SkeletalClip::SampleTrack({}, 0.5f);
+        EXPECT_TRUE(pose.m_translation.IsClose(AZ::Vector3::CreateZero()));
+        EXPECT_TRUE(pose.m_rotation.IsClose(AZ::Quaternion::CreateIdentity()));
+        EXPECT_TRUE(pose.m_scale.IsClose(AZ::Vector3::CreateOne()));
+    }
+
+    TEST(SkeletalClipTest, SampleTrack_HoldsBeforeFirstAndAfterLast)
+    {
+        const SkeletalClip::Keyframe keys[2] = {
+            { 1.0f, AZ::Vector3(1.0f, 0.0f, 0.0f), AZ::Quaternion::CreateIdentity(), AZ::Vector3::CreateOne(), SkeletalClip::Ease::Linear },
+            { 3.0f, AZ::Vector3(5.0f, 0.0f, 0.0f), AZ::Quaternion::CreateIdentity(), AZ::Vector3::CreateOne(), SkeletalClip::Ease::Linear },
+        };
+        AZStd::span<const SkeletalClip::Keyframe> track(keys, 2);
+
+        // Before the first key holds the first; after the last holds the last.
+        EXPECT_NEAR(SkeletalClip::SampleTrack(track, 0.0f).m_translation.GetX(), 1.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::SampleTrack(track, 10.0f).m_translation.GetX(), 5.0f, 1e-4f);
+    }
+
+    TEST(SkeletalClipTest, SampleTrack_LinearMidpointInterpolates)
+    {
+        const SkeletalClip::Keyframe keys[2] = {
+            { 0.0f,
+              AZ::Vector3(0.0f, 0.0f, 0.0f),
+              AZ::Quaternion::CreateIdentity(),
+              AZ::Vector3(1.0f, 1.0f, 1.0f),
+              SkeletalClip::Ease::Linear },
+            { 2.0f,
+              AZ::Vector3(4.0f, 0.0f, 0.0f),
+              AZ::Quaternion::CreateIdentity(),
+              AZ::Vector3(3.0f, 3.0f, 3.0f),
+              SkeletalClip::Ease::Linear },
+        };
+        const SkeletalClip::Pose pose =
+            SkeletalClip::SampleTrack(AZStd::span<const SkeletalClip::Keyframe>(keys, 2), 1.0f); // halfway in time
+        EXPECT_NEAR(pose.m_translation.GetX(), 2.0f, 1e-4f);
+        EXPECT_NEAR(pose.m_scale.GetX(), 2.0f, 1e-4f);
+    }
+
+    TEST(SkeletalClipTest, SampleTrack_EasingBendsTheCurveVsLinear)
+    {
+        const SkeletalClip::Keyframe linear[2] = {
+            { 0.0f, AZ::Vector3::CreateZero(), AZ::Quaternion::CreateIdentity(), AZ::Vector3::CreateOne(), SkeletalClip::Ease::Linear },
+            { 1.0f, AZ::Vector3(1.0f, 0.0f, 0.0f), AZ::Quaternion::CreateIdentity(), AZ::Vector3::CreateOne(), SkeletalClip::Ease::Linear },
+        };
+        const SkeletalClip::Keyframe inQuad[2] = {
+            { 0.0f, AZ::Vector3::CreateZero(), AZ::Quaternion::CreateIdentity(), AZ::Vector3::CreateOne(), SkeletalClip::Ease::InQuad },
+            { 1.0f, AZ::Vector3(1.0f, 0.0f, 0.0f), AZ::Quaternion::CreateIdentity(), AZ::Vector3::CreateOne(), SkeletalClip::Ease::InQuad },
+        };
+        // At a quarter of the way, ease-in lags behind linear (slower start).
+        const float linX = SkeletalClip::SampleTrack(AZStd::span<const SkeletalClip::Keyframe>(linear, 2), 0.25f).m_translation.GetX();
+        const float inX = SkeletalClip::SampleTrack(AZStd::span<const SkeletalClip::Keyframe>(inQuad, 2), 0.25f).m_translation.GetX();
+        EXPECT_NEAR(linX, 0.25f, 1e-4f);
+        EXPECT_LT(inX, linX);
+    }
+
+    TEST(SkeletalClipTest, ApplyEase_ClampsAndCurves)
+    {
+        EXPECT_NEAR(SkeletalClip::ApplyEase(SkeletalClip::Ease::Linear, -1.0f), 0.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::ApplyEase(SkeletalClip::Ease::Linear, 2.0f), 1.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::ApplyEase(SkeletalClip::Ease::InOutQuad, 0.5f), 0.5f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::ApplyEase(SkeletalClip::Ease::SmoothStep, 0.5f), 0.5f, 1e-4f);
+        EXPECT_LT(SkeletalClip::ApplyEase(SkeletalClip::Ease::InQuad, 0.5f), 0.5f);
     }
 } // namespace Diorama
