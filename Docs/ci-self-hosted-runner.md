@@ -108,6 +108,45 @@ Optional overrides: `BUILD_CONFIG` (default `profile`), `BUILD_DIR`,
 `AZ_TEST_RUNNER` (full path to `AzTestRunner.exe`, if it is not at the derived
 default).
 
+## First Windows bring-up
+
+The Windows leg and `ci_build_test.ps1` were authored on Linux and have not yet
+run on a real Windows host, so two path assumptions may need adjusting the first
+time: the `AzTestRunner.exe` location and the CMake generator. Resolve them
+interactively **before** turning the CI leg loose, by running the script
+directly on the Windows machine:
+
+1. **Install the prerequisites**: O3DE 26.05 SDK, the 3rdParty packages, a host
+   project (e.g. `DioramaSandbox`), Visual Studio 2022 with the C++ workload,
+   and CMake. Open a *Developer PowerShell for VS 2022* so the MSVC toolchain is
+   on `PATH`.
+
+2. **Run the script by hand** with your paths:
+
+   ```powershell
+   $env:O3DE_ENGINE_PATH = "C:\O3DE\26.05.0"
+   $env:DIORAMA_PROJECT  = "C:\projects\DioramaSandbox"
+   .\scripts\ci_build_test.ps1
+   ```
+
+3. **Fix the two likely snags** if the script fails late:
+   - *Wrong generator*: if configure fails or you use a different Visual Studio
+     version, set `$env:CMAKE_GENERATOR` (e.g. `"Visual Studio 16 2019"`).
+   - *Runner not found*: the script derives
+     `bin\Windows\<config>\Default\AzTestRunner.exe` from the engine path. If
+     your SDK lays it out differently, find `AzTestRunner.exe` under the engine
+     and set `$env:AZ_TEST_RUNNER` to its full path. If the test `.dll` is not at
+     `bin\<config>\Diorama.Tests.dll` in the build tree, note the actual path;
+     that location is currently hard-coded in the script and may need a tweak.
+
+4. **Confirm green**, then capture whatever overrides you needed.
+
+5. **Wire up CI**: register the runner with labels `self-hosted`, `o3de`,
+   `windows`; set the repository variables (including the overrides from step 4,
+   and `O3DE_ENGINE_PATH_WINDOWS` / `DIORAMA_PROJECT_WINDOWS` if the paths differ
+   from the Linux runner's); then add the `ci:build` label to a PR to trigger
+   both legs.
+
 ## Not covered
 
 This runs the unit tests, which cover the UV, animation, and batch-planning
