@@ -33,20 +33,21 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<LightInfo>("DioramaLightInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Light")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                // BehaviorValueProperty reflects a getter and setter so the field is
-                // readable from Python (a getter-only property reads as None).
-                ->Property("isDirectional", BehaviorValueProperty(&LightInfo::m_isDirectional))
-                ->Property("r", BehaviorValueProperty(&LightInfo::m_r))
-                ->Property("g", BehaviorValueProperty(&LightInfo::m_g))
-                ->Property("b", BehaviorValueProperty(&LightInfo::m_b))
-                ->Property("intensity", BehaviorValueProperty(&LightInfo::m_intensity))
-                ->Property("radius", BehaviorValueProperty(&LightInfo::m_radius))
-                ->Property("dirX", BehaviorValueProperty(&LightInfo::m_dirX))
-                ->Property("dirY", BehaviorValueProperty(&LightInfo::m_dirY))
-                ->Property("dirZ", BehaviorValueProperty(&LightInfo::m_dirZ))
-                ->Property("enabled", BehaviorValueProperty(&LightInfo::m_enabled));
+                // An *Info struct is a returned snapshot, so each field is reflected
+                // read-only (a getter, no setter): readable from Lua / Python /
+                // Script Canvas, listed once (a setter would add a duplicate node).
+                ->Property("isDirectional", BehaviorValueGetter(&LightInfo::m_isDirectional), nullptr)
+                ->Property("r", BehaviorValueGetter(&LightInfo::m_r), nullptr)
+                ->Property("g", BehaviorValueGetter(&LightInfo::m_g), nullptr)
+                ->Property("b", BehaviorValueGetter(&LightInfo::m_b), nullptr)
+                ->Property("intensity", BehaviorValueGetter(&LightInfo::m_intensity), nullptr)
+                ->Property("radius", BehaviorValueGetter(&LightInfo::m_radius), nullptr)
+                ->Property("dirX", BehaviorValueGetter(&LightInfo::m_dirX), nullptr)
+                ->Property("dirY", BehaviorValueGetter(&LightInfo::m_dirY), nullptr)
+                ->Property("dirZ", BehaviorValueGetter(&LightInfo::m_dirZ), nullptr)
+                ->Property("enabled", BehaviorValueGetter(&LightInfo::m_enabled), nullptr);
         }
     }
 
@@ -65,7 +66,7 @@ namespace Diorama
             // agent-drivable; without it the bus is reflected but not callable
             // from Python.
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Light")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "SetColor",

@@ -34,21 +34,22 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<TilemapInfo>("DioramaTilemapInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Tilemap")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                // BehaviorValueProperty reflects a getter and setter so the field
-                // is readable from Python (a getter-only property reads as None).
-                ->Property("atlasPath", BehaviorValueProperty(&TilemapInfo::m_atlasPath))
-                ->Property("atlasLoaded", BehaviorValueProperty(&TilemapInfo::m_atlasLoaded))
-                ->Property("visible", BehaviorValueProperty(&TilemapInfo::m_visible))
-                ->Property("columns", BehaviorValueProperty(&TilemapInfo::m_columns))
-                ->Property("rows", BehaviorValueProperty(&TilemapInfo::m_rows))
-                ->Property("atlasColumns", BehaviorValueProperty(&TilemapInfo::m_atlasColumns))
-                ->Property("atlasRows", BehaviorValueProperty(&TilemapInfo::m_atlasRows))
-                ->Property("tileWidth", BehaviorValueProperty(&TilemapInfo::m_tileWidth))
-                ->Property("tileHeight", BehaviorValueProperty(&TilemapInfo::m_tileHeight))
-                ->Property("filledTileCount", BehaviorValueProperty(&TilemapInfo::m_filledTileCount))
-                ->Property("sortOffset", BehaviorValueProperty(&TilemapInfo::m_sortOffset));
+                // An *Info struct is a returned snapshot, so each field is reflected
+                // read-only (a getter, no setter): readable from Lua / Python /
+                // Script Canvas, listed once (a setter would add a duplicate node).
+                ->Property("atlasPath", BehaviorValueGetter(&TilemapInfo::m_atlasPath), nullptr)
+                ->Property("atlasLoaded", BehaviorValueGetter(&TilemapInfo::m_atlasLoaded), nullptr)
+                ->Property("visible", BehaviorValueGetter(&TilemapInfo::m_visible), nullptr)
+                ->Property("columns", BehaviorValueGetter(&TilemapInfo::m_columns), nullptr)
+                ->Property("rows", BehaviorValueGetter(&TilemapInfo::m_rows), nullptr)
+                ->Property("atlasColumns", BehaviorValueGetter(&TilemapInfo::m_atlasColumns), nullptr)
+                ->Property("atlasRows", BehaviorValueGetter(&TilemapInfo::m_atlasRows), nullptr)
+                ->Property("tileWidth", BehaviorValueGetter(&TilemapInfo::m_tileWidth), nullptr)
+                ->Property("tileHeight", BehaviorValueGetter(&TilemapInfo::m_tileHeight), nullptr)
+                ->Property("filledTileCount", BehaviorValueGetter(&TilemapInfo::m_filledTileCount), nullptr)
+                ->Property("sortOffset", BehaviorValueGetter(&TilemapInfo::m_sortOffset), nullptr);
         }
     }
 
@@ -67,7 +68,7 @@ namespace Diorama
             // Common scope exports the bus to the editor Python bindings (azlmbr)
             // as well as runtime script, which is what makes it agent-drivable.
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Tilemap")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "SetAtlasByPath",

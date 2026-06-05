@@ -23,7 +23,7 @@ namespace Diorama
             ->EBus<DioramaAudioRequestBus>("DioramaAudioRequestBus")
             // Common scope so it is callable from editor Python and runtime script.
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Audio")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "PlayOneShot",

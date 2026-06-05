@@ -28,13 +28,13 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<ParticleInfo>("DioramaParticleInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Particles")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                ->Property("aliveCount", BehaviorValueProperty(&ParticleInfo::m_aliveCount))
-                ->Property("maxParticles", BehaviorValueProperty(&ParticleInfo::m_maxParticles))
-                ->Property("playing", BehaviorValueProperty(&ParticleInfo::m_playing))
-                ->Property("rate", BehaviorValueProperty(&ParticleInfo::m_rate))
-                ->Property("textureLoaded", BehaviorValueProperty(&ParticleInfo::m_textureLoaded));
+                ->Property("aliveCount", BehaviorValueGetter(&ParticleInfo::m_aliveCount), nullptr)
+                ->Property("maxParticles", BehaviorValueGetter(&ParticleInfo::m_maxParticles), nullptr)
+                ->Property("playing", BehaviorValueGetter(&ParticleInfo::m_playing), nullptr)
+                ->Property("rate", BehaviorValueGetter(&ParticleInfo::m_rate), nullptr)
+                ->Property("textureLoaded", BehaviorValueGetter(&ParticleInfo::m_textureLoaded), nullptr);
         }
     }
 
@@ -50,7 +50,7 @@ namespace Diorama
             ->EBus<DioramaParticleRequestBus>("DioramaParticleRequestBus")
             // Common scope so it is callable from editor Python and runtime script.
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Particles")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "Emit",

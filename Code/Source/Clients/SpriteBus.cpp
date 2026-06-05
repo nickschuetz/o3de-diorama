@@ -38,25 +38,26 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<SpriteInfo>("DioramaSpriteInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Sprite")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                // BehaviorValueProperty reflects a getter and setter so the field
-                // is readable from Python (a getter-only property reads as None).
-                ->Property("texturePath", BehaviorValueProperty(&SpriteInfo::m_texturePath))
-                ->Property("textureLoaded", BehaviorValueProperty(&SpriteInfo::m_textureLoaded))
-                ->Property("visible", BehaviorValueProperty(&SpriteInfo::m_visible))
-                ->Property("width", BehaviorValueProperty(&SpriteInfo::m_width))
-                ->Property("height", BehaviorValueProperty(&SpriteInfo::m_height))
-                ->Property("pivotX", BehaviorValueProperty(&SpriteInfo::m_pivotX))
-                ->Property("pivotY", BehaviorValueProperty(&SpriteInfo::m_pivotY))
-                ->Property("sortOffset", BehaviorValueProperty(&SpriteInfo::m_sortOffset))
-                ->Property("billboard", BehaviorValueProperty(&SpriteInfo::m_billboard))
-                ->Property("doubleSided", BehaviorValueProperty(&SpriteInfo::m_doubleSided))
-                ->Property("flipHorizontal", BehaviorValueProperty(&SpriteInfo::m_flipHorizontal))
-                ->Property("flipVertical", BehaviorValueProperty(&SpriteInfo::m_flipVertical))
-                ->Property("animEnabled", BehaviorValueProperty(&SpriteInfo::m_animEnabled))
-                ->Property("currentFrame", BehaviorValueProperty(&SpriteInfo::m_currentFrame))
-                ->Property("frameCount", BehaviorValueProperty(&SpriteInfo::m_frameCount));
+                // An *Info struct is a returned snapshot, so each field is reflected
+                // read-only (a getter, no setter): readable from Lua / Python /
+                // Script Canvas, listed once (a setter would add a duplicate node).
+                ->Property("texturePath", BehaviorValueGetter(&SpriteInfo::m_texturePath), nullptr)
+                ->Property("textureLoaded", BehaviorValueGetter(&SpriteInfo::m_textureLoaded), nullptr)
+                ->Property("visible", BehaviorValueGetter(&SpriteInfo::m_visible), nullptr)
+                ->Property("width", BehaviorValueGetter(&SpriteInfo::m_width), nullptr)
+                ->Property("height", BehaviorValueGetter(&SpriteInfo::m_height), nullptr)
+                ->Property("pivotX", BehaviorValueGetter(&SpriteInfo::m_pivotX), nullptr)
+                ->Property("pivotY", BehaviorValueGetter(&SpriteInfo::m_pivotY), nullptr)
+                ->Property("sortOffset", BehaviorValueGetter(&SpriteInfo::m_sortOffset), nullptr)
+                ->Property("billboard", BehaviorValueGetter(&SpriteInfo::m_billboard), nullptr)
+                ->Property("doubleSided", BehaviorValueGetter(&SpriteInfo::m_doubleSided), nullptr)
+                ->Property("flipHorizontal", BehaviorValueGetter(&SpriteInfo::m_flipHorizontal), nullptr)
+                ->Property("flipVertical", BehaviorValueGetter(&SpriteInfo::m_flipVertical), nullptr)
+                ->Property("animEnabled", BehaviorValueGetter(&SpriteInfo::m_animEnabled), nullptr)
+                ->Property("currentFrame", BehaviorValueGetter(&SpriteInfo::m_currentFrame), nullptr)
+                ->Property("frameCount", BehaviorValueGetter(&SpriteInfo::m_frameCount), nullptr);
         }
     }
 
@@ -78,7 +79,7 @@ namespace Diorama
             // agent-drivable; without it the bus is reflected but not callable
             // from Python.
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Sprite")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             // Each Event passes per-argument {name, tooltip} metadata. This names
             // and documents every argument in the BehaviorContext, where it
@@ -191,7 +192,7 @@ namespace Diorama
 
         behaviorContext->EBus<DioramaSpriteNotificationBus>("DioramaSpriteNotificationBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Sprite")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Handler<DioramaSpriteNotificationHandler>();
     }

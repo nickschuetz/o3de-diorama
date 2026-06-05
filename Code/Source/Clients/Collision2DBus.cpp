@@ -32,17 +32,17 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<Collider2DInfo>("DioramaCollider2DInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Collision")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                ->Property("isCircle", BehaviorValueProperty(&Collider2DInfo::m_isCircle))
-                ->Property("radius", BehaviorValueProperty(&Collider2DInfo::m_radius))
-                ->Property("halfWidth", BehaviorValueProperty(&Collider2DInfo::m_halfWidth))
-                ->Property("halfHeight", BehaviorValueProperty(&Collider2DInfo::m_halfHeight))
-                ->Property("layer", BehaviorValueProperty(&Collider2DInfo::m_layer))
-                ->Property("collidesWith", BehaviorValueProperty(&Collider2DInfo::m_collidesWith))
-                ->Property("isTrigger", BehaviorValueProperty(&Collider2DInfo::m_isTrigger))
-                ->Property("enabled", BehaviorValueProperty(&Collider2DInfo::m_enabled))
-                ->Property("contactCount", BehaviorValueProperty(&Collider2DInfo::m_contactCount));
+                ->Property("isCircle", BehaviorValueGetter(&Collider2DInfo::m_isCircle), nullptr)
+                ->Property("radius", BehaviorValueGetter(&Collider2DInfo::m_radius), nullptr)
+                ->Property("halfWidth", BehaviorValueGetter(&Collider2DInfo::m_halfWidth), nullptr)
+                ->Property("halfHeight", BehaviorValueGetter(&Collider2DInfo::m_halfHeight), nullptr)
+                ->Property("layer", BehaviorValueGetter(&Collider2DInfo::m_layer), nullptr)
+                ->Property("collidesWith", BehaviorValueGetter(&Collider2DInfo::m_collidesWith), nullptr)
+                ->Property("isTrigger", BehaviorValueGetter(&Collider2DInfo::m_isTrigger), nullptr)
+                ->Property("enabled", BehaviorValueGetter(&Collider2DInfo::m_enabled), nullptr)
+                ->Property("contactCount", BehaviorValueGetter(&Collider2DInfo::m_contactCount), nullptr);
         }
     }
 
@@ -62,13 +62,13 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<Raycast2DResult>("DioramaRaycast2DResult")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Collision")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                ->Property("hit", BehaviorValueProperty(&Raycast2DResult::m_hit))
-                ->Property("entityId", BehaviorValueProperty(&Raycast2DResult::m_entityId))
-                ->Property("distance", BehaviorValueProperty(&Raycast2DResult::m_distance))
-                ->Property("pointX", BehaviorValueProperty(&Raycast2DResult::m_pointX))
-                ->Property("pointZ", BehaviorValueProperty(&Raycast2DResult::m_pointZ));
+                ->Property("hit", BehaviorValueGetter(&Raycast2DResult::m_hit), nullptr)
+                ->Property("entityId", BehaviorValueGetter(&Raycast2DResult::m_entityId), nullptr)
+                ->Property("distance", BehaviorValueGetter(&Raycast2DResult::m_distance), nullptr)
+                ->Property("pointX", BehaviorValueGetter(&Raycast2DResult::m_pointX), nullptr)
+                ->Property("pointZ", BehaviorValueGetter(&Raycast2DResult::m_pointZ), nullptr);
         }
     }
 
@@ -82,7 +82,7 @@ namespace Diorama
 
         behaviorContext->EBus<Diorama2DColliderRequestBus>("Diorama2DColliderRequestBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Collision")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "SetCircle",
@@ -118,7 +118,7 @@ namespace Diorama
 
         behaviorContext->EBus<Diorama2DCollisionRequestBus>("Diorama2DCollisionRequestBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Collision")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "OverlapCircle",
@@ -147,7 +147,7 @@ namespace Diorama
 
         behaviorContext->EBus<Diorama2DCollisionNotificationBus>("Diorama2DCollisionNotificationBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Collision")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Handler<Diorama2DCollisionNotificationHandler>();
     }

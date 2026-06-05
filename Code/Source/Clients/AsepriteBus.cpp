@@ -21,7 +21,7 @@ namespace Diorama
 
         behaviorContext->EBus<DioramaAsepriteRequestBus>("DioramaAsepriteRequestBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Aseprite")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "PlayTag",

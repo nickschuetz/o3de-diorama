@@ -26,11 +26,11 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<ParallaxInfo>("DioramaParallaxInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Parallax")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                ->Property("hasCamera", BehaviorValueProperty(&ParallaxInfo::m_hasCamera))
-                ->Property("factor", BehaviorValueProperty(&ParallaxInfo::m_factor))
-                ->Property("enabled", BehaviorValueProperty(&ParallaxInfo::m_enabled));
+                ->Property("hasCamera", BehaviorValueGetter(&ParallaxInfo::m_hasCamera), nullptr)
+                ->Property("factor", BehaviorValueGetter(&ParallaxInfo::m_factor), nullptr)
+                ->Property("enabled", BehaviorValueGetter(&ParallaxInfo::m_enabled), nullptr);
         }
     }
 
@@ -44,7 +44,7 @@ namespace Diorama
 
         behaviorContext->EBus<DioramaParallaxRequestBus>("DioramaParallaxRequestBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Parallax")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "SetCamera",

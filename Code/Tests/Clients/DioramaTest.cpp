@@ -30,6 +30,7 @@
 #include <Clients/SpritePresenter.h>
 #include <Clients/SpriteRequestHandler.h>
 #include <Clients/TilemapComponent.h>
+#include <Diorama/DioramaLightBus.h>
 #include <Diorama/DioramaLightConfig.h>
 #include <Diorama/SpriteBus.h>
 #include <Diorama/SpriteComponentConfig.h>
@@ -966,5 +967,38 @@ namespace Diorama
         EXPECT_EQ(playlist[1], 1);
         EXPECT_EQ(playlist[2], 2);
         EXPECT_EQ(playlist[3], 1);
+    }
+
+    // ---- BehaviorContext reflection: *Info structs are read-only getters ---------
+    // The Get*Info verbs return a snapshot struct. Its fields are reflected get-only
+    // so they list once in Script Canvas (a getter + setter shows the field twice) and
+    // cannot be mutated on the returned copy. This guards that a getter-only property
+    // still reads back its value (the exact call azlmbr / Script Canvas make) -- it
+    // does not read as a default/None -- and that no setter is reflected.
+
+    TEST(BehaviorReflectionTest, InfoStruct_FieldsAreReadOnlyGetters_ThatReturnTheValue)
+    {
+        AZ::BehaviorContext behaviorContext;
+        LightInfo::Reflect(&behaviorContext);
+
+        auto classIt = behaviorContext.m_classes.find("DioramaLightInfo");
+        ASSERT_NE(classIt, behaviorContext.m_classes.end());
+        AZ::BehaviorClass* klass = classIt->second;
+
+        auto propIt = klass->m_properties.find("intensity");
+        ASSERT_NE(propIt, klass->m_properties.end());
+        AZ::BehaviorProperty* prop = propIt->second;
+
+        // Read-only: a getter, no setter (so the palette lists it once).
+        ASSERT_NE(prop->m_getter, nullptr);
+        EXPECT_EQ(prop->m_setter, nullptr);
+
+        // The getter returns the value, not a default -- this is what a Script Canvas
+        // GetLightInfo property pull or a Python `info.intensity` read resolves to.
+        LightInfo info;
+        info.m_intensity = 2.5f;
+        float out = -1.0f;
+        EXPECT_TRUE(prop->m_getter->InvokeResult(out, &info));
+        EXPECT_FLOAT_EQ(out, 2.5f);
     }
 } // namespace Diorama

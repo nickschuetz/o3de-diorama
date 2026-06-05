@@ -21,7 +21,7 @@ namespace Diorama
 
         behaviorContext->EBus<DioramaLookRequestBus>("DioramaLookRequestBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Look")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event("SetBloomEnabled", &DioramaLookRequestBus::Events::SetBloomEnabled, { { { "enabled", "Turn HDR bloom on or off." } } })
             ->Event(

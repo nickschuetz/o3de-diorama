@@ -21,7 +21,7 @@ namespace Diorama
 
         behaviorContext->EBus<DioramaCRTRequestBus>("DioramaCRTRequestBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/CRT")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event("SetEnabled", &DioramaCRTRequestBus::Events::SetEnabled, { { { "enabled", "Show or hide the overlay." } } })
             ->Event(

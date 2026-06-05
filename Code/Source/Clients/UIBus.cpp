@@ -31,16 +31,16 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<UIInfo>("DioramaUIInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/UI")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                ->Property("text", BehaviorValueProperty(&UIInfo::m_text))
-                ->Property("fontSize", BehaviorValueProperty(&UIInfo::m_fontSize))
-                ->Property("visible", BehaviorValueProperty(&UIInfo::m_visible))
-                ->Property("anchor", BehaviorValueProperty(&UIInfo::m_anchor))
-                ->Property("kind", BehaviorValueProperty(&UIInfo::m_kind))
-                ->Property("value", BehaviorValueProperty(&UIInfo::m_value))
-                ->Property("screenX", BehaviorValueProperty(&UIInfo::m_screenX))
-                ->Property("screenY", BehaviorValueProperty(&UIInfo::m_screenY));
+                ->Property("text", BehaviorValueGetter(&UIInfo::m_text), nullptr)
+                ->Property("fontSize", BehaviorValueGetter(&UIInfo::m_fontSize), nullptr)
+                ->Property("visible", BehaviorValueGetter(&UIInfo::m_visible), nullptr)
+                ->Property("anchor", BehaviorValueGetter(&UIInfo::m_anchor), nullptr)
+                ->Property("kind", BehaviorValueGetter(&UIInfo::m_kind), nullptr)
+                ->Property("value", BehaviorValueGetter(&UIInfo::m_value), nullptr)
+                ->Property("screenX", BehaviorValueGetter(&UIInfo::m_screenX), nullptr)
+                ->Property("screenY", BehaviorValueGetter(&UIInfo::m_screenY), nullptr);
         }
     }
 
@@ -56,7 +56,7 @@ namespace Diorama
             ->EBus<DioramaUIRequestBus>("DioramaUIRequestBus")
             // Common scope so it is callable from editor Python and runtime script.
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/UI")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event("SetText", &DioramaUIRequestBus::Events::SetText, { { { "text", "Label text to display." } } })
             ->Event(

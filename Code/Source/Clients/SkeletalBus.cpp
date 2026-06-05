@@ -21,7 +21,7 @@ namespace Diorama
 
         behaviorContext->EBus<DioramaSkeletalRequestBus>("DioramaSkeletalRequestBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Skeletal")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event("Play", &DioramaSkeletalRequestBus::Events::Play)
             ->Event("Stop", &DioramaSkeletalRequestBus::Events::Stop)

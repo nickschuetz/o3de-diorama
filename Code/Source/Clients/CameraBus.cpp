@@ -31,16 +31,16 @@ namespace Diorama
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->Class<Camera2DInfo>("DioramaCamera2DInfo")
-                ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Camera")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-                ->Property("hasTarget", BehaviorValueProperty(&Camera2DInfo::m_hasTarget))
-                ->Property("centerX", BehaviorValueProperty(&Camera2DInfo::m_centerX))
-                ->Property("centerY", BehaviorValueProperty(&Camera2DInfo::m_centerY))
-                ->Property("trauma", BehaviorValueProperty(&Camera2DInfo::m_trauma))
-                ->Property("smoothTime", BehaviorValueProperty(&Camera2DInfo::m_smoothTime))
-                ->Property("lookahead", BehaviorValueProperty(&Camera2DInfo::m_lookahead))
-                ->Property("useBounds", BehaviorValueProperty(&Camera2DInfo::m_useBounds))
-                ->Property("enabled", BehaviorValueProperty(&Camera2DInfo::m_enabled));
+                ->Property("hasTarget", BehaviorValueGetter(&Camera2DInfo::m_hasTarget), nullptr)
+                ->Property("centerX", BehaviorValueGetter(&Camera2DInfo::m_centerX), nullptr)
+                ->Property("centerY", BehaviorValueGetter(&Camera2DInfo::m_centerY), nullptr)
+                ->Property("trauma", BehaviorValueGetter(&Camera2DInfo::m_trauma), nullptr)
+                ->Property("smoothTime", BehaviorValueGetter(&Camera2DInfo::m_smoothTime), nullptr)
+                ->Property("lookahead", BehaviorValueGetter(&Camera2DInfo::m_lookahead), nullptr)
+                ->Property("useBounds", BehaviorValueGetter(&Camera2DInfo::m_useBounds), nullptr)
+                ->Property("enabled", BehaviorValueGetter(&Camera2DInfo::m_enabled), nullptr);
         }
     }
 
@@ -56,7 +56,7 @@ namespace Diorama
             ->EBus<DioramaCamera2DRequestBus>("DioramaCamera2DRequestBus")
             // Common scope so it is callable from editor Python and runtime script.
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
-            ->Attribute(AZ::Script::Attributes::Category, "Diorama")
+            ->Attribute(AZ::Script::Attributes::Category, "Diorama/Camera")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
                 "SetTarget",
