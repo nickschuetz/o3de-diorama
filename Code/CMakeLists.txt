@@ -140,6 +140,8 @@ if(PAL_TRAIT_BUILD_HOST_TOOLS)
             PUBLIC
                 AZ::AzToolsFramework
                 ${gem_name}.Private.Object
+                AssetBuilderSDK
+                Gem::ImageProcessingAtom.Headers
     )
 
     ly_add_target(

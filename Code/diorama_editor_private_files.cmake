@@ -29,4 +29,8 @@ set(FILES
     Source/Tools/EditorTilemapPaintComponentMode.cpp
     Source/Tools/EditorTilemapPaintComponentMode.h
     Source/Tools/TilemapPaintEditorBus.h
+    Source/Builders/DioramaAsepriteBuilder.cpp
+    Source/Builders/DioramaAsepriteBuilder.h
+    Source/Builders/DioramaBuilderComponent.cpp
+    Source/Builders/DioramaBuilderComponent.h
 )

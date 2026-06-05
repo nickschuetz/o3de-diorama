@@ -8,6 +8,7 @@
 #include "DioramaEditorSystemComponent.h"
 #include <Clients/Collision2DSystemComponent.h>
 #include <Diorama/DioramaTypeIds.h>
+#include <Builders/DioramaBuilderComponent.h>
 #include <DioramaModuleInterface.h>
 #include <Tools/EditorCollider2DComponent.h>
 #include <Tools/EditorDioramaAsepriteComponent.h>
@@ -52,6 +53,7 @@ namespace Diorama
                     EditorDioramaLookComponent::CreateDescriptor(),
                     EditorDioramaSkeletalClipComponent::CreateDescriptor(),
                     EditorDioramaAsepriteComponent::CreateDescriptor(),
+                    DioramaBuilderComponent::CreateDescriptor(),
                 });
         }
 
@@ -66,6 +68,9 @@ namespace Diorama
                 // Run the collision world in the editor too, so colliders simulate
                 // in play-in-editor (the runtime module supplies it in launchers).
                 azrtti_typeid<Collision2DSystemComponent>(),
+                // Registers Diorama's asset builders; dependency-free so it also
+                // activates in the AssetProcessor's builder application.
+                azrtti_typeid<DioramaBuilderComponent>(),
             };
         }
     };
