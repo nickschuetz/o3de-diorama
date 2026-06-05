@@ -1,6 +1,10 @@
 # Design: Aseprite / sprite-sheet import
 
-Status: design (Tier-3 roadmap item). No implementation yet.
+Status: **partially shipped.** The JSON sprite-sheet importer (editor-time) and the
+native-binary **parser + compositor + atlas packer** (phases 1 + 2a) are merged and
+unit-tested. What remains is **phase 2b: the AssetBuilder** that runs the parser under
+the AssetProcessor and emits product assets. The detailed phase-2b design is at the
+bottom of this doc; the sections above are the original plan and remain the reference.
 
 ## Goal
 
@@ -74,10 +78,86 @@ A `DioramaAsepriteBuilder` (tools module) that:
   frames at the authored fps, and a named tag plays as a clip.
 - A truncated/garbage `.ase` fails the job with a clear error and no crash.
 
+## Phase 2b design (detailed): the AssetBuilder
+
+This is the concrete plan for the remaining piece, written before code. Phases 1 + 2a
+already give us, all pure and unit-tested:
+
+- `Aseprite::ParseAsepriteBinary(bytes) -> BinarySprite` (`AsepriteBinary.h`),
+- `Aseprite::CompositeFrame(sprite, i) -> FrameImage`,
+- `Aseprite::PackFramesToGrid(sprite, columns, name) -> PackedAtlas` (atlas RGBA + a
+  `Document` of frame rects, durations, and tags).
+
+So 2b is purely the AssetProcessor plumbing around that core.
+
+### 1. The builder and where it lives
+
+A `DioramaAsepriteBuilder` (CreateJobs / ProcessJob / ShutDown) + a `BuilderComponent`
+that registers it for the `*.aseprite` and `*.ase` source patterns, following the
+`Gems/OpenParticleSystem/.../Builder/` pattern (`BuilderComponent.h` + `ParticleBuilder.h`).
+
+- New source files under `Code/Source/Builders/`. Builders run inside the
+  AssetProcessor, which loads the gem's **editor/tools** module, so register the
+  `BuilderComponent` from `DioramaEditorSystemComponent` (or add it to the editor
+  module's descriptor list). No new runtime cost; the builder is editor/AP-only.
+- CMake: the editor target gains `AssetBuilderSDK` and the ImageProcessingAtom builder
+  target (the one exposing `ImageProcessing::ImageBuilderRequestBus`) as dependencies.
+  Confirm the exact target name from the ImageProcessingAtom gem's `CMakeLists`.
+- Bump the builder's `m_version` to force re-analysis when the logic changes.
+
+### 2. ProcessJob: parse -> pack -> two products
+
+1. Read the source file bytes; `ParseAsepriteBinary`; on failure, fail the job with a
+   clear message (no crash) -- the untrusted-asset path is already enforced in the parser.
+2. `PackFramesToGrid` to get the atlas RGBA + `Document`. v1 uniform grid; columns =
+   `ceil(sqrt(frames))` (squarish) or a fixed width, a tuning detail.
+3. **Image product:** build an `ImageProcessingAtom::IImageObjectPtr` from the packed
+   RGBA (`R8G8B8A8`) and hand it to `ImageBuilderRequestBus::ConvertImageObject(...)`,
+   which returns `JobProduct`s for a normal `StreamingImageAsset` -- we reuse the proven
+   texture pipeline and never reimplement compression.
+4. **Metadata product:** serialize the `Document` (atlas size, per-frame rects +
+   durations, tags) to a small reflected product asset with a `ProductDependency` on
+   the streaming image.
+
+### 3. The metadata asset type (resolved open question)
+
+Use a **small dedicated reflected asset** (`DioramaAsepriteSheetAsset`) wrapping the
+`Document` data, not a struct embedded on the Sprite config. Rationale: a product asset
+can be referenced by `AssetId`, shared across entities, and carry the image dependency;
+embedding on the config only suited the editor-time JSON import (which bakes into one
+component). The `Document` model is already defined, so this is a thin reflected wrapper.
+
+### 4. Component consumption + parity (the one real runtime addition)
+
+`DioramaAsepriteComponent` currently consumes a config with **embedded** frames/tags
+(filled by the editor-time JSON import) plus an atlas texture path. Phase 2b adds an
+**asset-reference mode**: an optional `DioramaAsepriteSheetAsset` reference; when set,
+the component loads it (and its dependent streaming image) and plays from it instead of
+the embedded `Document`. Per the standing **parity** rule, the asset reference is both an
+Inspector field (an asset picker) and reachable from the bus (e.g.
+`SetSheetByAssetPath(path)`), so an agent can swap sheets exactly as a human can. The
+existing embedded-config path stays, so the JSON importer is unaffected.
+
+### 5. Verification plan (AssetProcessor, not unit tests)
+
+The builder is not unit-testable; it is verified end to end against a running AP:
+
+1. Generate a valid `.aseprite` fixture to disk (the test fixture writer already emits
+   valid bytes) under a project's `Assets/`.
+2. Restart AssetProcessor with the rebuilt gem; watch the AP log for the
+   `DioramaAsepriteBuilder` job and a clean success.
+3. Confirm the **cache** holds the `StreamingImageAsset` product and the
+   `DioramaAsepriteSheetAsset` product with the image as a product dependency.
+4. In a level, point a Sprite + Aseprite component at the sheet asset and play a tag
+   (this is the on-screen step that needs the editor).
+5. Negative: a truncated/garbage `.ase` fails the job cleanly with no crash.
+
+Because 2b is build-green-but-not-headlessly-verified until step 2-3 pass, it lands only
+after a real AP run confirms the products, not on compile alone.
+
 ## Open questions
 
-- Whether the metadata product is a new reflected asset type or reuses an existing
-  serialized struct on the Sprite config; lean toward a small dedicated asset so it
-  can be referenced and shared.
 - Multi-layer blend-mode fidelity (v3): match Aseprite's normal/multiply/etc. or
-  flatten with normal blending in v1/v2.
+  flatten with normal blending in v1/v2 (v1/v2 flatten with normal).
+- Frame packing: uniform grid (v1, plugs into the current model) vs. a tight rect/shelf
+  pack (later) for sprites with lots of empty space.
