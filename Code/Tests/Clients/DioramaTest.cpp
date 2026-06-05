@@ -19,6 +19,7 @@
 #include <Clients/AsepriteImport.h>
 #include <Clients/Collider2DComponent.h>
 #include <Clients/DioramaAsepriteComponent.h>
+#include <Clients/DioramaAssetUtils.h>
 #include <Clients/DioramaCRTComponent.h>
 #include <Clients/DioramaCamera2DComponent.h>
 #include <Clients/DioramaLightComponent.h>
@@ -930,6 +931,23 @@ namespace Diorama
         Aseprite::Document doc;
         EXPECT_FALSE(Aseprite::ParseDocument("{ not valid", doc));
         EXPECT_TRUE(doc.m_frames.empty());
+    }
+
+    TEST(AsepriteBuilderTest, AtlasPathDropsScanFolderPrefix)
+    {
+        // The AssetProcessor reports source paths relative to the project root
+        // ("Assets/..."), but product asset paths are keyed relative to the scan
+        // folder. The builder must drop that prefix so the runtime sprite can resolve
+        // the atlas via SetTextureByPath / GetAssetIdByPath.
+        EXPECT_EQ(
+            Diorama::ToScanFolderRelativePath("Assets/diorama_test/hero.streamingimage"),
+            AZStd::string("diorama_test/hero.streamingimage"));
+        // The prefix match is case-insensitive.
+        EXPECT_EQ(Diorama::ToScanFolderRelativePath("assets/x.streamingimage"), AZStd::string("x.streamingimage"));
+        // Only a leading prefix is dropped, so an interior "Assets/" is preserved.
+        EXPECT_EQ(Diorama::ToScanFolderRelativePath("sub/Assets/x.streamingimage"), AZStd::string("sub/Assets/x.streamingimage"));
+        // A path that is already scan-folder-relative passes through unchanged.
+        EXPECT_EQ(Diorama::ToScanFolderRelativePath("diorama_test/hero.streamingimage"), AZStd::string("diorama_test/hero.streamingimage"));
     }
 
     TEST(AsepriteImportTest, FrameUVMapsPixelRectToAtlas)

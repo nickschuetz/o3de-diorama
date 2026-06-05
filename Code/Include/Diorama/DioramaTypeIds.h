@@ -119,6 +119,7 @@ namespace Diorama
     inline constexpr const char* AsepriteFrameDataTypeId = "{5E6F7081-92A3-44B5-C5D6-E7F8091A2B3C}";
     inline constexpr const char* AsepriteTagDataTypeId = "{6F708192-A3B4-45C6-D6E7-F8091A2B3C4D}";
     inline constexpr const char* AsepriteDirectionTypeId = "{708192A3-B4C5-46D7-E7F8-091A2B3C4D5E}";
+    inline constexpr const char* DioramaAsepriteSheetAssetTypeId = "{8192A3B4-C5D6-47E8-F809-1A2B3C4D5E6F}";
 
     // AI-facing 2D collision API TypeIds
     inline constexpr const char* Diorama2DColliderRequestsTypeId = "{908C687A-9799-4BD9-9E82-3368D3BAEA03}";

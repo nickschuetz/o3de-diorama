@@ -59,6 +59,8 @@ set(FILES
     Source/Clients/SkeletalBus.cpp
     Source/Clients/DioramaAsepriteComponent.cpp
     Source/Clients/DioramaAsepriteComponent.h
+    Source/Clients/DioramaAsepriteSheetAsset.cpp
+    Source/Clients/DioramaAsepriteSheetAsset.h
     Source/Clients/AsepriteBus.cpp
     Source/Clients/TilemapPaint.h
     Source/Clients/TilemapAutotile.h

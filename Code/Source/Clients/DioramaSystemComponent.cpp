@@ -32,6 +32,7 @@ namespace Diorama
     {
         SpriteFeatureProcessor::Reflect(context);
         ReflectAudioBuses(context);
+        DioramaAsepriteSheetAsset::Reflect(context);
 
         if (auto serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
@@ -93,10 +94,21 @@ namespace Diorama
         // it. Scenes that have it enabled will create an instance and call its
         // Render() every frame.
         AZ::RPI::FeatureProcessorFactory::Get()->RegisterFeatureProcessor<SpriteFeatureProcessor>();
+
+        // Register the loader for the .dioramasheet products the .aseprite builder emits.
+        m_asepriteSheetHandler = AZStd::make_unique<AzFramework::GenericAssetHandler<DioramaAsepriteSheetAsset>>(
+            "Diorama Aseprite Sheet", "Diorama", "dioramasheet");
+        m_asepriteSheetHandler->Register();
     }
 
     void DioramaSystemComponent::Deactivate()
     {
+        if (m_asepriteSheetHandler)
+        {
+            m_asepriteSheetHandler->Unregister();
+            m_asepriteSheetHandler.reset();
+        }
+
         AZ::RPI::FeatureProcessorFactory::Get()->UnregisterFeatureProcessor<SpriteFeatureProcessor>();
 
         DestroyAudioPool();

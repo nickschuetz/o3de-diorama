@@ -8,13 +8,17 @@
 #include <Builders/DioramaAsepriteBuilder.h>
 
 #include <Clients/AsepriteBinary.h>
+#include <Clients/DioramaAsepriteSheetAsset.h>
+#include <Clients/DioramaAssetUtils.h>
 
 #include <Atom/ImageProcessing/ImageObject.h>
 #include <Atom/ImageProcessing/ImageProcessingBus.h>
 #include <Atom/ImageProcessing/PixelFormats.h>
 
+#include <AzCore/Asset/AssetCommon.h>
 #include <AzCore/IO/Path/Path.h>
 #include <AzCore/Math/MathUtils.h>
+#include <AzCore/Serialization/Utils.h>
 #include <AzCore/Utils/Utils.h>
 
 #include <cmath>
@@ -22,6 +26,12 @@
 
 namespace Diorama
 {
+    namespace
+    {
+        //! Stable product sub-id for the sheet metadata (distinct from the image products).
+        constexpr AZ::u32 SheetSubId = 0xD10A5EE7;
+    } // namespace
+
     DioramaAsepriteBuilder::~DioramaAsepriteBuilder()
     {
         BusDisconnect();
@@ -32,7 +42,7 @@ namespace Diorama
         AssetBuilderSDK::AssetBuilderDesc descriptor;
         descriptor.m_name = "Diorama Aseprite Builder";
         descriptor.m_busId = AZ::Uuid::CreateString(BusIdString);
-        descriptor.m_version = 1;
+        descriptor.m_version = 3; // 2: emit .dioramasheet; 3: scan-folder-relative atlas path
         descriptor.m_patterns.emplace_back("*.aseprite", AssetBuilderSDK::AssetBuilderPattern::Wildcard);
         descriptor.m_patterns.emplace_back("*.ase", AssetBuilderSDK::AssetBuilderPattern::Wildcard);
         descriptor.m_createJobFunction =
@@ -155,10 +165,66 @@ namespace Diorama
             return;
         }
 
+        // Resolve the image's product AssetId (for the sheet's dependency) and the
+        // image's runtime product path (for the sprite to resolve via SetTextureByPath):
+        // same source-relative folder + base name + the streaming-image extension.
+        const AZ::u32 imageSubId = imageProducts.front().m_productSubID;
         for (AssetBuilderSDK::JobProduct& product : imageProducts)
         {
             response.m_outputProducts.push_back(AZStd::move(product));
         }
+
+        AZ::IO::Path imageProductPath(request.m_sourceFile);
+        imageProductPath.ReplaceExtension("streamingimage");
+
+        // Build the sheet metadata asset (frames/tags/atlas + the image path) and emit it
+        // as a product, with a dependency on the image product. The atlas path is stored
+        // scan-folder-relative so the runtime sprite can resolve it via SetTextureByPath.
+        DioramaAsepriteSheetAsset sheet;
+        sheet.m_atlasTexturePath = ToScanFolderRelativePath(imageProductPath.AsPosix());
+        sheet.m_atlasWidth = atlas.m_width;
+        sheet.m_atlasHeight = atlas.m_height;
+        sheet.m_frames.reserve(atlas.m_document.m_frames.size());
+        for (const Aseprite::FrameData& frame : atlas.m_document.m_frames)
+        {
+            AsepriteFrameData out;
+            out.m_x = frame.m_x;
+            out.m_y = frame.m_y;
+            out.m_w = frame.m_w;
+            out.m_h = frame.m_h;
+            out.m_durationSeconds = frame.m_durationSeconds;
+            sheet.m_frames.push_back(out);
+        }
+        sheet.m_tags.reserve(atlas.m_document.m_tags.size());
+        for (const Aseprite::TagData& tag : atlas.m_document.m_tags)
+        {
+            AsepriteTagData out;
+            out.m_name = tag.m_name;
+            out.m_from = tag.m_from;
+            out.m_to = tag.m_to;
+            out.m_direction = tag.m_direction;
+            sheet.m_tags.push_back(out);
+        }
+        if (!sheet.m_tags.empty())
+        {
+            sheet.m_defaultTag = sheet.m_tags.front().m_name;
+        }
+
+        const AZStd::string sheetFile = AZStd::string::format("%s/%s.dioramasheet", request.m_tempDirPath.c_str(), baseName.c_str());
+        if (!AZ::Utils::SaveObjectToFile(sheetFile, AZ::DataStream::ST_XML, &sheet))
+        {
+            AZ_Error("DioramaAsepriteBuilder", false, "Could not write the sheet metadata for %s", request.m_fullPath.c_str());
+            response.m_resultCode = AssetBuilderSDK::ProcessJobResult_Failed;
+            return;
+        }
+
+        AssetBuilderSDK::JobProduct sheetProduct(sheetFile, azrtti_typeid<DioramaAsepriteSheetAsset>(), SheetSubId);
+        sheetProduct.m_dependencies.emplace_back(
+            AZ::Data::AssetId(request.m_sourceFileUUID, imageSubId),
+            AZ::Data::ProductDependencyInfo::CreateFlags(AZ::Data::AssetLoadBehavior::PreLoad));
+        sheetProduct.m_dependenciesHandled = true;
+        response.m_outputProducts.push_back(AZStd::move(sheetProduct));
+
         response.m_resultCode = AssetBuilderSDK::ProcessJobResult_Success;
     }
 } // namespace Diorama

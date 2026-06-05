@@ -10,11 +10,29 @@
 #include <Atom/RPI.Reflect/Asset/AssetUtils.h>
 
 #include <AzCore/Asset/AssetCommon.h>
+#include <AzCore/StringFunc/StringFunc.h>
 #include <AzCore/std/string/string.h>
 #include <AzCore/std/string/string_view.h>
 
 namespace Diorama
 {
+    //! Convert a source-relative path (as the AssetProcessor reports it, e.g.
+    //! "Assets/diorama_test/hero.streamingimage") into the scan-folder-relative
+    //! product path the asset catalog is keyed by ("diorama_test/hero.streamingimage").
+    //! Products are keyed relative to their scan folder, not the project root, so a
+    //! leading "Assets/" prefix (case-insensitive) must be dropped or SetTextureByPath
+    //! and GetAssetIdByPath cannot resolve the asset at runtime.
+    inline AZStd::string ToScanFolderRelativePath(AZStd::string_view sourceRelativePath)
+    {
+        constexpr AZStd::string_view assetsPrefix = "Assets/";
+        AZStd::string path(sourceRelativePath);
+        if (AZ::StringFunc::StartsWith(path, assetsPrefix))
+        {
+            path.erase(0, assetsPrefix.size());
+        }
+        return path;
+    }
+
     //! Resolve a StreamingImage asset id from either its product path
     //! ("x.png.streamingimage") or the more intuitive source path ("x.png").
     //! The StreamingImage product is the source path plus ".streamingimage", so

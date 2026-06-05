@@ -7,9 +7,13 @@
 
 #pragma once
 
+#include <Clients/DioramaAsepriteSheetAsset.h>
+
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/Entity.h>
 #include <AzCore/std/containers/vector.h>
+#include <AzCore/std/smart_ptr/unique_ptr.h>
+#include <AzFramework/Asset/GenericAssetHandler.h>
 #include <Diorama/DioramaAudioBus.h>
 #include <Diorama/DioramaBus.h>
 
@@ -55,6 +59,9 @@ namespace Diorama
 
         AZStd::vector<AZ::Entity*> m_audioVoices; //!< owned voice-pool entities
         size_t m_nextVoice = 0; //!< round-robin index into m_audioVoices
+
+        //! Loads the .dioramasheet product the .aseprite builder emits.
+        AZStd::unique_ptr<AzFramework::GenericAssetHandler<DioramaAsepriteSheetAsset>> m_asepriteSheetHandler;
     };
 
 } // namespace Diorama
