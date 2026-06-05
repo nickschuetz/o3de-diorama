@@ -75,6 +75,11 @@ namespace Diorama
         //! (starting at baseTileIndex, laid out in edge-mask order) connects itself.
         //! baseTileIndex is clamped to >= 0.
         virtual void Autotile(int baseTileIndex) = 0;
+        //! Autotile every non-empty cell with the 47-tile "blob" scheme (corners count
+        //! when both adjacent edges are present): each cell becomes baseTileIndex + a
+        //! blob index 0..46, so the group's 47-cell art block connects edges and
+        //! corners. baseTileIndex is clamped to >= 0.
+        virtual void AutotileBlob(int baseTileIndex) = 0;
         //! Tint multiplied into every tile; channels clamped to 0..1.
         virtual void SetTint(float r, float g, float b, float a) = 0;
         //! Transparent draw-order bias for the layer; larger draws on top.

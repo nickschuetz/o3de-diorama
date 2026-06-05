@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AzCore/base.h>
+#include <AzCore/std/containers/array.h>
 
 #include <cstddef>
 
@@ -119,5 +120,74 @@ namespace Diorama::TilemapAutotile
     inline int EdgeTileIndex(int baseTile, AZ::u8 edgeMask4)
     {
         return baseTile + static_cast<int>(edgeMask4);
+    }
+
+    //! Number of distinct tiles in the 47-tile "blob" (corner-aware) scheme.
+    inline constexpr int BlobTileCount = 47;
+
+    //! Normalize an 8-bit neighbor mask for the blob scheme: the four edges are kept
+    //! as-is, but a corner is kept only when *both* of its adjacent edges are present
+    //! (an unsupported corner is not a real connection). Exactly 47 distinct values
+    //! result, which is why the blob set has 47 tiles.
+    inline AZ::u8 NormalizeBlobMask(AZ::u8 mask8)
+    {
+        AZ::u8 norm = mask8 & static_cast<AZ::u8>(N | E | S | W);
+        if ((mask8 & NE) && (mask8 & N) && (mask8 & E))
+        {
+            norm |= NE;
+        }
+        if ((mask8 & SE) && (mask8 & S) && (mask8 & E))
+        {
+            norm |= SE;
+        }
+        if ((mask8 & SW) && (mask8 & S) && (mask8 & W))
+        {
+            norm |= SW;
+        }
+        if ((mask8 & NW) && (mask8 & N) && (mask8 & W))
+        {
+            norm |= NW;
+        }
+        return norm;
+    }
+
+    //! Map an 8-bit neighbor mask to a blob tile index 0..46. The index is the
+    //! position of the cell's normalized mask among the 47 valid normalized masks in
+    //! ascending order, a deterministic, gem-defined layout: lay the 47-cell art block
+    //! out in that order. Isolated (no neighbors) is 0.
+    inline int BlobIndex(AZ::u8 mask8)
+    {
+        // Built once: every 8-bit mask -> its blob index, via the ascending order of
+        // the distinct normalized masks.
+        static const AZStd::array<AZ::u8, 256> table = []()
+        {
+            AZStd::array<bool, 256> valid{};
+            for (int m = 0; m < 256; ++m)
+            {
+                valid[NormalizeBlobMask(static_cast<AZ::u8>(m))] = true;
+            }
+            AZStd::array<AZ::u8, 256> indexOfNorm{};
+            AZ::u8 next = 0;
+            for (int v = 0; v < 256; ++v)
+            {
+                if (valid[v])
+                {
+                    indexOfNorm[v] = next++;
+                }
+            }
+            AZStd::array<AZ::u8, 256> result{};
+            for (int m = 0; m < 256; ++m)
+            {
+                result[m] = indexOfNorm[NormalizeBlobMask(static_cast<AZ::u8>(m))];
+            }
+            return result;
+        }();
+        return static_cast<int>(table[mask8]);
+    }
+
+    //! Display tile for a member cell in the 47-tile blob scheme: baseTile + BlobIndex.
+    inline int BlobTileIndex(int baseTile, AZ::u8 mask8)
+    {
+        return baseTile + BlobIndex(mask8);
     }
 } // namespace Diorama::TilemapAutotile

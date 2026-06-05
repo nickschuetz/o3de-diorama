@@ -104,6 +104,11 @@ namespace Diorama
                 { { { "baseTileIndex",
                       "First atlas cell of the 16-tile autotile block; each non-empty cell becomes baseTileIndex + edge mask." } } })
             ->Event(
+                "AutotileBlob",
+                &DioramaTilemapRequestBus::Events::AutotileBlob,
+                { { { "baseTileIndex",
+                      "First atlas cell of the 47-tile blob block; each non-empty cell becomes baseTileIndex + a blob index 0..46." } } })
+            ->Event(
                 "SetTint",
                 &DioramaTilemapRequestBus::Events::SetTint,
                 { { { "r", "Red tint multiplier, clamped to 0..1." },

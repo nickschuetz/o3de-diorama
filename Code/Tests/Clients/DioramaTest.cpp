@@ -1153,4 +1153,46 @@ namespace Diorama
         EXPECT_EQ(edge, static_cast<AZ::u8>(TilemapAutotile::EdgeE | TilemapAutotile::EdgeW));
         EXPECT_EQ(TilemapAutotile::EdgeTileIndex(0, edge), TilemapAutotile::EdgeE | TilemapAutotile::EdgeW);
     }
+
+    TEST(TilemapAutotileTest, NormalizeBlobMask_DropsUnsupportedCorners)
+    {
+        // NE corner with only N present (no E) is not a real connection -> dropped.
+        const AZ::u8 nOnlyNE = TilemapAutotile::N | TilemapAutotile::NE;
+        EXPECT_EQ(TilemapAutotile::NormalizeBlobMask(nOnlyNE), TilemapAutotile::N);
+
+        // NE with both N and E present -> the corner is kept.
+        const AZ::u8 supported = TilemapAutotile::N | TilemapAutotile::E | TilemapAutotile::NE;
+        EXPECT_EQ(
+            TilemapAutotile::NormalizeBlobMask(supported),
+            static_cast<AZ::u8>(TilemapAutotile::N | TilemapAutotile::E | TilemapAutotile::NE));
+    }
+
+    TEST(TilemapAutotileTest, BlobIndex_HasExactly47DistinctValues_InRange)
+    {
+        bool seen[TilemapAutotile::BlobTileCount] = {};
+        int distinct = 0;
+        for (int m = 0; m < 256; ++m)
+        {
+            const int idx = TilemapAutotile::BlobIndex(static_cast<AZ::u8>(m));
+            ASSERT_GE(idx, 0);
+            ASSERT_LT(idx, TilemapAutotile::BlobTileCount);
+            if (!seen[idx])
+            {
+                seen[idx] = true;
+                ++distinct;
+            }
+        }
+        EXPECT_EQ(distinct, 47);
+        // Isolated cell is the first block cell; fully surrounded is the last.
+        EXPECT_EQ(TilemapAutotile::BlobIndex(0), 0);
+        EXPECT_EQ(TilemapAutotile::BlobIndex(0xFF), 46);
+        EXPECT_EQ(TilemapAutotile::BlobTileIndex(100, 0), 100);
+    }
+
+    TEST(TilemapAutotileTest, BlobIndex_IgnoresUnsupportedCornerBits)
+    {
+        // Two masks that normalize to the same thing (a lone NE corner has no effect
+        // without both its edges) must map to the same blob tile.
+        EXPECT_EQ(TilemapAutotile::BlobIndex(TilemapAutotile::N), TilemapAutotile::BlobIndex(TilemapAutotile::N | TilemapAutotile::NE));
+    }
 } // namespace Diorama

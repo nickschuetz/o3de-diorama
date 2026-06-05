@@ -81,7 +81,7 @@ reflection in `Code/Source/Clients/SpriteBus.cpp` and `TilemapBus.cpp`:
 `SetDoubleSided`, `SetUVRegion`, `SetFlip`, `SetSortOffset`, `SetFrameGrid`,
 `SetAnimationEnabled`, `SetPlayback`, `SetStartFrame`, `PlaySpriteSheet`,
 `GetSpriteInfo`, `SetAtlasByPath`, `SetAtlasGrid`, `SetGridSize`, `SetTileSize`,
-`SetTile`, `Fill`, `Clear`, `Autotile`, `GetTilemapInfo`.
+`SetTile`, `Fill`, `Clear`, `Autotile`, `AutotileBlob`, `GetTilemapInfo`.
 
 The per-argument names and tooltips in the tables below are likewise reflected
 into the C++ `BehaviorContext` (readable via `GetArgumentName` and
@@ -158,6 +158,7 @@ parameter in the [Tilemap component reference](./tilemap-component.md).
 | `Fill` | `tileIndex: int` | void | Sets every cell to `tileIndex`; `-1` clears all. | [Tiles](./tilemap-component.md#tiles) |
 | `Clear` | (none) | void | Empties every cell (draws nothing). | [Tiles](./tilemap-component.md#tiles) |
 | `Autotile` | `baseTileIndex: int` | void | `baseTileIndex` clamped to `>= 0`. Rewrites every non-empty cell to `baseTileIndex` + a 4-bit edge mask (N=1,E=2,S=4,W=8) of its non-empty cardinal neighbors, so a 16-cell art block laid out in mask order connects itself. | [Tiles](./tilemap-component.md#tiles) |
+| `AutotileBlob` | `baseTileIndex: int` | void | `baseTileIndex` clamped to `>= 0`. Like `Autotile` but the 47-tile blob scheme: a corner counts only when both its adjacent edges are present, so each cell becomes `baseTileIndex` + a blob index `0..46` (a 47-cell block that connects edges and corners). | [Tiles](./tilemap-component.md#tiles) |
 | `SetTint` | `r: float, g: float, b: float, a: float` | void | Each channel clamped to `0..1`. | [Tint](./tilemap-component.md#tint) |
 | `SetSortOffset` | `sortOffset: float` | void | None (any value). | [Sort offset](./tilemap-component.md#sort-offset) |
 | `GetTilemapInfo` | (none) | `TilemapInfo` | Read-only. Safe to poll. | [Verify loop](#query-and-verify-the-verify-loop) |

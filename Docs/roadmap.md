@@ -93,8 +93,10 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   `TilemapAutotile.h` core -- rewrites every non-empty cell to baseTile + a 4-bit edge
   mask of its cardinal neighbors so a 16-cell art block connects itself
   ([howto/04-tilemap.md](howto/04-tilemap.md#autotiling-borders-connect-themselves)).
-  Remaining: the 47-tile blob set (corners), `DioramaTilesetRule` asset, multiple
-  layers, animated tiles, per-tile collision.
+  **Shipped (blob)**: `AutotileBlob(baseTile)` -- the 47-tile corner-aware scheme on the
+  same `TilemapAutotile.h` core (a corner counts only when both adjacent edges are
+  present, reducing 256 neighbor combos to exactly 47). Remaining: a `DioramaTilesetRule`
+  asset for custom mask->cell layouts, multiple layers, animated tiles, per-tile collision.
 - **Skeletal 2D animation** (L). Bone deformation (Spine / DragonBones style), the
   AAA-2D animation standard. **Design done**
   ([design/2d-skeletal-animation.md](design/2d-skeletal-animation.md)): phased

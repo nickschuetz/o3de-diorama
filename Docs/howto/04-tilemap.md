@@ -115,8 +115,24 @@ middle piece, and so on. Cells off the edge of the grid count as empty, so the m
 border resolves to edge art. Re-run it after editing; it is stable (an already-tiled
 cell stays in the block).
 
-This is the v1 **4-bit edge** scheme (cardinal neighbors only). The 47-tile **blob**
-scheme (corners included) is a planned follow-up that reuses the same neighbor mask.
+### Corners too: the 47-tile blob scheme
+
+For art that also resolves *corners* (inner and outer), use `AutotileBlob` with a
+**47-cell** block instead:
+
+```lua
+DioramaTilemapRequestBus.Event.AutotileBlob(self.entityId, 64)
+```
+
+It uses the same membership rule, but a diagonal neighbor only counts when both of its
+adjacent edges are present (an unsupported corner is not a real connection), which
+reduces the 256 neighbor combinations to exactly 47 tiles. Each cell becomes
+`baseTileIndex + index`, where `index` is `0..46` in the gem's canonical order
+(ascending normalized-mask value): cell `base + 0` is isolated, `base + 46` is fully
+surrounded. Lay the 47-cell block out in that order.
+
+Pick **4-bit edge** (16 tiles) for simple platforms and **blob** (47 tiles) when you
+have corner art.
 
 ## Verifying without a screenshot
 

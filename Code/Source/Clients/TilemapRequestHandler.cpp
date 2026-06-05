@@ -132,53 +132,80 @@ namespace Diorama
         NotifyChanged();
     }
 
+    namespace
+    {
+        //! Re-tile every non-empty cell of config: a cell is a group member if it is
+        //! non-empty; its new tile is baseTile + maskToOffset(neighborMask8). All new
+        //! values are computed against the original grid before any write, so a cell's
+        //! neighbors are read from the original grid, not a half-rewritten one.
+        template<class MaskToOffset>
+        void ResolveAutotile(TilemapComponentConfig& config, int baseTile, MaskToOffset&& maskToOffset)
+        {
+            const int columns = config.GetColumns();
+            const int rows = config.GetRows();
+            const auto isMember = [&config](int col, int row)
+            {
+                return config.GetTile(col, row) != TilemapComponentConfig::EmptyTile;
+            };
+
+            struct Write
+            {
+                int m_col;
+                int m_row;
+                AZ::s32 m_value;
+            };
+            AZStd::vector<Write> writes;
+            writes.reserve(static_cast<size_t>(config.CountFilledTiles()));
+
+            for (int row = 0; row < rows; ++row)
+            {
+                for (int col = 0; col < columns; ++col)
+                {
+                    if (!isMember(col, row))
+                    {
+                        continue;
+                    }
+                    const AZ::u8 mask8 = TilemapAutotile::NeighborMask8(col, row, isMember);
+                    writes.push_back({ col, row, static_cast<AZ::s32>(baseTile + maskToOffset(mask8)) });
+                }
+            }
+
+            for (const Write& write : writes)
+            {
+                config.SetTile(write.m_col, write.m_row, write.m_value);
+            }
+        }
+    } // namespace
+
     void TilemapRequestHandler::Autotile(int baseTileIndex)
     {
         if (m_config == nullptr)
         {
             return;
         }
-        baseTileIndex = AZ::GetMax(baseTileIndex, 0);
-
-        const int columns = m_config->GetColumns();
-        const int rows = m_config->GetRows();
-
-        // A cell is a group member if it is non-empty. Membership is read from the
-        // current grid (a lambda over the live config), and all new values are computed
-        // before any write so a cell's neighbors are evaluated against the original
-        // grid, not a half-rewritten one.
-        const auto isMember = [this](int col, int row)
-        {
-            return m_config->GetTile(col, row) != TilemapComponentConfig::EmptyTile;
-        };
-
-        struct Write
-        {
-            int m_col;
-            int m_row;
-            AZ::s32 m_value;
-        };
-        AZStd::vector<Write> writes;
-        writes.reserve(static_cast<size_t>(m_config->CountFilledTiles()));
-
-        for (int row = 0; row < rows; ++row)
-        {
-            for (int col = 0; col < columns; ++col)
+        ResolveAutotile(
+            *m_config,
+            AZ::GetMax(baseTileIndex, 0),
+            [](AZ::u8 mask8)
             {
-                if (!isMember(col, row))
-                {
-                    continue;
-                }
-                const AZ::u8 mask8 = TilemapAutotile::NeighborMask8(col, row, isMember);
-                const AZ::u8 edge = TilemapAutotile::EdgeMask4(mask8);
-                writes.push_back({ col, row, static_cast<AZ::s32>(TilemapAutotile::EdgeTileIndex(baseTileIndex, edge)) });
-            }
-        }
+                return static_cast<int>(TilemapAutotile::EdgeMask4(mask8));
+            });
+        NotifyChanged();
+    }
 
-        for (const Write& write : writes)
+    void TilemapRequestHandler::AutotileBlob(int baseTileIndex)
+    {
+        if (m_config == nullptr)
         {
-            m_config->SetTile(write.m_col, write.m_row, write.m_value);
+            return;
         }
+        ResolveAutotile(
+            *m_config,
+            AZ::GetMax(baseTileIndex, 0),
+            [](AZ::u8 mask8)
+            {
+                return TilemapAutotile::BlobIndex(mask8);
+            });
         NotifyChanged();
     }
 

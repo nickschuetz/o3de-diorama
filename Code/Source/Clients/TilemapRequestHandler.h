@@ -44,6 +44,7 @@ namespace Diorama
         void Fill(int tileIndex) override;
         void Clear() override;
         void Autotile(int baseTileIndex) override;
+        void AutotileBlob(int baseTileIndex) override;
         void SetTint(float r, float g, float b, float a) override;
         void SetSortOffset(float sortOffset) override;
         TilemapInfo GetTilemapInfo() override;
