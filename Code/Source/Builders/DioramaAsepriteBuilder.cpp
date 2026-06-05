@@ -35,7 +35,8 @@ namespace Diorama
         descriptor.m_version = 1;
         descriptor.m_patterns.emplace_back("*.aseprite", AssetBuilderSDK::AssetBuilderPattern::Wildcard);
         descriptor.m_patterns.emplace_back("*.ase", AssetBuilderSDK::AssetBuilderPattern::Wildcard);
-        descriptor.m_createJobFunction = [this](const AssetBuilderSDK::CreateJobsRequest& request, AssetBuilderSDK::CreateJobsResponse& response)
+        descriptor.m_createJobFunction =
+            [this](const AssetBuilderSDK::CreateJobsRequest& request, AssetBuilderSDK::CreateJobsResponse& response)
         {
             CreateJobs(request, response);
         };
@@ -45,8 +46,7 @@ namespace Diorama
             ProcessJob(request, response);
         };
 
-        AssetBuilderSDK::AssetBuilderBus::Broadcast(
-            &AssetBuilderSDK::AssetBuilderBus::Events::RegisterBuilderInformation, descriptor);
+        AssetBuilderSDK::AssetBuilderBus::Broadcast(&AssetBuilderSDK::AssetBuilderBus::Events::RegisterBuilderInformation, descriptor);
         BusConnect(descriptor.m_busId);
     }
 
@@ -142,7 +142,7 @@ namespace Diorama
             imageProducts,
             &ImageProcessingAtom::ImageBuilderRequests::ConvertImageObject,
             image,
-            AZStd::string{}, // default preset for an RGBA sprite sheet
+            AZStd::string{ "AlbedoWithGenericAlpha" }, // sRGB color + alpha: the sprite-sheet preset
             request.m_platformInfo.m_identifier,
             request.m_tempDirPath,
             sourceAssetId,

@@ -68,9 +68,10 @@ namespace Diorama
                 // Run the collision world in the editor too, so colliders simulate
                 // in play-in-editor (the runtime module supplies it in launchers).
                 azrtti_typeid<Collision2DSystemComponent>(),
-                // Registers Diorama's asset builders; dependency-free so it also
-                // activates in the AssetProcessor's builder application.
-                azrtti_typeid<DioramaBuilderComponent>(),
+                // Note: DioramaBuilderComponent is intentionally NOT required here. The
+                // AssetProcessor's builder app activates it via its AssetBuilder
+                // system-component tag (set in its Reflect); it only needs its descriptor
+                // registered (in the descriptor list above).
             };
         }
     };
