@@ -48,6 +48,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Trailing whitespace and EOF newlines
+        # Templates/ holds an O3DE project-template (scaffolding instantiated by
+        # `o3de create-project`); its files carry ${...} placeholders and follow the
+        # engine's formatting, not ours, so they are excluded from source hygiene.
         run: |
           status=0
           while IFS= read -r f; do
@@ -62,7 +65,7 @@ jobs:
             if [ -s "$f" ] && [ -n "$(tail -c1 "$f")" ]; then
               echo "::error file=$f::missing newline at end of file"; status=1
             fi
-          done < <(git ls-files)
+          done < <(git ls-files | grep -v '^Templates/')
           exit $status
 
   json-valid:
@@ -71,11 +74,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate JSON manifests
+        # Templates/ is excluded: a project-template's .json/.setreg contain ${...}
+        # placeholders (and are only valid JSON once instantiated), so jq would reject
+        # them by design.
         run: |
           status=0
           while IFS= read -r f; do
             if ! jq empty "$f" 2>/dev/null; then
               echo "::error file=$f::invalid JSON"; status=1
             fi
-          done < <(git ls-files '*.json' '*.setreg')
+          done < <(git ls-files '*.json' '*.setreg' | grep -v '^Templates/')
           exit $status
