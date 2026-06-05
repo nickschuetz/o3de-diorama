@@ -100,9 +100,13 @@ that registers it for the `*.aseprite` and `*.ase` source patterns, following th
   AssetProcessor, which loads the gem's **editor/tools** module, so register the
   `BuilderComponent` from `DioramaEditorSystemComponent` (or add it to the editor
   module's descriptor list). No new runtime cost; the builder is editor/AP-only.
-- CMake: the editor target gains `AssetBuilderSDK` and the ImageProcessingAtom builder
-  target (the one exposing `ImageProcessing::ImageBuilderRequestBus`) as dependencies.
-  Confirm the exact target name from the ImageProcessingAtom gem's `CMakeLists`.
+- CMake: the editor/builder target gains `AssetBuilderSDK` (builder + `JobProduct`
+  types) and **`Gem::ImageProcessingAtom.Headers`** as dependencies. The latter is the
+  header-only API target exposing `ImageProcessing::ImageBuilderRequestBus`; calling an
+  EBus needs only its interface header, not the implementation. The handler lives in
+  `Gem::ImageProcessingAtom.Editor`, which the AssetProcessor already loads, so we do
+  not link the implementation. (Resolved from the SDK; four engine gems depend on
+  `.Headers` the same way.)
 - Bump the builder's `m_version` to force re-analysis when the logic changes.
 
 ### 2. ProcessJob: parse -> pack -> two products
@@ -154,6 +158,21 @@ The builder is not unit-testable; it is verified end to end against a running AP
 
 Because 2b is build-green-but-not-headlessly-verified until step 2-3 pass, it lands only
 after a real AP run confirms the products, not on compile alone.
+
+## Licensing
+
+The whole path stays dual **Apache-2.0 OR MIT**, matching O3DE:
+
+- The `.aseprite` reader is **our own code written from the openly published file-format
+  spec**; we ship no Aseprite source. Implementing a documented format carries no
+  license obligation (the Aseprite application's own license does not reach a clean-room
+  reader of its format).
+- ZLIB inflate reuses `AzCore::ZLib` (the permissive zlib license, already bundled) --
+  no new dependency. `AssetBuilderSDK` and ImageProcessingAtom are O3DE (Apache-2.0 OR
+  MIT). Every new file carries the SPDX header the lint CI enforces.
+- Not allowed: bundling Aseprite source, GPL/again-restricted runtimes, or third-party
+  art of unclear provenance. Test fixtures are synthetic bytes generated in-repo, never
+  copyrighted art.
 
 ## Open questions
 
