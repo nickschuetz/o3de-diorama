@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="Docs/images/diorama-logo.png" alt="Diorama" width="640">
+</p>
+
+<p align="center"><em>This logo is rendered in-engine by Diorama: pixel-art sprites composited in world space with the gem's own CRT scanline pass.</em></p>
+
 # Diorama
 
 **World-space 2D and 2.5D for the Open 3D Engine.**
@@ -47,7 +53,6 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | 2.5D | Depth-sorted layers + tilted 2.5D camera | Working |
 | Scripting | Typed per-feature request buses (Lua, Python, ScriptCanvas) | Working |
 | Gameplay | 2D collision: colliders, triggers, and queries reachable from scripts | Working |
-| Sample | 2.5D twin-stick shooter with a LyShine HUD | Working |
 | 2.5D | Parallax background layers | Working |
 | Camera | 2D camera controller (follow, deadzone, bounds, shake) | Working |
 | Camera | Orthographic / pixel-perfect camera | Working |
@@ -55,11 +60,13 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Effects | 2D particle emitter | Working |
 | Effects | Sprite materials (flash, outline, emissive/bloom) | Working |
 | Tilemap | In-editor tile paint tool (editor component mode) | Working |
+| Tilemap | Autotiling: 4-bit edge set and 47-tile blob (corner-aware) | Working |
 | UI | World/screen HUD: text, bars, panels via a typed bus | Working |
 | Post | 2D Look: bloom + vignette over Atom's PostProcess | Working |
 | Post | Retro CRT scanline overlay | Working |
 | Animation | Skeletal cutout clip player (keyframed bone hierarchy) | Working |
 | Animation | Aseprite sprite-sheet import (tags + per-frame timing) | Working |
+| Asset pipeline | Native `.aseprite` AssetBuilder (packs atlas + sheet metadata) | Working |
 | Audio | One-shot SFX + music via MiniAudio | Working |
 | Project | `Diorama2DGame` "New 2.5D Game" project template | Working |
 | Tilemap | Dedicated tilemap asset + builder | Planned |
@@ -141,18 +148,31 @@ references live under [Docs/reference/](Docs/reference/): every
 ## Roadmap
 
 The documentation and sample ladder (full outline in
-[Docs/examples-outline.md](Docs/examples-outline.md)) builds from one sprite to a
-complete game:
+[Docs/examples-outline.md](Docs/examples-outline.md)) builds from one sprite up:
 
 1. Hello Sprite (done)
 2. Animated Sprite, sprite-sheet playback (done)
 3. Sprite Atlas, batched shared atlas (done)
 4. Tilemap, atlas-grid component (done)
 5. Parallax and Layers, 2.5D layering + scroll script (done)
-6. Twin-Stick Shooter, capstone 2.5D sample game (done)
+
+An early twin-stick shooter sample exists but is not yet polished, so it is
+parked under [`Samples/TwinStick`](Samples/TwinStick) rather than shipped as a
+gem asset. A polished flagship showcase (see below) is the intended capstone.
 
 Bonus tracks: custom sprite material/shader and a
 thousands-of-sprites stress scene.
+
+**What's next**
+
+- Consume the `.aseprite` sheet metadata at runtime (asset-reference mode on the
+  sprite component, beyond the current JSON import).
+- A scene-to-image export API (render a Diorama scene to a PNG at any resolution),
+  which doubles as a deterministic headless capture path.
+- A flagship "Living Diorama" showcase: a layered miniature scene with real
+  front-to-back depth.
+- Toward a `0.2.0-beta`: settle the bus API surface, a verified Windows host
+  build, and an always-available build/test CI gate.
 
 ## Versioning
 

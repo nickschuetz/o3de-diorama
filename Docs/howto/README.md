@@ -20,10 +20,10 @@ a camera) in minutes, then points at the feature guides to build on it.
 | 3 | [Sprite Atlas](03-sprite-atlas.md) | Written |
 | 4 | [Tilemap](04-tilemap.md) | Written |
 | 5 | [Parallax and Layers (2.5D)](05-parallax-layers.md) | Written |
-| 6 | [Twin-Stick Shooter (capstone)](06-twin-stick.md) | Written |
 
-All rungs of the ladder now have a written guide, from a single sprite to the
-complete twin-stick capstone.
+The ladder's guides cover sprites through 2.5D layering. An early twin-stick
+shooter sample (not yet polished) is archived under `Samples/TwinStick`, with
+its write-up at `Samples/TwinStick/06-twin-stick-howto.md`.
 
 ## Feature demos
 
