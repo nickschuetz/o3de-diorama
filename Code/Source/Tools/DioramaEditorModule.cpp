@@ -6,9 +6,9 @@
  */
 
 #include "DioramaEditorSystemComponent.h"
+#include <Builders/DioramaBuilderComponent.h>
 #include <Clients/Collision2DSystemComponent.h>
 #include <Diorama/DioramaTypeIds.h>
-#include <Builders/DioramaBuilderComponent.h>
 #include <DioramaModuleInterface.h>
 #include <Tools/EditorCollider2DComponent.h>
 #include <Tools/EditorDioramaAsepriteComponent.h>
