@@ -15,8 +15,8 @@ World-space sprites, texture atlases, UV sub-regions, flips, billboarding,
 sort layers, **automatic camera-distance depth sort**, **soft ground shadows**,
 a batched Atom feature processor, sprite-sheet (flipbook) animation, an
 atlas-grid tilemap component, and the typed per-feature buses (Lua / Python /
-ScriptCanvas). An early 2.5D twin-stick sample (not yet polished) is archived
-under `Samples/TwinStick`.
+ScriptCanvas). An early 2.5D twin-stick sample (not yet polished) is kept out of
+the published tree for now.
 
 Most of the tiers below have since shipped (each tracked inline as **Shipped**):
 2D lighting, the 2D camera, 2D collision, particles, sprite materials, parallax,

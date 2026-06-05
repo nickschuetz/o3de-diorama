@@ -22,8 +22,8 @@ a camera) in minutes, then points at the feature guides to build on it.
 | 5 | [Parallax and Layers (2.5D)](05-parallax-layers.md) | Written |
 
 The ladder's guides cover sprites through 2.5D layering. An early twin-stick
-shooter sample (not yet polished) is archived under `Samples/TwinStick`, with
-its write-up at `Samples/TwinStick/06-twin-stick-howto.md`.
+shooter sample exists but is not yet polished, so it is kept out of the published
+tree for now.
 
 ## Feature demos
 

@@ -156,9 +156,9 @@ The documentation and sample ladder (full outline in
 4. Tilemap, atlas-grid component (done)
 5. Parallax and Layers, 2.5D layering + scroll script (done)
 
-An early twin-stick shooter sample exists but is not yet polished, so it is
-parked under [`Samples/TwinStick`](Samples/TwinStick) rather than shipped as a
-gem asset. A polished flagship showcase (see below) is the intended capstone.
+An early twin-stick shooter sample exists but is not yet polished, so it is kept
+out of the published tree for now rather than shipped as a gem asset. A polished
+flagship showcase (see below) is the intended capstone.
 
 Bonus tracks: custom sprite material/shader and a
 thousands-of-sprites stress scene.
