@@ -88,8 +88,13 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   our own neighbor-bitmask autotiling. **Shipped (paint v1)**: an editor component
   mode on the Tilemap (left-drag paint with the active tile, right-drag erase, one
   undo step per stroke) on the pure tested `TilemapPaint.h` core + `LocalPositionToCell`;
-  interactively verified ([howto/04-tilemap.md](howto/04-tilemap.md)). Remaining:
-  autotiling/rule tiles, multiple layers, animated tiles, per-tile collision.
+  interactively verified ([howto/04-tilemap.md](howto/04-tilemap.md)). **Shipped
+  (autotile v1)**: the `Autotile(baseTile)` bus verb on the pure tested
+  `TilemapAutotile.h` core -- rewrites every non-empty cell to baseTile + a 4-bit edge
+  mask of its cardinal neighbors so a 16-cell art block connects itself
+  ([howto/04-tilemap.md](howto/04-tilemap.md#autotiling-borders-connect-themselves)).
+  Remaining: the 47-tile blob set (corners), `DioramaTilesetRule` asset, multiple
+  layers, animated tiles, per-tile collision.
 - **Skeletal 2D animation** (L). Bone deformation (Spine / DragonBones style), the
   AAA-2D animation standard. **Design done**
   ([design/2d-skeletal-animation.md](design/2d-skeletal-animation.md)): phased

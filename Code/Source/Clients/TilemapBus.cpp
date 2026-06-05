@@ -99,6 +99,11 @@ namespace Diorama
                 { { { "tileIndex", "Atlas cell index to set in every cell, or -1 to clear all." } } })
             ->Event("Clear", &DioramaTilemapRequestBus::Events::Clear)
             ->Event(
+                "Autotile",
+                &DioramaTilemapRequestBus::Events::Autotile,
+                { { { "baseTileIndex",
+                      "First atlas cell of the 16-tile autotile block; each non-empty cell becomes baseTileIndex + edge mask." } } })
+            ->Event(
                 "SetTint",
                 &DioramaTilemapRequestBus::Events::SetTint,
                 { { { "r", "Red tint multiplier, clamped to 0..1." },

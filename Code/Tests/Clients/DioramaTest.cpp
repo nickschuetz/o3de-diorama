@@ -29,9 +29,10 @@
 #include <Clients/SpriteComponent.h>
 #include <Clients/SpritePresenter.h>
 #include <Clients/SpriteRequestHandler.h>
+#include <Clients/TilemapAutotile.h>
 #include <Clients/TilemapComponent.h>
-#include <Diorama/DioramaLightBus.h>
 #include <Clients/TilemapPaint.h>
+#include <Diorama/DioramaLightBus.h>
 #include <Diorama/DioramaLightConfig.h>
 #include <Diorama/SpriteBus.h>
 #include <Diorama/SpriteComponentConfig.h>
@@ -1093,5 +1094,63 @@ namespace Diorama
         // Out-of-grid seed yields nothing.
         TilemapPaint::FloodFillCells(9, 9, 4, 1, tileAt, cells);
         EXPECT_TRUE(cells.empty());
+    }
+
+    // ---- Tilemap autotiling: neighbor mask -> 4-bit edge -> tile index -----------
+    // The editor/runtime Autotile verb is verified in the editor, but the bitmask math
+    // is pure and tested here: which neighbors count, the cardinal-edge reduction, and
+    // the block tile index.
+
+    TEST(TilemapAutotileTest, NeighborMask8_IsolatedAndCrossAndDiagonal)
+    {
+        // A 3x3 plus-shape of members: center + N/E/S/W, no diagonals.
+        auto plus = [](int c, int r)
+        {
+            return (c == 1 && (r == 0 || r == 1 || r == 2)) || (r == 1 && (c == 0 || c == 2));
+        };
+        // Center sees all four cardinals, no diagonals.
+        const AZ::u8 center = TilemapAutotile::NeighborMask8(1, 1, plus);
+        EXPECT_EQ(center & TilemapAutotile::N, TilemapAutotile::N);
+        EXPECT_EQ(center & TilemapAutotile::E, TilemapAutotile::E);
+        EXPECT_EQ(center & TilemapAutotile::S, TilemapAutotile::S);
+        EXPECT_EQ(center & TilemapAutotile::W, TilemapAutotile::W);
+        EXPECT_EQ(center & TilemapAutotile::NE, 0);
+        EXPECT_EQ(center & TilemapAutotile::SW, 0);
+
+        // An isolated cell (predicate always false) has no neighbors.
+        auto none = [](int, int)
+        {
+            return false;
+        };
+        EXPECT_EQ(TilemapAutotile::NeighborMask8(5, 5, none), 0);
+    }
+
+    TEST(TilemapAutotileTest, EdgeMask4_DropsDiagonalsAndKeepsCardinals)
+    {
+        const AZ::u8 mask8 = TilemapAutotile::N | TilemapAutotile::NE | TilemapAutotile::W;
+        const AZ::u8 edge = TilemapAutotile::EdgeMask4(mask8);
+        EXPECT_EQ(edge, static_cast<AZ::u8>(TilemapAutotile::EdgeN | TilemapAutotile::EdgeW));
+
+        // All eight neighbors -> all four edges set (0..15 max = 15).
+        const AZ::u8 full = TilemapAutotile::EdgeMask4(0xFF);
+        EXPECT_EQ(full, 15);
+    }
+
+    TEST(TilemapAutotileTest, EdgeTileIndex_OffsetsIntoTheBlock)
+    {
+        EXPECT_EQ(TilemapAutotile::EdgeTileIndex(64, 0), 64); // isolated -> first block cell
+        EXPECT_EQ(TilemapAutotile::EdgeTileIndex(64, 15), 79); // surrounded -> last block cell
+    }
+
+    TEST(TilemapAutotileTest, HorizontalRunMiddleCell_HasEastAndWestEdgesOnly)
+    {
+        // A horizontal run on row 0: cells (0,0),(1,0),(2,0) are members.
+        auto run = [](int c, int r)
+        {
+            return r == 0 && c >= 0 && c <= 2;
+        };
+        const AZ::u8 edge = TilemapAutotile::EdgeMask4(TilemapAutotile::NeighborMask8(1, 0, run));
+        EXPECT_EQ(edge, static_cast<AZ::u8>(TilemapAutotile::EdgeE | TilemapAutotile::EdgeW));
+        EXPECT_EQ(TilemapAutotile::EdgeTileIndex(0, edge), TilemapAutotile::EdgeE | TilemapAutotile::EdgeW);
     }
 } // namespace Diorama

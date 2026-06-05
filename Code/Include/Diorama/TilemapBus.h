@@ -70,6 +70,11 @@ namespace Diorama
         virtual void Fill(int tileIndex) = 0;
         //! Clear every cell (draws nothing).
         virtual void Clear() = 0;
+        //! Autotile every non-empty cell: rewrite each to baseTileIndex + a 4-bit edge
+        //! mask of its non-empty cardinal neighbors, so the group's 16-cell art block
+        //! (starting at baseTileIndex, laid out in edge-mask order) connects itself.
+        //! baseTileIndex is clamped to >= 0.
+        virtual void Autotile(int baseTileIndex) = 0;
         //! Tint multiplied into every tile; channels clamped to 0..1.
         virtual void SetTint(float r, float g, float b, float a) = 0;
         //! Transparent draw-order bias for the layer; larger draws on top.

@@ -94,6 +94,30 @@ then verifies the result with `GetTilemapInfo` (no screenshot needed):
   --runpython /path/to/o3de-diorama/Docs/examples/tilemap.py
 ```
 
+## Autotiling (borders connect themselves)
+
+If your tileset has a 16-cell **autotile block** (one cell per combination of which
+cardinal edges touch a same-group neighbor), you can paint plain solid cells and let
+the tilemap pick the right border art:
+
+```lua
+-- Paint a region (any solid tile), then resolve borders against the 16-cell block
+-- that starts at atlas cell 64:
+DioramaTilemapRequestBus.Event.Fill(self.entityId, 64)
+DioramaTilemapRequestBus.Event.Autotile(self.entityId, 64)
+```
+
+`Autotile(baseTileIndex)` walks every **non-empty** cell, builds a 4-bit mask of its
+non-empty cardinal neighbors (`N=1, E=2, S=4, W=8`), and sets the cell to
+`baseTileIndex + mask`. So lay your block out in mask order: cell `base + 0` is the
+isolated tile, `base + 15` is fully surrounded, `base + 10` (`E|W`) is a horizontal
+middle piece, and so on. Cells off the edge of the grid count as empty, so the map
+border resolves to edge art. Re-run it after editing; it is stable (an already-tiled
+cell stays in the block).
+
+This is the v1 **4-bit edge** scheme (cardinal neighbors only). The 47-tile **blob**
+scheme (corners included) is a planned follow-up that reuses the same neighbor mask.
+
 ## Verifying without a screenshot
 
 `GetTilemapInfo` returns the resolved state: the resolved atlas path, whether the

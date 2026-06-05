@@ -6,8 +6,11 @@
  */
 
 #include <Clients/DioramaAssetUtils.h>
+#include <Clients/TilemapAutotile.h>
 #include <Clients/TilemapPresenter.h>
 #include <Clients/TilemapRequestHandler.h>
+
+#include <AzCore/std/containers/vector.h>
 
 #include <AzCore/Math/MathUtils.h>
 #include <AzFramework/Asset/AssetCatalogBus.h>
@@ -126,6 +129,56 @@ namespace Diorama
             return;
         }
         m_config->Clear();
+        NotifyChanged();
+    }
+
+    void TilemapRequestHandler::Autotile(int baseTileIndex)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        baseTileIndex = AZ::GetMax(baseTileIndex, 0);
+
+        const int columns = m_config->GetColumns();
+        const int rows = m_config->GetRows();
+
+        // A cell is a group member if it is non-empty. Membership is read from the
+        // current grid (a lambda over the live config), and all new values are computed
+        // before any write so a cell's neighbors are evaluated against the original
+        // grid, not a half-rewritten one.
+        const auto isMember = [this](int col, int row)
+        {
+            return m_config->GetTile(col, row) != TilemapComponentConfig::EmptyTile;
+        };
+
+        struct Write
+        {
+            int m_col;
+            int m_row;
+            AZ::s32 m_value;
+        };
+        AZStd::vector<Write> writes;
+        writes.reserve(static_cast<size_t>(m_config->CountFilledTiles()));
+
+        for (int row = 0; row < rows; ++row)
+        {
+            for (int col = 0; col < columns; ++col)
+            {
+                if (!isMember(col, row))
+                {
+                    continue;
+                }
+                const AZ::u8 mask8 = TilemapAutotile::NeighborMask8(col, row, isMember);
+                const AZ::u8 edge = TilemapAutotile::EdgeMask4(mask8);
+                writes.push_back({ col, row, static_cast<AZ::s32>(TilemapAutotile::EdgeTileIndex(baseTileIndex, edge)) });
+            }
+        }
+
+        for (const Write& write : writes)
+        {
+            m_config->SetTile(write.m_col, write.m_row, write.m_value);
+        }
         NotifyChanged();
     }
 
