@@ -366,7 +366,14 @@ To add a new Diorama visual feature, follow the established shape:
    changes, embedded by both components.
 3. A `FooRequestHandler` implementing a typed, forgiving `DioramaFooRequestBus`,
    embedded by both components, with reflected event names that contain no spaces
-   (so they map 1:1 in Lua and Python).
+   (so they map 1:1 in Lua and Python). For clean Script Canvas nodes, reflect the
+   bus with a per-feature category, `Category, "Diorama/Foo"` (not bare `"Diorama"`),
+   so same-named verbs on different buses nest per feature instead of colliding in one
+   flat list. Reflect any returned `*Info` / result struct read-only,
+   `->Property("x", BehaviorValueGetter(&FooInfo::m_x), nullptr)`, never
+   `BehaviorValueProperty` (which adds a setter and so a duplicate node, and would let
+   a returned snapshot be mutated). The editor component's Add-Component category stays
+   plain `"Diorama"`; only the Script Canvas bus category is sub-scoped.
 4. A runtime `FooComponent` (no Qt) that builds from the config.
 5. An `EditorFooComponent` that adds preview, Inspector authoring, and
    synchronous persistence of bus edits, and appears in the Add Component menu
