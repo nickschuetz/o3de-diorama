@@ -16,6 +16,8 @@ set(FILES
     Source/Clients/SkeletalClip.h
     Source/Clients/AsepriteImport.h
     Source/Clients/AsepriteImport.cpp
+    Source/Clients/AsepriteBinary.h
+    Source/Clients/AsepriteBinary.cpp
     Source/Clients/Collision2D.h
     Source/Clients/Collision2DBus.cpp
     Source/Clients/Collision2DSystemComponent.cpp

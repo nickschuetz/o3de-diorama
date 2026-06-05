@@ -8,10 +8,14 @@
 #include <AzTest/AzTest.h>
 
 #include <AzCore/Component/ComponentApplication.h>
+#include <AzCore/Compression/Compression.h>
+
 #include <AzCore/Component/Entity.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
+#include <cstring>
 
+#include <Clients/AsepriteBinary.h>
 #include <Clients/AsepriteImport.h>
 #include <Clients/Collider2DComponent.h>
 #include <Clients/DioramaAsepriteComponent.h>
@@ -1194,5 +1198,236 @@ namespace Diorama
         // Two masks that normalize to the same thing (a lone NE corner has no effect
         // without both its edges) must map to the same blob tile.
         EXPECT_EQ(TilemapAutotile::BlobIndex(TilemapAutotile::N), TilemapAutotile::BlobIndex(TilemapAutotile::N | TilemapAutotile::NE));
+    }
+
+    // ---- Native .aseprite binary parser ----------------------------------------
+    // The parser reads the open Aseprite binary container; tested here with hand-built
+    // fixtures (no committed binary) for raw + ZLIB-compressed cels, tags, compositing,
+    // and malformed-input rejection (untrusted-asset safety).
+
+    namespace AseBin
+    {
+        // Little-endian byte writer for assembling fixture files.
+        struct Writer
+        {
+            AZStd::vector<AZ::u8> m_bytes;
+            void U8(AZ::u8 v)
+            {
+                m_bytes.push_back(v);
+            }
+            void U16(AZ::u16 v)
+            {
+                m_bytes.push_back(static_cast<AZ::u8>(v & 0xFF));
+                m_bytes.push_back(static_cast<AZ::u8>((v >> 8) & 0xFF));
+            }
+            void U32(AZ::u32 v)
+            {
+                for (int i = 0; i < 4; ++i)
+                {
+                    m_bytes.push_back(static_cast<AZ::u8>((v >> (i * 8)) & 0xFF));
+                }
+            }
+            void Bytes(const AZStd::vector<AZ::u8>& b)
+            {
+                m_bytes.insert(m_bytes.end(), b.begin(), b.end());
+            }
+            void Pad(size_t n)
+            {
+                m_bytes.insert(m_bytes.end(), n, AZ::u8{ 0 });
+            }
+        };
+
+        AZStd::vector<AZ::u8> ZlibCompress(const AZStd::vector<AZ::u8>& raw)
+        {
+            AZ::ZLib zlib;
+            zlib.StartCompressor();
+            AZStd::vector<AZ::u8> out(zlib.GetMinCompressedBufferSize(static_cast<AZ::u32>(raw.size())) + 64);
+            AZ::u32 srcSize = static_cast<AZ::u32>(raw.size());
+            const AZ::u32 written = zlib.Compress(raw.data(), srcSize, out.data(), static_cast<AZ::u32>(out.size()), AZ::ZLib::FT_FINISH);
+            zlib.StopCompressor();
+            out.resize(written);
+            return out;
+        }
+
+        // A 128-byte header for a 32-bpp sprite of the given size + frame count.
+        void WriteHeader(Writer& w, AZ::u16 frames, AZ::u16 width, AZ::u16 height)
+        {
+            w.U32(0); // file size (parser ignores)
+            w.U16(0xA5E0); // magic
+            w.U16(frames);
+            w.U16(width);
+            w.U16(height);
+            w.U16(32); // color depth RGBA
+            w.Pad(128 - 14); // remainder of the header
+        }
+
+        // A Layer chunk (visible, opacity 255, normal blend).
+        AZStd::vector<AZ::u8> LayerChunk(const char* name)
+        {
+            Writer c;
+            const AZ::u16 nameLen = static_cast<AZ::u16>(::strlen(name));
+            const AZ::u32 size = 6 + 2 + 2 + 2 + 2 + 2 + 2 + 1 + 3 + 2 + nameLen;
+            c.U32(size);
+            c.U16(0x2004); // layer
+            c.U16(0x1); // flags: visible
+            c.U16(0); // type: normal
+            c.U16(0); // child level
+            c.U16(0); // default width
+            c.U16(0); // default height
+            c.U16(0); // blend: normal
+            c.U8(255); // opacity
+            c.Pad(3); // reserved
+            c.U16(nameLen);
+            for (AZ::u16 i = 0; i < nameLen; ++i)
+            {
+                c.U8(static_cast<AZ::u8>(name[i]));
+            }
+            return c.m_bytes;
+        }
+
+        // A Cel chunk on layerIndex at (x,y), raw or zlib-compressed.
+        AZStd::vector<AZ::u8> CelChunk(
+            AZ::u16 layerIndex, AZ::s16 x, AZ::s16 y, AZ::u16 cw, AZ::u16 ch, const AZStd::vector<AZ::u8>& rgba, bool compressed)
+        {
+            Writer c;
+            const AZStd::vector<AZ::u8> payload = compressed ? ZlibCompress(rgba) : rgba;
+            const AZ::u32 size = 6 + 2 + 2 + 2 + 1 + 2 + 7 + 2 + 2 + static_cast<AZ::u32>(payload.size());
+            c.U32(size);
+            c.U16(0x2005); // cel
+            c.U16(layerIndex);
+            c.U16(static_cast<AZ::u16>(x));
+            c.U16(static_cast<AZ::u16>(y));
+            c.U8(255); // opacity
+            c.U16(compressed ? 2 : 0); // cel type
+            c.Pad(7); // z-index + reserved
+            c.U16(cw);
+            c.U16(ch);
+            c.Bytes(payload);
+            return c.m_bytes;
+        }
+
+        // A Tags chunk with a single forward tag.
+        AZStd::vector<AZ::u8> TagsChunk(const char* name, AZ::u16 from, AZ::u16 to)
+        {
+            Writer c;
+            const AZ::u16 nameLen = static_cast<AZ::u16>(::strlen(name));
+            const AZ::u32 size = 6 + 2 + 8 + 2 + 2 + 1 + 12 + 2 + nameLen;
+            c.U32(size);
+            c.U16(0x2018); // tags
+            c.U16(1); // tag count
+            c.Pad(8); // reserved
+            c.U16(from);
+            c.U16(to);
+            c.U8(0); // direction forward
+            c.Pad(12); // repeat + reserved + rgb + extra (17-byte fixed prefix)
+            c.U16(nameLen);
+            for (AZ::u16 i = 0; i < nameLen; ++i)
+            {
+                c.U8(static_cast<AZ::u8>(name[i]));
+            }
+            return c.m_bytes;
+        }
+
+        // Wrap chunks into a single frame (durationMs) and append to w.
+        void WriteFrame(Writer& w, AZ::u16 durationMs, const AZStd::vector<AZStd::vector<AZ::u8>>& chunks)
+        {
+            AZ::u32 chunksLen = 0;
+            for (const auto& ch : chunks)
+            {
+                chunksLen += static_cast<AZ::u32>(ch.size());
+            }
+            w.U32(16 + chunksLen); // bytes in frame (incl. this field)
+            w.U16(0xF1FA); // frame magic
+            w.U16(static_cast<AZ::u16>(chunks.size())); // old chunk count
+            w.U16(durationMs);
+            w.Pad(2); // reserved
+            w.U32(0); // new chunk count (0 -> use old)
+            for (const auto& ch : chunks)
+            {
+                w.Bytes(ch);
+            }
+        }
+
+        // A solid-color 1x1 RGBA cel pixel.
+        AZStd::vector<AZ::u8> Pixel(AZ::u8 r, AZ::u8 g, AZ::u8 b, AZ::u8 a)
+        {
+            return { r, g, b, a };
+        }
+    } // namespace AseBin
+
+    TEST(AsepriteBinaryTest, ParsesHeaderFramesLayersAndTags)
+    {
+        AseBin::Writer w;
+        AseBin::WriteHeader(w, /*frames*/ 1, /*w*/ 1, /*h*/ 1);
+        AseBin::WriteFrame(
+            w,
+            120,
+            { AseBin::LayerChunk("Layer 1"),
+              AseBin::CelChunk(0, 0, 0, 1, 1, AseBin::Pixel(10, 20, 30, 255), /*compressed*/ false),
+              AseBin::TagsChunk("walk", 0, 0) });
+
+        Aseprite::BinarySprite sprite;
+        ASSERT_TRUE(Aseprite::ParseAsepriteBinary(AZStd::span<const AZ::u8>(w.m_bytes.data(), w.m_bytes.size()), sprite));
+        EXPECT_EQ(sprite.m_width, 1);
+        EXPECT_EQ(sprite.m_height, 1);
+        ASSERT_EQ(sprite.m_layers.size(), 1u);
+        EXPECT_EQ(sprite.m_layers[0].m_name, "Layer 1");
+        ASSERT_EQ(sprite.m_frames.size(), 1u);
+        EXPECT_NEAR(sprite.m_frames[0].m_durationSeconds, 0.12f, 1e-4f);
+        ASSERT_EQ(sprite.m_frames[0].m_cels.size(), 1u);
+        ASSERT_EQ(sprite.m_tags.size(), 1u);
+        EXPECT_EQ(sprite.m_tags[0].m_name, "walk");
+        EXPECT_EQ(sprite.m_tags[0].m_direction, Aseprite::Direction::Forward);
+    }
+
+    TEST(AsepriteBinaryTest, DecompressesZlibCel_RoundTrip)
+    {
+        // A 2x2 RGBA cel with four distinct pixels, stored compressed.
+        AZStd::vector<AZ::u8> rgba = {
+            1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255, 10, 11, 12, 255,
+        };
+        AseBin::Writer w;
+        AseBin::WriteHeader(w, 1, 2, 2);
+        AseBin::WriteFrame(w, 100, { AseBin::LayerChunk("L"), AseBin::CelChunk(0, 0, 0, 2, 2, rgba, /*compressed*/ true) });
+
+        Aseprite::BinarySprite sprite;
+        ASSERT_TRUE(Aseprite::ParseAsepriteBinary(AZStd::span<const AZ::u8>(w.m_bytes.data(), w.m_bytes.size()), sprite));
+        ASSERT_EQ(sprite.m_frames.size(), 1u);
+        ASSERT_EQ(sprite.m_frames[0].m_cels.size(), 1u);
+        EXPECT_EQ(sprite.m_frames[0].m_cels[0].m_rgba, rgba);
+    }
+
+    TEST(AsepriteBinaryTest, CompositeFrame_PlacesCelAndHonorsOffset)
+    {
+        // 2x2 canvas, a single red pixel cel placed at (1,1).
+        AseBin::Writer w;
+        AseBin::WriteHeader(w, 1, 2, 2);
+        AseBin::WriteFrame(w, 100, { AseBin::LayerChunk("L"), AseBin::CelChunk(0, 1, 1, 1, 1, AseBin::Pixel(255, 0, 0, 255), false) });
+
+        Aseprite::BinarySprite sprite;
+        ASSERT_TRUE(Aseprite::ParseAsepriteBinary(AZStd::span<const AZ::u8>(w.m_bytes.data(), w.m_bytes.size()), sprite));
+        const Aseprite::FrameImage image = Aseprite::CompositeFrame(sprite, 0);
+        ASSERT_EQ(image.m_rgba.size(), 2u * 2u * 4u);
+        // (0,0) is transparent; (1,1) is the red pixel.
+        EXPECT_EQ(image.m_rgba[0 * 4 + 3], 0); // top-left alpha
+        const size_t br = (1u * 2u + 1u) * 4u;
+        EXPECT_EQ(image.m_rgba[br + 0], 255);
+        EXPECT_EQ(image.m_rgba[br + 3], 255);
+    }
+
+    TEST(AsepriteBinaryTest, RejectsMalformedInput)
+    {
+        Aseprite::BinarySprite sprite;
+        // Bad magic.
+        AseBin::Writer bad;
+        bad.U32(0);
+        bad.U16(0x1234);
+        bad.Pad(200);
+        EXPECT_FALSE(Aseprite::ParseAsepriteBinary(AZStd::span<const AZ::u8>(bad.m_bytes.data(), bad.m_bytes.size()), sprite));
+        EXPECT_TRUE(sprite.m_frames.empty());
+
+        // Truncated (header cut short).
+        AZStd::vector<AZ::u8> tiny = { 0, 0, 0, 0, 0xE0, 0xA5 };
+        EXPECT_FALSE(Aseprite::ParseAsepriteBinary(AZStd::span<const AZ::u8>(tiny.data(), tiny.size()), sprite));
     }
 } // namespace Diorama

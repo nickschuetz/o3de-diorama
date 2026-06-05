@@ -125,7 +125,13 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   (forward/reverse/ping-pong) via `DioramaAsepriteComponent` + `DioramaAsepriteRequestBus`;
   the editor twin does the import, the runtime drives a Sprite's texture + UV. Pure
   tested `AsepriteImport.h` core ([howto/19-aseprite.md](howto/19-aseprite.md)).
-  Remaining: native `.aseprite` binary parsing (v2, reuses the same Document model).
+  **Native binary (phase 1) shipped**: `AsepriteBinary.h/.cpp` parses the native
+  `.aseprite`/`.ase` container (header, frames, layers, cels incl. ZLIB-compressed via
+  AzCore's portable inflate, tags) into an in-memory model and composites visible
+  layers per frame to RGBA; bounds-checked against untrusted input; v1 is 32-bpp RGBA.
+  Remaining (phase 2): the asset builder that packs the composited frames into an atlas
+  product (delegating compression to the image pipeline) and feeds the existing Aseprite
+  component/bus; then indexed/grayscale color depths and non-normal blend modes.
 - **In-editor sprite/atlas slicer + animation clip editor** (M). Define frames,
   fps, loop, and frame events visually. **Design done**
   ([design/2d-editor-authoring.md](design/2d-editor-authoring.md)): a Qt front-end
