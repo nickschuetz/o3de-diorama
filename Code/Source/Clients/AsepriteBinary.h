@@ -86,4 +86,23 @@ namespace Diorama::Aseprite
     //! layer + cel opacity) into a canvas-sized RGBA image. Out-of-range frame -> a
     //! transparent canvas. Non-normal blend modes fall back to normal in v1.
     FrameImage CompositeFrame(const BinarySprite& sprite, int frameIndex);
+
+    //! A packed sprite-sheet: the atlas pixels plus a Document (the JSON-path model:
+    //! atlas size, per-frame rects, per-frame durations, tags) that the Aseprite
+    //! component already consumes. This is the bridge from the native binary to the
+    //! existing import model, so both importers converge on one runtime path.
+    struct PackedAtlas
+    {
+        int m_width = 0;
+        int m_height = 0;
+        AZStd::vector<AZ::u8> m_rgba; //!< m_width * m_height * 4.
+        Document m_document;
+    };
+
+    //! Composite every frame and pack them into a uniform grid atlas, columns frames
+    //! wide (clamped to >= 1). Each frame is the canvas size, so the atlas is
+    //! columns x ceil(frames/columns) cells; the Document gets one rect + duration per
+    //! frame (in frame order) and the sprite's tags. imageName is recorded on the
+    //! Document for reference.
+    PackedAtlas PackFramesToGrid(const BinarySprite& sprite, int columns, const AZStd::string& imageName);
 } // namespace Diorama::Aseprite

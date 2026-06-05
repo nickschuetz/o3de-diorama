@@ -1430,4 +1430,40 @@ namespace Diorama
         AZStd::vector<AZ::u8> tiny = { 0, 0, 0, 0, 0xE0, 0xA5 };
         EXPECT_FALSE(Aseprite::ParseAsepriteBinary(AZStd::span<const AZ::u8>(tiny.data(), tiny.size()), sprite));
     }
+
+    TEST(AsepriteBinaryTest, PackFramesToGrid_LaysFramesAndBuildsDocument)
+    {
+        // Two 1x1 frames: frame 0 red, frame 1 green; one tag spanning both.
+        AseBin::Writer w;
+        AseBin::WriteHeader(w, /*frames*/ 2, /*w*/ 1, /*h*/ 1);
+        AseBin::WriteFrame(
+            w,
+            100,
+            { AseBin::LayerChunk("L"),
+              AseBin::CelChunk(0, 0, 0, 1, 1, AseBin::Pixel(255, 0, 0, 255), false),
+              AseBin::TagsChunk("run", 0, 1) });
+        AseBin::WriteFrame(w, 250, { AseBin::CelChunk(0, 0, 0, 1, 1, AseBin::Pixel(0, 255, 0, 255), false) });
+
+        Aseprite::BinarySprite sprite;
+        ASSERT_TRUE(Aseprite::ParseAsepriteBinary(AZStd::span<const AZ::u8>(w.m_bytes.data(), w.m_bytes.size()), sprite));
+        ASSERT_EQ(sprite.m_frames.size(), 2u);
+
+        const Aseprite::PackedAtlas atlas = Aseprite::PackFramesToGrid(sprite, /*columns*/ 2, "hero.png");
+        // 2 cells wide, 1 tall, each 1x1 -> a 2x1 atlas.
+        EXPECT_EQ(atlas.m_width, 2);
+        EXPECT_EQ(atlas.m_height, 1);
+        // The Document mirrors the JSON-path model the component consumes.
+        EXPECT_EQ(atlas.m_document.m_atlasWidth, 2);
+        ASSERT_EQ(atlas.m_document.m_frames.size(), 2u);
+        EXPECT_EQ(atlas.m_document.m_frames[0].m_x, 0);
+        EXPECT_EQ(atlas.m_document.m_frames[1].m_x, 1);
+        EXPECT_NEAR(atlas.m_document.m_frames[1].m_durationSeconds, 0.25f, 1e-4f);
+        ASSERT_EQ(atlas.m_document.m_tags.size(), 1u);
+        EXPECT_EQ(atlas.m_document.m_tags[0].m_name, "run");
+        // Pixel placement: cell 0 is red, cell 1 is green.
+        EXPECT_EQ(atlas.m_rgba[0], 255); // (0,0) R
+        EXPECT_EQ(atlas.m_rgba[1], 0); // (0,0) G
+        EXPECT_EQ(atlas.m_rgba[4 + 0], 0); // (1,0) R
+        EXPECT_EQ(atlas.m_rgba[4 + 1], 255); // (1,0) G
+    }
 } // namespace Diorama

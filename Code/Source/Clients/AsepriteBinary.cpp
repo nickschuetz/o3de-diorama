@@ -442,4 +442,55 @@ namespace Diorama::Aseprite
         }
         return image;
     }
+
+    PackedAtlas PackFramesToGrid(const BinarySprite& sprite, int columns, const AZStd::string& imageName)
+    {
+        PackedAtlas atlas;
+        atlas.m_document.m_imageName = imageName;
+
+        const int frameCount = static_cast<int>(sprite.m_frames.size());
+        const int cellW = sprite.m_width;
+        const int cellH = sprite.m_height;
+        if (frameCount == 0 || cellW <= 0 || cellH <= 0)
+        {
+            return atlas;
+        }
+
+        const int cols = AZ::GetMax(columns, 1);
+        const int rows = (frameCount + cols - 1) / cols;
+        atlas.m_width = cols * cellW;
+        atlas.m_height = rows * cellH;
+        atlas.m_rgba.resize(static_cast<size_t>(atlas.m_width) * atlas.m_height * 4, 0);
+
+        atlas.m_document.m_atlasWidth = atlas.m_width;
+        atlas.m_document.m_atlasHeight = atlas.m_height;
+        atlas.m_document.m_frames.reserve(static_cast<size_t>(frameCount));
+
+        for (int i = 0; i < frameCount; ++i)
+        {
+            const int col = i % cols;
+            const int row = i / cols;
+            const int originX = col * cellW;
+            const int originY = row * cellH;
+
+            const FrameImage frame = CompositeFrame(sprite, i);
+            for (int y = 0; y < cellH; ++y)
+            {
+                const AZ::u8* srcRow = &frame.m_rgba[static_cast<size_t>(y) * cellW * 4];
+                AZ::u8* dstRow = &atlas.m_rgba[(static_cast<size_t>(originY + y) * atlas.m_width + originX) * 4];
+                ::memcpy(dstRow, srcRow, static_cast<size_t>(cellW) * 4);
+            }
+
+            FrameData rect;
+            rect.m_x = originX;
+            rect.m_y = originY;
+            rect.m_w = cellW;
+            rect.m_h = cellH;
+            rect.m_durationSeconds = sprite.m_frames[i].m_durationSeconds;
+            atlas.m_document.m_frames.push_back(rect);
+        }
+
+        atlas.m_document.m_tags = sprite.m_tags;
+        return atlas;
+    }
 } // namespace Diorama::Aseprite
