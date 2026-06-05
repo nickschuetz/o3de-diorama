@@ -48,6 +48,7 @@ Each has a written guide and a runnable example.
 
 | Topic | Guide | Status |
 | ----- | ----- | ------ |
+| Start a New 2.5D Game from the template | [20-template.md](20-template.md) | Written |
 | Record a demo headlessly (GameLauncher + ffmpeg) | [12-recording-demos.md](12-recording-demos.md) | Written |
 
 ## Reference
