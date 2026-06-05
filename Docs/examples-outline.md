@@ -76,12 +76,15 @@ piece, and ship one tiny demo per new feature for the docs. See
   platformer-shaped features. A second complete-ish context next to the top-down
   twin-stick.
 - **Focused per-feature demos.** One tiny scene + how-to per new feature, extending
-  the teaching ladder: a Lighting demo, a Particles demo, a Collision demo, a Camera
-  (follow/shake/pixel-perfect) demo, a Parallax demo, a Materials (flash/outline)
-  demo. Cheap, crisp, and ideal for documentation.
+  the teaching ladder. Most of these have **shipped** with a written how-to (see
+  [howto/README.md](howto/README.md)): Lighting, Camera (follow/shake/pixel-perfect),
+  Particles, Materials (flash/outline), UI/HUD, Glow (post-processing), CRT overlay,
+  Skeletal cutout animation, and Aseprite import; plus the in-editor tilemap paint
+  tool and the `Diorama2DGame` project template. Still on the list: a dedicated
+  Collision demo. Cheap, crisp, and ideal for documentation.
 
-These are tracked as designs until the underlying features are built and verified on
-screen; nothing here is a buildable-today task on its own.
+The flagship and side-scroller pieces above remain designs until built and verified
+on screen; the per-feature how-tos listed there are now largely shipped.
 
 ## How-to guides (cross-cutting)
 

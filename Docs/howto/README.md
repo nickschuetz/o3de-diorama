@@ -62,8 +62,9 @@ the design, see:
   parameter in depth.
 - [Tilemap component reference](../reference/tilemap-component.md): every Tilemap
   parameter in depth.
-- [API reference](../reference/api.md): the typed `DioramaSpriteRequestBus` and
-  `DioramaTilemapRequestBus` for scripts and agents.
+- [API reference](../reference/api.md): the typed request buses for every feature
+  (sprite, tilemap, camera, lighting, particles, parallax, collision, UI, audio,
+  post-processing, CRT, skeletal, Aseprite) for scripts and agents.
 
 ## Runnable examples
 

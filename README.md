@@ -45,7 +45,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Rendering | Soft ground shadows under billboards | Working |
 | Tilemap | Atlas-grid tilemap component + typed bus | Working |
 | 2.5D | Depth-sorted layers + tilted 2.5D camera | Working |
-| Scripting | Typed Sprite/Tilemap buses (Lua, Python, ScriptCanvas) | Working |
+| Scripting | Typed per-feature request buses (Lua, Python, ScriptCanvas) | Working |
 | Gameplay | 2D collision: colliders, triggers, and queries reachable from scripts | Working |
 | Sample | 2.5D twin-stick shooter with a LyShine HUD | Working |
 | 2.5D | Parallax background layers | Working |
@@ -54,7 +54,14 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Lighting | 2D dynamic lights + normal-mapped sprites | Working |
 | Effects | 2D particle emitter | Working |
 | Effects | Sprite materials (flash, outline, emissive/bloom) | Working |
+| Tilemap | In-editor tile paint tool (editor component mode) | Working |
+| UI | World/screen HUD: text, bars, panels via a typed bus | Working |
+| Post | 2D Look: bloom + vignette over Atom's PostProcess | Working |
+| Post | Retro CRT scanline overlay | Working |
+| Animation | Skeletal cutout clip player (keyframed bone hierarchy) | Working |
+| Animation | Aseprite sprite-sheet import (tags + per-frame timing) | Working |
 | Audio | One-shot SFX + music via MiniAudio | Working |
+| Project | `Diorama2DGame` "New 2.5D Game" project template | Working |
 | Tilemap | Dedicated tilemap asset + builder | Planned |
 
 A known alpha limitation: the editor preview does not yet live-update to every
@@ -97,6 +104,20 @@ On Windows use `o3de.bat` and the appropriate CMake generator.
 
 The sprite renders in world space and is visible both in the editor viewport and
 at runtime.
+
+### Start a whole project from the template
+
+To scaffold a fresh 2.5D project with the gem already enabled, register the
+bundled project template once and create a project from it:
+
+```bash
+<engine>/scripts/o3de.sh register --template-path /path/to/o3de-diorama/Templates/Diorama2DGame
+<engine>/scripts/o3de.sh create-project --project-path /path/to/MyGame --template-name Diorama2DGame
+```
+
+The new project ships with Diorama enabled, 2.5D starter assets, and a
+`STARTING.md` first-steps guide. See
+[How-To: Start a New 2.5D Game from the Template](Docs/howto/20-template.md).
 
 ## Architecture
 

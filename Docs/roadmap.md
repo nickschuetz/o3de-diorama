@@ -14,8 +14,15 @@ need on-screen verification, so they ship one at a time, not in a batch.
 World-space sprites, texture atlases, UV sub-regions, flips, billboarding,
 sort layers, **automatic camera-distance depth sort**, **soft ground shadows**,
 a batched Atom feature processor, sprite-sheet (flipbook) animation, an
-atlas-grid tilemap component, the typed Sprite/Tilemap buses (Lua / Python /
+atlas-grid tilemap component, the typed per-feature buses (Lua / Python /
 ScriptCanvas), and a complete 2.5D twin-stick sample with a LyShine HUD.
+
+Most of the tiers below have since shipped (each tracked inline as **Shipped**):
+2D lighting, the 2D camera, 2D collision, particles, sprite materials, parallax,
+UI/HUD, audio, the 2D Look post-profile + CRT overlay, the in-editor tilemap paint
+tool, skeletal cutout animation, Aseprite import, and the `Diorama2DGame` project
+template. What remains are the deeper versions (warping CRT pass, autotiling,
+DragonBones mesh deform, native `.aseprite`) and the flagship demo.
 
 ## Tier 1 - Differentiators (lean into Atom)
 
@@ -42,6 +49,10 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   mascots). How-to: [howto/14-glow.md](howto/14-glow.md). A **CRT scanline overlay**
   also shipped (DioramaCRTComponent + DioramaCRTRequestBus + editor twin; screen-space
   AuxGeom scanlines + flat darkening, verified rendering; [howto/16-crt.md](howto/16-crt.md)).
+  **Shipped**: the **2D Look** profile component (`DioramaLookComponent` +
+  `DioramaLookRequestBus` + editor twin with a live edit-viewport preview) -- one
+  component driving Atom's stock `PostProcessFeatureProcessor` for tuned bloom +
+  vignette with 2D-friendly defaults, verified A/B in-editor; [howto/14-glow.md](howto/14-glow.md).
   Remaining: the true warping CRT *pass* (barrel curvature / chromatic aberration),
   which needs a fullscreen post-process pass injected into the render pipeline.
 - **Per-sprite materials / effects** (M). A small material surface for outline,
@@ -74,13 +85,22 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   data-driven only today. **Design done**
   ([design/2d-tilemap-tooling.md](design/2d-tilemap-tooling.md)): a custom editor
   Component Mode for discrete stamping (borrowing GradientSignal's undo pattern) +
-  our own neighbor-bitmask autotiling.
+  our own neighbor-bitmask autotiling. **Shipped (paint v1)**: an editor component
+  mode on the Tilemap (left-drag paint with the active tile, right-drag erase, one
+  undo step per stroke) on the pure tested `TilemapPaint.h` core + `LocalPositionToCell`;
+  interactively verified ([howto/04-tilemap.md](howto/04-tilemap.md)). Remaining:
+  autotiling/rule tiles, multiple layers, animated tiles, per-tile collision.
 - **Skeletal 2D animation** (L). Bone deformation (Spine / DragonBones style), the
   AAA-2D animation standard. **Design done**
   ([design/2d-skeletal-animation.md](design/2d-skeletal-animation.md)): phased
   cutout (transform hierarchy) then open-format (DragonBones) 2D mesh deform
   through our renderer; EMotionFX stays an optional advanced evaluator, not a
-  runtime dependency.
+  runtime dependency. **Shipped (cutout v1)**: `DioramaSkeletalClipComponent` +
+  `DioramaSkeletalRequestBus` + editor twin with a non-destructive pose-scrub
+  preview, on the pure tested `SkeletalClip.h` keyframe/easing core; bones are
+  descendant entities matched by name, posed via TransformBus each tick
+  ([howto/18-skeletal.md](howto/18-skeletal.md)). Remaining: the DragonBones
+  open-format mesh-deform path (v2, reuses the same sampling core).
 - **2D particle system** (M). A real emitter component (the sample's heart-burst
   pool, generalized): rate/burst, velocity/gravity/drag, size/color over life,
   blend modes. **Design done** ([design/2d-particles.md](design/2d-particles.md)):
@@ -93,6 +113,12 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   ([design/2d-aseprite-import.md](design/2d-aseprite-import.md)): a custom asset
   builder parses the open `.ase` format and delegates image compression to the
   existing image pipeline; v1 output plugs into the current flipbook animation.
+  **Shipped (JSON v1)**: import Aseprite's *Export Sprite Sheet* PNG + JSON (both
+  Hash and Array forms), play named tags with per-frame durations and direction
+  (forward/reverse/ping-pong) via `DioramaAsepriteComponent` + `DioramaAsepriteRequestBus`;
+  the editor twin does the import, the runtime drives a Sprite's texture + UV. Pure
+  tested `AsepriteImport.h` core ([howto/19-aseprite.md](howto/19-aseprite.md)).
+  Remaining: native `.aseprite` binary parsing (v2, reuses the same Document model).
 - **In-editor sprite/atlas slicer + animation clip editor** (M). Define frames,
   fps, loop, and frame events visually. **Design done**
   ([design/2d-editor-authoring.md](design/2d-editor-authoring.md)): a Qt front-end
@@ -108,15 +134,21 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   builder + [howto/17-quickstart.md](howto/17-quickstart.md). **Default-texture
   robustness shipped**: a Sprite with no texture now falls back to a bundled default
   in the feature processor, so a freshly added Sprite is visible (and tintable)
-  instead of vanishing (capture-verified). Still open from the design
-  ([design/2d-starter-template.md](design/2d-starter-template.md)): a gem-registered
-  project template that lands you in this scene on project creation.
+  instead of vanishing (capture-verified). **Project template shipped**: the
+  gem-registered `Diorama2DGame` O3DE project template (under `Templates/`), so
+  `o3de create-project --template-name Diorama2DGame` scaffolds a buildable 2.5D
+  project with Diorama enabled + 2.5D starter assets + a `STARTING.md` guide;
+  verified by running create-project ([howto/20-template.md](howto/20-template.md)).
+  Remaining from the design ([design/2d-starter-template.md](design/2d-starter-template.md)):
+  a fully pre-populated demo level baked into the template.
 - **Editor live-preview** (S). Make sprite property edits update the viewport live.
   **Design done** ([design/2d-live-preview.md](design/2d-live-preview.md)): the old
   "doesn't live-update" note is largely stale (the `ChangeNotify -> SetConfig ->
   UpdateSprite` path already works for Sprite and Tilemap); the work is a
   verification pass + correcting the README, plus a guardrail that new asset fields
-  extend `SetConfig`'s reload detection.
+  extend `SetConfig`'s reload detection. **Shipped for the newer components**: the
+  2D Look twin previews bloom/vignette live in the edit viewport, and the Skeletal
+  twin scrubs a pose non-destructively, both without entering game mode.
 
 ## Recommended sequence
 

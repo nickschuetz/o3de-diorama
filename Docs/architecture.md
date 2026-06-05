@@ -315,6 +315,48 @@ than the editor: see [How-To: Record a Demo Headlessly](howto/12-recording-demos
 - The Diorama system component requires the `RPISystem` service so it registers
   the feature processor only after Atom is ready.
 
+## The feature components
+
+Sprite and Tilemap are used above as the canonical example, but every Diorama
+feature follows the same shape: a config, a runtime component, an editor twin, and
+a `Common`-scoped request bus at AI/human parity. The full catalog:
+
+| Feature | Runtime component | Request bus | How-to |
+|---|---|---|---|
+| Sprite | `SpriteComponent` | `DioramaSpriteRequestBus` | [01](howto/01-hello-sprite.md)-[03](howto/03-sprite-atlas.md) |
+| Tilemap | `TilemapComponent` | `DioramaTilemapRequestBus` | [04](howto/04-tilemap.md) |
+| Parallax | `DioramaParallaxComponent` | `DioramaParallaxRequestBus` | [05](howto/05-parallax-layers.md) |
+| 2D camera | `DioramaCamera2DComponent` | `DioramaCamera2DRequestBus` | [08](howto/08-camera.md) |
+| 2D lighting | `DioramaLightComponent` | `DioramaLightRequestBus` | [07](howto/07-lighting.md) |
+| Particles | `ParticleEmitterComponent` | `DioramaParticleRequestBus` | [09](howto/09-particles.md) |
+| 2D collision | `Collider2DComponent` | `Diorama2DColliderRequestBus` / `Diorama2DCollisionRequestBus` | - |
+| UI / HUD | `DioramaUIComponent` | `DioramaUIRequestBus` | [13](howto/13-ui-hud.md) |
+| Audio | (system) | `DioramaAudioRequestBus` | [15](howto/15-audio.md) |
+| 2D Look (post) | `DioramaLookComponent` | `DioramaLookRequestBus` | [14](howto/14-glow.md) |
+| CRT overlay | `DioramaCRTComponent` | `DioramaCRTRequestBus` | [16](howto/16-crt.md) |
+| Skeletal animation | `DioramaSkeletalClipComponent` | `DioramaSkeletalRequestBus` | [18](howto/18-skeletal.md) |
+| Aseprite animation | `DioramaAsepriteComponent` | `DioramaAsepriteRequestBus` | [19](howto/19-aseprite.md) |
+
+Each effect-style feature (light, particle, look, CRT) embeds its own presenter or
+applies to the scene's Atom feature processor; the data-style features (skeletal,
+aseprite) drive a Sprite on the same entity through its bus rather than rendering
+directly, so they compose with everything else. The editor twins add more than
+preview where it helps: the Tilemap twin hosts an **editor component mode** for
+brush painting, the Aseprite twin runs the **sprite-sheet JSON import**, and the
+Look and Skeletal twins add **edit-mode previews** (bloom A/B, pose scrubbing).
+
+The pure, engine-free cores that back these (`SpriteBatchPlan`, `Collision2D`,
+`Camera2D`, `Particles2D`, `UILayout2D`, `TilemapPaint`, `SkeletalClip`,
+`AsepriteImport`) are header/`.cpp` pairs unit-tested on their own, the same way the
+config helpers are.
+
+### Starting a project from the template
+
+The gem ships an O3DE project template, `Diorama2DGame` (under `Templates/`), built
+on the engine's stock project template with the Diorama gem enabled and 2.5D starter
+content added. `o3de create-project --template-name Diorama2DGame` scaffolds a
+ready-to-build 2.5D project. See [How-To: the template](howto/20-template.md).
+
 ## Extending the gem
 
 To add a new Diorama visual feature, follow the established shape:
