@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <Clients/DioramaAsepriteComponent.h> // AsepriteFrameData / AsepriteTagData (shared reflected structs)
+#include <Clients/AsepriteSheetData.h> // AsepriteFrameData / AsepriteTagData (shared reflected structs)
 #include <Diorama/DioramaTypeIds.h>
 
 #include <AzCore/Asset/AssetCommon.h>

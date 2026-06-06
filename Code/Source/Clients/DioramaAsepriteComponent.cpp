@@ -9,6 +9,7 @@
 
 #include <Diorama/SpriteBus.h>
 
+#include <AzCore/Asset/AssetSerializer.h>
 #include <AzCore/Math/MathUtils.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/Serialization/EditContext.h>
@@ -104,7 +105,7 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<DioramaAsepriteConfig>()
-                ->Version(1)
+                ->Version(2)
                 ->Field("atlasTexturePath", &DioramaAsepriteConfig::m_atlasTexturePath)
                 ->Field("atlasWidth", &DioramaAsepriteConfig::m_atlasWidth)
                 ->Field("atlasHeight", &DioramaAsepriteConfig::m_atlasHeight)
@@ -113,13 +114,20 @@ namespace Diorama
                 ->Field("defaultTag", &DioramaAsepriteConfig::m_defaultTag)
                 ->Field("speed", &DioramaAsepriteConfig::m_speed)
                 ->Field("looping", &DioramaAsepriteConfig::m_looping)
-                ->Field("autoPlay", &DioramaAsepriteConfig::m_autoPlay);
+                ->Field("autoPlay", &DioramaAsepriteConfig::m_autoPlay)
+                ->Field("sheet", &DioramaAsepriteConfig::m_sheet);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
                 editContext->Class<DioramaAsepriteConfig>("Aseprite Config", "Imported sprite sheet + playback")
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaAsepriteConfig::m_sheet,
+                        "Sheet asset",
+                        "A .dioramasheet from the native .aseprite import. Assign it to play directly; it "
+                        "is loaded at runtime and takes precedence over the inline JSON-imported fields below.")
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
                         &DioramaAsepriteConfig::m_atlasTexturePath,
@@ -166,6 +174,30 @@ namespace Diorama
         return doc;
     }
 
+    Aseprite::Document BuildAsepriteDocument(const DioramaAsepriteSheetAsset& sheet)
+    {
+        Aseprite::Document doc;
+        doc.m_imageName = sheet.m_atlasTexturePath;
+        doc.m_atlasWidth = sheet.m_atlasWidth;
+        doc.m_atlasHeight = sheet.m_atlasHeight;
+        doc.m_frames.reserve(sheet.m_frames.size());
+        for (const AsepriteFrameData& frame : sheet.m_frames)
+        {
+            doc.m_frames.push_back({ frame.m_x, frame.m_y, frame.m_w, frame.m_h, frame.m_durationSeconds });
+        }
+        doc.m_tags.reserve(sheet.m_tags.size());
+        for (const AsepriteTagData& tag : sheet.m_tags)
+        {
+            Aseprite::TagData out;
+            out.m_name = tag.m_name;
+            out.m_from = tag.m_from;
+            out.m_to = tag.m_to;
+            out.m_direction = tag.m_direction;
+            doc.m_tags.push_back(AZStd::move(out));
+        }
+        return doc;
+    }
+
     DioramaAsepriteComponent::DioramaAsepriteComponent(const DioramaAsepriteConfig& config)
         : m_config(config)
     {
@@ -186,14 +218,30 @@ namespace Diorama
 
     void DioramaAsepriteComponent::Activate()
     {
-        m_doc = BuildAsepriteDocument(m_config);
         DioramaAsepriteRequestBus::Handler::BusConnect(GetEntityId());
 
+        if (m_config.m_sheet.GetId().IsValid())
+        {
+            // Asset-reference mode: load the .dioramasheet product and begin playback
+            // from it when ready (OnAssetReady fires on connect if already loaded).
+            m_config.m_sheet.QueueLoad();
+            AZ::Data::AssetBus::Handler::BusConnect(m_config.m_sheet.GetId());
+        }
+        else
+        {
+            // Inline mode: frames/tags came from the editor JSON import.
+            m_doc = BuildAsepriteDocument(m_config);
+            BeginPlayback();
+        }
+    }
+
+    void DioramaAsepriteComponent::BeginPlayback()
+    {
         // Take over the sprite: point it at the atlas and stop its own frame-grid
         // animation so it does not fight our per-frame UVs.
-        if (!m_config.m_atlasTexturePath.empty())
+        if (!m_doc.m_imageName.empty())
         {
-            DioramaSpriteRequestBus::Event(GetEntityId(), &DioramaSpriteRequestBus::Events::SetTextureByPath, m_config.m_atlasTexturePath);
+            DioramaSpriteRequestBus::Event(GetEntityId(), &DioramaSpriteRequestBus::Events::SetTextureByPath, m_doc.m_imageName);
         }
         DioramaSpriteRequestBus::Event(GetEntityId(), &DioramaSpriteRequestBus::Events::SetAnimationEnabled, false);
 
@@ -215,12 +263,42 @@ namespace Diorama
         ApplyFrame(Aseprite::FrameAtTime(m_doc, CurrentTag(m_doc, m_tagIndex), 0.0f, m_config.m_looping));
         m_playing = m_config.m_autoPlay;
 
-        AZ::TickBus::Handler::BusConnect();
+        if (!m_ticking)
+        {
+            AZ::TickBus::Handler::BusConnect();
+            m_ticking = true;
+        }
+    }
+
+    void DioramaAsepriteComponent::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
+    {
+        const auto* sheet = asset.GetAs<DioramaAsepriteSheetAsset>();
+        if (sheet == nullptr)
+        {
+            return;
+        }
+        m_config.m_sheet = asset; // keep the loaded reference alive
+        m_doc = BuildAsepriteDocument(*sheet);
+        if (m_config.m_defaultTag.empty())
+        {
+            m_config.m_defaultTag = sheet->m_defaultTag;
+        }
+        BeginPlayback();
+    }
+
+    void DioramaAsepriteComponent::OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset)
+    {
+        OnAssetReady(asset);
     }
 
     void DioramaAsepriteComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
+        if (m_ticking)
+        {
+            AZ::TickBus::Handler::BusDisconnect();
+            m_ticking = false;
+        }
+        AZ::Data::AssetBus::Handler::BusDisconnect();
         DioramaAsepriteRequestBus::Handler::BusDisconnect();
     }
 

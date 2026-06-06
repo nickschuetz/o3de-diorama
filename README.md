@@ -82,6 +82,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Animation | Skeletal cutout clip player (keyframed bone hierarchy) | Working |
 | Animation | Aseprite sprite-sheet import (tags + per-frame timing) | Working |
 | Asset pipeline | Native `.aseprite` AssetBuilder (packs atlas + sheet metadata) | Working |
+| Asset pipeline | Runtime asset reference: play a `.dioramasheet` product directly | Working |
 | Audio | One-shot SFX + music via MiniAudio | Working |
 | Project | `Diorama2DGame` "New 2.5D Game" project template | Working |
 | Tilemap | Dedicated tilemap asset + builder | Planned |
@@ -191,8 +192,6 @@ more ambitious flagship showcase is still a goal.
 
 **Still ahead**
 
-- Consume the `.aseprite` sheet metadata at runtime (asset-reference mode on the
-  sprite component, beyond the current JSON import).
 - A scene-to-image export API (render a Diorama scene to a PNG at any resolution),
   which doubles as a deterministic headless capture path.
 - Toward `1.0`: settle and freeze the bus API surface, and stand up an

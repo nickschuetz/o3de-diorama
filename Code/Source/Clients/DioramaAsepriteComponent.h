@@ -8,50 +8,19 @@
 #pragma once
 
 #include <Clients/AsepriteImport.h>
+#include <Clients/AsepriteSheetData.h>
+#include <Clients/DioramaAsepriteSheetAsset.h>
 #include <Diorama/DioramaAsepriteBus.h>
 
+#include <AzCore/Asset/AssetCommon.h>
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/RTTI/TypeInfo.h>
 #include <AzCore/std/containers/vector.h>
 #include <AzCore/std/string/string.h>
 
-// The pure Aseprite::Direction enum lives in the import core; its reflection type
-// info is specialized here (the one place that reflects it).
-namespace AZ
-{
-    AZ_TYPE_INFO_SPECIALIZE(Diorama::Aseprite::Direction, Diorama::AsepriteDirectionTypeId);
-}
-
 namespace Diorama
 {
-    //! Inspector-facing mirror of Aseprite::FrameData (a frame's atlas rect + duration).
-    //! Populated by the editor import; serialized into the config so the runtime needs
-    //! no file IO.
-    struct AsepriteFrameData final
-    {
-        AZ_TYPE_INFO(Diorama::AsepriteFrameData, AsepriteFrameDataTypeId);
-        static void Reflect(AZ::ReflectContext* context);
-
-        int m_x = 0;
-        int m_y = 0;
-        int m_w = 0;
-        int m_h = 0;
-        float m_durationSeconds = 0.1f;
-    };
-
-    //! Inspector-facing mirror of Aseprite::TagData (a named frame range + direction).
-    struct AsepriteTagData final
-    {
-        AZ_TYPE_INFO(Diorama::AsepriteTagData, AsepriteTagDataTypeId);
-        static void Reflect(AZ::ReflectContext* context);
-
-        AZStd::string m_name;
-        int m_from = 0;
-        int m_to = 0;
-        Aseprite::Direction m_direction = Aseprite::Direction::Forward;
-    };
-
     //! Configuration for the Aseprite animation player. The frames/tags/atlas size are
     //! filled by importing an Aseprite "Export Sprite Sheet" JSON (see the editor twin);
     //! the atlas texture path and playback knobs are authored normally.
@@ -81,10 +50,17 @@ namespace Diorama
         bool m_looping = true;
         //! Begin playing on activate.
         bool m_autoPlay = true;
+        //! Optional: a .dioramasheet product (emitted by the native .aseprite
+        //! AssetBuilder). When set, its frames/tags/atlas are loaded at runtime and
+        //! take precedence over the inline (JSON-imported) data above -- assigning the
+        //! product is all that is needed, no manual JSON import.
+        AZ::Data::Asset<DioramaAsepriteSheetAsset> m_sheet;
     };
 
     //! Build the pure Aseprite::Document the timeline functions operate on from a config.
     Aseprite::Document BuildAsepriteDocument(const DioramaAsepriteConfig& config);
+    //! Same, from a loaded sheet product asset (the runtime asset-reference path).
+    Aseprite::Document BuildAsepriteDocument(const DioramaAsepriteSheetAsset& sheet);
 
     //! Runtime Aseprite animation player. Drives a Diorama Sprite on the same entity:
     //! sets its texture to the imported atlas and its UV region to the current frame
@@ -94,6 +70,7 @@ namespace Diorama
     class DioramaAsepriteComponent final
         : public AZ::Component
         , protected AZ::TickBus::Handler
+        , protected AZ::Data::AssetBus::Handler
         , protected DioramaAsepriteRequestBus::Handler
     {
     public:
@@ -113,6 +90,10 @@ namespace Diorama
         // AZ::TickBus
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
 
+        // AZ::Data::AssetBus (asset-reference mode: load the .dioramasheet, then play)
+        void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
+        void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
+
         // DioramaAsepriteRequests
         void PlayTag(const AZStd::string& tagName) override;
         void Play() override;
@@ -126,6 +107,9 @@ namespace Diorama
     private:
         //! Push the given frame index onto the sprite as a UV region.
         void ApplyFrame(int frameIndex);
+        //! Take over the sprite and start playback from the current m_doc (shared by
+        //! the inline path and the asset-ready path).
+        void BeginPlayback();
 
         DioramaAsepriteConfig m_config;
         Aseprite::Document m_doc;
@@ -133,5 +117,6 @@ namespace Diorama
         float m_elapsed = 0.0f;
         int m_currentFrame = 0;
         bool m_playing = false;
+        bool m_ticking = false; //!< guards a single TickBus connect across both paths
     };
 } // namespace Diorama

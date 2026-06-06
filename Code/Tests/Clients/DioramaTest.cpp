@@ -950,6 +950,39 @@ namespace Diorama
         EXPECT_EQ(Diorama::ToScanFolderRelativePath("diorama_test/hero.streamingimage"), AZStd::string("diorama_test/hero.streamingimage"));
     }
 
+    TEST(AsepriteSheetAssetTest, BuildDocumentFromSheet_MirrorsFramesTagsAndAtlas)
+    {
+        // Runtime asset-reference mode: a loaded .dioramasheet product builds the exact
+        // same playable Document the inline JSON import would, so the component can play
+        // a native .aseprite import with no manual JSON step.
+        DioramaAsepriteSheetAsset sheet;
+        sheet.m_atlasTexturePath = "diorama/textures/hero.png";
+        sheet.m_atlasWidth = 64;
+        sheet.m_atlasHeight = 16;
+        sheet.m_frames = { { 0, 0, 16, 16, 0.1f }, { 16, 0, 16, 16, 0.2f }, { 32, 0, 16, 16, 0.1f } };
+        AsepriteTagData walk;
+        walk.m_name = "walk";
+        walk.m_from = 0;
+        walk.m_to = 2;
+        walk.m_direction = Aseprite::Direction::Forward;
+        sheet.m_tags = { walk };
+        sheet.m_defaultTag = "walk";
+
+        const Aseprite::Document doc = BuildAsepriteDocument(sheet);
+
+        EXPECT_EQ(doc.m_imageName, AZStd::string("diorama/textures/hero.png"));
+        EXPECT_EQ(doc.m_atlasWidth, 64);
+        EXPECT_EQ(doc.m_atlasHeight, 16);
+        ASSERT_EQ(doc.m_frames.size(), 3u);
+        EXPECT_EQ(doc.m_frames[1].m_x, 16);
+        EXPECT_FLOAT_EQ(doc.m_frames[1].m_durationSeconds, 0.2f);
+        ASSERT_EQ(doc.m_tags.size(), 1u);
+        const Aseprite::TagData* tag = Aseprite::FindTag(doc, "walk");
+        ASSERT_NE(tag, nullptr);
+        EXPECT_EQ(tag->m_to, 2);
+        EXPECT_EQ(Aseprite::FrameAtTime(doc, *tag, 0.0f, true), 0);
+    }
+
     TEST(AsepriteImportTest, FrameUVMapsPixelRectToAtlas)
     {
         Aseprite::FrameData frame{ 16, 0, 16, 16, 0.1f };

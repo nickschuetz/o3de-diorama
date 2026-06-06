@@ -58,6 +58,16 @@ end
 
 `GetCurrentFrame` and `IsPlaying` let a script sequence animations without a screenshot.
 
+## Play a native `.aseprite` import directly (asset reference)
+
+Drop a `.aseprite` file into your project and the native AssetBuilder produces a
+`.dioramasheet` product (the packed atlas + frames + tags). Instead of importing the JSON
+by hand, assign that product to the component's **Sheet asset** field. At runtime the
+component loads it and plays it -- no JSON step, and the atlas texture comes from the sheet
+too. The assigned sheet takes precedence over any inline (JSON-imported) data; leave the
+field empty to use the JSON-import path. Either way, playback runs through the exact same
+`Document` model and timeline.
+
 ## How it works
 
 The import parses the JSON into the component's serialized config (frames = atlas rects
@@ -70,8 +80,10 @@ the current frame's UV rect each tick.
 
 ## Scope
 
-v1 is the standard **non-trimmed sprite-sheet export** (PNG + JSON). Importing the native
-**`.aseprite` binary** directly (layers, cels, blend modes, no export step) is a planned
-v2: it will reuse this same `Document` model and timeline, and parse the documented open
-format ourselves rather than bundle any third-party runtime, keeping the licensing clean.
-Trimmed-frame source offsets and slices are also follow-ups.
+Two import paths are supported: the standard **non-trimmed sprite-sheet export** (PNG +
+JSON, imported in the editor), and the native **`.aseprite` binary** directly (layers,
+cels, blend modes, no export step) via the AssetBuilder, which packs a `.dioramasheet`
+you reference as above. Both reuse the same `Document` model and timeline, and the binary
+format is parsed ourselves (the documented open format) rather than bundling any
+third-party runtime, keeping the licensing clean. Trimmed-frame source offsets and slices
+are follow-ups.

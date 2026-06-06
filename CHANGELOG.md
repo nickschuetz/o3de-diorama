@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- Aseprite **runtime asset reference**: the Aseprite animation component can now
+  reference a `.dioramasheet` product (emitted by the native `.aseprite`
+  AssetBuilder) and load its frames/tags/atlas at runtime, so a native import is a
+  drop-in animated sprite with no manual JSON step. The inline JSON-import path
+  still works and is the fallback when no sheet asset is assigned.
 - A first sample **cartoon solar-system diorama** showcase (`DioramaSolarSystem`),
   authored offline from procedural art (`scripts/gen_cartoon_*.py`,
   `scripts/gen_diorama_solar_level.py`): a layered 2.5D scene with a setting sun,
