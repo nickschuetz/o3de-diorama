@@ -224,15 +224,19 @@ Guidelines:
   load. No unchecked sizes feed GPU buffers.
 - No per-frame allocations in the render loop.
 - Match the surrounding code style and the existing SPDX file headers.
+- If you change the gem version or its dependencies, regenerate the SBOM
+  (`python3 scripts/gen_sbom.py`) and commit `sbom.spdx.json`; CI rejects a stale
+  SBOM.
 
 ## Continuous integration
 
 Two workflows run in CI:
 
 - **lint** (always on, GitHub-hosted): clang-format (pinned), SPDX headers,
-  whitespace/EOF hygiene, and JSON manifest validation. This is the gate every
-  push and pull request must pass. Format C++ with clang-format **18.1.8** to
-  match it (a newer local version may format differently).
+  whitespace/EOF hygiene, JSON manifest validation, and an **SBOM freshness
+  check** (`sbom.spdx.json` must match `scripts/gen_sbom.py` output). This is the
+  gate every push and pull request must pass. Format C++ with clang-format
+  **18.1.8** to match it (a newer local version may format differently).
 - **build-test** (on-demand, self-hosted): compiles the gem through a host O3DE
   project and runs the unit tests. Building needs the full O3DE SDK, which does
   not fit on a hosted runner, so there is no always-on build runner. In practice

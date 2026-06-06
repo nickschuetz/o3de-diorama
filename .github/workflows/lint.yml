@@ -85,3 +85,30 @@ jobs:
             fi
           done < <(git ls-files '*.json' '*.setreg' | grep -v '^Templates/')
           exit $status
+
+  sbom:
+    name: sbom
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: SBOM is current
+        # Fail if sbom.spdx.json drifts from scripts/gen_sbom.py output (e.g. a
+        # version or dependency change without regenerating). The generated
+        # `created` timestamp is ignored so it never causes spurious failures.
+        run: |
+          cp sbom.spdx.json /tmp/committed.spdx.json
+          python3 scripts/gen_sbom.py
+          python3 - <<'PY'
+          import json, sys
+          a = json.load(open('/tmp/committed.spdx.json'))
+          b = json.load(open('sbom.spdx.json'))
+          for d in (a, b):
+              d.get('creationInfo', {}).pop('created', None)
+          if a != b:
+              print('::error file=sbom.spdx.json::SBOM is stale - run scripts/gen_sbom.py and commit the result')
+              sys.exit(1)
+          print('SBOM is up to date')
+          PY
