@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.2.0-beta] - 2026-06-05
+
+Beta milestone. The feature set is now broad across sprites, rendering, tilemaps,
+2.5D, lighting, particles, post, camera, 2D collision, and scripting, and the gem
+builds with its unit tests green (166) on both Linux and Windows (VS2026 / MSVC,
+verified on a Windows host). The API and serialized formats may still change
+before 1.0.
+
 ### Added
 - Aseprite **runtime asset reference**: the Aseprite animation component can now
   reference a `.dioramasheet` product (emitted by the native `.aseprite`
@@ -22,19 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   (`Assets/Diorama/Examples/Solar/`): a panning parallax camera, a drifting comet
   with a particle trail, a particle campfire with a flickering dynamic point
   light, pulsing emissive glow, and twinkling stars.
-- Arcade-styled feature-overview card (`scripts/gen_feature_card.py`) and an
-  in-engine showcase still in the README ("At a glance" + "Showcase").
+- Arcade-styled feature-overview card (`scripts/gen_feature_card.py`) in the
+  README "At a glance" section.
 - `scripts/capture_level_noap.sh` gained a video (`.mp4`) capture mode.
-
-## [0.2.0-beta] - 2026-06-05
-
-Beta milestone. The feature set is now broad across sprites, rendering, tilemaps,
-2.5D, lighting, particles, post, camera, 2D collision, and scripting, and the gem
-builds with its unit tests green (166) on both Linux and Windows (VS2026 / MSVC,
-verified on a Windows host). The API and serialized formats may still change
-before 1.0.
-
-### Added
+- Going-public groundwork: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor
+  Covenant 2.1), `SECURITY.md`, GitHub issue and pull-request templates, and an
+  SBOM (`sbom.spdx.json`) with a CI freshness gate. Every `runpython` how-to
+  gained Windows instructions alongside the Linux ones.
 - Side-scroller vertical slice sample (`Docs/examples/sidescroller_demo.py` +
   `walker.lua` + how-to). A short side-scroll scene that composes the sprint's
   features at once: three parallax background layers, a follow camera, two
@@ -305,5 +307,6 @@ the runtime/editor module split in place. The `gem.json` version tracks the
   AzCore `NameDictionary` existed, causing a SIGSEGV when the test library was
   loaded ahead of engine bootstrap. It is now constructed lazily on first use.
 
-[Unreleased]: https://github.com/nickschuetz/o3de-diorama/compare/v0.1.0-alpha...HEAD
+[Unreleased]: https://github.com/nickschuetz/o3de-diorama/compare/v0.2.0-beta...HEAD
+[0.2.0-beta]: https://github.com/nickschuetz/o3de-diorama/releases/tag/v0.2.0-beta
 [0.1.0-alpha]: https://github.com/nickschuetz/o3de-diorama/releases/tag/v0.1.0-alpha
