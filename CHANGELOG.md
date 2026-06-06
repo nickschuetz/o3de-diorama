@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
-- Flagship **cartoon solar-system diorama** showcase (`DioramaSolarSystem`),
+- A first sample **cartoon solar-system diorama** showcase (`DioramaSolarSystem`),
   authored offline from procedural art (`scripts/gen_cartoon_*.py`,
   `scripts/gen_diorama_solar_level.py`): a layered 2.5D scene with a setting sun,
   planets, a rabbit-marked moon, and a comet over normal-mapped terrain.

@@ -47,10 +47,10 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 ## Showcase
 
 <p align="center">
-  <img src="Docs/images/diorama-showcase.png" alt="The DioramaSolarSystem flagship scene rendered in-engine: a setting sun and twilight sky with planets, a comet, and the moon over a lit 2.5D landscape with a campfire, oak, and glowing mushrooms" width="900">
+  <img src="Docs/images/diorama-showcase.gif" alt="The DioramaSolarSystem sample scene animated in-engine: a setting sun and twilight sky with planets, a drifting comet, and the moon over a lit 2.5D landscape with a campfire, oak, and glowing mushrooms" width="760">
 </p>
 
-<p align="center"><em>The <code>DioramaSolarSystem</code> flagship scene, rendered in-engine: depth-sorted 2.5D layers, normal-mapped terrain under dynamic light, a particle campfire and comet trail, emissive glow with bloom, parallax, and a twilight sky. Built offline from procedural art (<code>scripts/gen_*</code>).</em></p>
+<p align="center"><em>The <code>DioramaSolarSystem</code> sample scene, captured live in-engine: depth-sorted 2.5D layers and normal-mapped terrain under dynamic light, a particle campfire and a drifting comet trail, emissive glow with bloom, a panning parallax camera, and a twilight sky. Built offline from procedural art (<code>scripts/gen_*</code>).</em></p>
 
 ## Feature status
 
@@ -173,28 +173,23 @@ references live under [Docs/reference/](Docs/reference/): every
 
 ## Roadmap
 
-The documentation and sample ladder (full outline in
-[Docs/examples-outline.md](Docs/examples-outline.md)) builds from one sprite up:
+The learning ladder is complete through the current feature set: the step-by-step
+[how-to guides](Docs/howto/) (full outline in
+[Docs/examples-outline.md](Docs/examples-outline.md)) run from Hello Sprite up
+through animation, atlases, tilemaps + autotiling, parallax, lighting, camera,
+particles, materials, post, audio, and the project template -- matching the
+feature table above.
 
-1. Hello Sprite (done)
-2. Animated Sprite, sprite-sheet playback (done)
-3. Sprite Atlas, batched shared atlas (done)
-4. Tilemap, atlas-grid component (done)
-5. Parallax and Layers, 2.5D layering + scroll script (done)
-
-The flagship showcase is the **cartoon solar-system diorama**
-(`DioramaSolarSystem`): a layered 2.5D scene that exercises the whole stack at
+A first sample showcase is the **cartoon solar-system diorama**
+(`DioramaSolarSystem`): a layered 2.5D scene that exercises much of the stack at
 once -- a setting sun, planets, a rabbit-marked moon, and a comet over
-normal-mapped terrain, brought to life with a panning parallax camera, a particle
+normal-mapped terrain, animated with a panning parallax camera, a particle
 campfire and comet trail, flickering dynamic firelight, emissive glow, and a
 twilight sky. It is authored offline by `scripts/gen_diorama_solar_level.py` from
-procedurally generated art (`scripts/gen_cartoon_*.py`).
+procedurally generated art (`scripts/gen_cartoon_*.py`). It is an early effort; a
+more ambitious flagship showcase is still a goal.
 
-An early twin-stick shooter sample also exists but is kept out of the published
-tree until it is polished. Bonus tracks: a custom sprite material/shader and a
-thousands-of-sprites stress scene.
-
-**What's next**
+**Still ahead**
 
 - Consume the `.aseprite` sheet metadata at runtime (asset-reference mode on the
   sprite component, beyond the current JSON import).
