@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+- Flagship **cartoon solar-system diorama** showcase (`DioramaSolarSystem`),
+  authored offline from procedural art (`scripts/gen_cartoon_*.py`,
+  `scripts/gen_diorama_solar_level.py`): a layered 2.5D scene with a setting sun,
+  planets, a rabbit-marked moon, and a comet over normal-mapped terrain.
+- Animated version of the showcase via example Lua scripts over the typed buses
+  (`Assets/Diorama/Examples/Solar/`): a panning parallax camera, a drifting comet
+  with a particle trail, a particle campfire with a flickering dynamic point
+  light, pulsing emissive glow, and twinkling stars.
+- Arcade-styled feature-overview card (`scripts/gen_feature_card.py`) and an
+  in-engine showcase still in the README ("At a glance" + "Showcase").
+- `scripts/capture_level_noap.sh` gained a video (`.mp4`) capture mode.
+
 ## [0.2.0-beta] - 2026-06-05
 
 Beta milestone. The feature set is now broad across sprites, rendering, tilemaps,

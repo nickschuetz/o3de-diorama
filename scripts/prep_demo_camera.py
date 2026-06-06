@@ -13,12 +13,12 @@ Usage:
 The rotation is XYZ euler degrees. O3DE camera forward = entity +Y rotated by it
 (identity -> +Y; Rotate (-90,0,0) -> -Z, a front view of XY-plane content).
 """
-import json, copy, sys
+import json, copy, sys, os
 
 # make_active_camera.lua product reference (guid from the lowercased source path).
 SCRIPT_GUID = "{99AB7C02-81D9-5D52-918E-7BE26AFB4DF6}"
 SCRIPT_HINT = "diorama/examples/make_active_camera.luac"
-PROJ = "/home/nschuetz/PROJECTS/DioramaSandbox"
+PROJ = os.environ.get("DIORAMA_PROJECT", os.path.expanduser("~/PROJECTS/DioramaSandbox"))
 TWIN = PROJ + "/Levels/DefaultLevel/DefaultLevel.prefab"
 
 def find_named(o, n):
