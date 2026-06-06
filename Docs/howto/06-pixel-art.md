@@ -62,12 +62,21 @@ authoritative GUI for these settings.
 
 ## Why both, and the future
 
-Point filtering is the **sampler** dial; the no-mip preset is the **asset**
-dial. Keeping the two in their own layers means that if O3DE later adds a
-first-class nearest-neighbor / pixel-art import path, these settings line up with
-it rather than fighting it. (This feature came out of an O3DE community thread
-where the conclusion was that the engine "should explicitly have a nearest
-neighbour filtering" option; Diorama adds it for world-space sprites.)
+Point filtering is the **sampler** dial; the no-mip preset is the **asset** dial.
+
+The two halves relate to a possible future engine feature differently. The
+**asset** dial is engine-side already: a no-mip import preset benefits any content,
+so if O3DE adds a first-class pixel-art import path it lines up with this step
+rather than fighting it. The **sampler** dial is gem-owned: Diorama sprites render
+through their own shader (not Atom's standard material system), so the Point Filter
+toggle is self-contained. If the engine later adds nearest-neighbor filtering to
+standard materials, that would help material-based content; Diorama's sprite
+sampler stays the gem's, so the two are complementary rather than the gem
+inheriting the engine feature.
+
+(This came out of an O3DE community thread where the conclusion was that the engine
+"should explicitly have a nearest neighbour filtering" option. Diorama adds it for
+its own world-space sprites; the engine-side ask is a separate, larger effort.)
 
 ## Mixing pixel art and smooth sprites
 
