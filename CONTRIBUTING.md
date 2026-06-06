@@ -52,6 +52,36 @@ and run the unit tests through `AzTestRunner`. Set `TEST_FILTER` to narrow the r
   one).
 - Keep AI/human parity: a new runtime knob should be reachable both from the
   Inspector and from the typed request bus.
+- **Sign off every commit** (see below).
+
+## Signing your commits (DCO)
+
+This project uses the [Developer Certificate of Origin](https://developercertificate.org/),
+matching O3DE upstream. Every commit must carry a `Signed-off-by` trailer
+certifying you wrote the change (or have the right to submit it). Add it with the
+`-s` flag:
+
+```bash
+git commit -s -m "Your message"
+```
+
+This appends `Signed-off-by: Your Name <your@email>` using your `git config`
+`user.name` and `user.email`, so set those first. To sign off the most recent
+commit you already made, run `git commit --amend -s --no-edit`. To make it
+automatic, add a local hook (not committed):
+
+```bash
+cat > .git/hooks/prepare-commit-msg <<'EOF'
+#!/bin/sh
+SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
+git interpret-trailers --if-exists doNothing --trailer "$SOB" --in-place "$1"
+EOF
+chmod +x .git/hooks/prepare-commit-msg
+```
+
+The sign-off requirement matters beyond this repo: contributing a gem to
+[o3de-extras](https://github.com/o3de/o3de-extras) requires DCO sign-off on every
+commit, so keeping commits signed here keeps that path open.
 
 ## Upstream first
 
