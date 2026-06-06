@@ -28,7 +28,7 @@ These are treated as acceptance criteria, not aspirations.
 - Security: asset-sourced data (tilemap dimensions, indices, texture references) is validated and bounded in builders and at load. Builder inputs are treated as untrusted. No unchecked sizes feed GPU buffers.
 - Performance: no per-frame allocations in the render loop, sprites batch into shared dynamic buffers, the path scales from one sprite to a batched feature processor for thousands, and 2.5D depth and transparency are handled without overdraw blowups.
 - Efficiency: the runtime dependency surface stays minimal (no Qt, no AzToolsFramework in shipped clients), serialized formats are compact, and product assets load without runtime parsing.
-- Ease of use: clear component UI, sensible defaults, documented workflows, and a complete sample game as a worked reference.
+- Ease of use: clear component UI, sensible defaults, documented workflows, and a runnable showcase scene as a worked reference.
 
 ## How the architecture serves the goal
 
@@ -44,4 +44,10 @@ These are treated as acceptance criteria, not aspirations.
 
 ## Success looks like
 
-A developer enables one gem, drops a Sprite or Tilemap component on an entity, and has a performant 2D or 2.5D game with full access to the 3D world. This is backed by comprehensive how-to guides and a complete sample game, a 2.5D twin-stick shooter, as the worked reference.
+A developer enables one gem, drops a Sprite or Tilemap component on an entity, and gets a performant 2D or 2.5D game with full access to the 3D world: dynamic lights, particles, post effects, and 3D geometry in the same scene. The path from "one sprite" to "a lit, animated, depth-sorted scene" is short, taught by the how-to ladder and reference docs, and demonstrated by a runnable showcase (the cartoon solar-system diorama).
+
+Concretely, success means:
+
+- **Real and trusted.** The gem builds with its unit tests green on both Linux and Windows, ships an SBOM and a security policy, and stays a clean, upstreamable gem: no engine fork, and no Qt or AzToolsFramework in shipped clients.
+- **Every feature reachable two ways.** Each runtime knob is in the Inspector and on a typed request bus, so a human authors in the editor and a script or an AI agent drives the exact same API. That parity is a deliberate bet that a lot of new 2D/2.5D games will be built with AI assistance.
+- **Broad enough to earn its place upstream.** Sprites, tilemaps with autotiling, 2.5D depth and parallax, dynamic lighting, particles, post, a 2D camera, collision, and animation (including native Aseprite import) cover what indie, mobile, and education projects actually need, making O3DE a credible 2D/2.5D choice, with fixes found along the way contributed back to the engine.

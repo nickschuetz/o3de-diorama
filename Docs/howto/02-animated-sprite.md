@@ -58,6 +58,10 @@ sample atlas as a four-frame sheet:
   --runpython /path/to/o3de-diorama/Docs/examples/animated_sprite.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## Next
 
 Rung 3, [Sprite Atlas](03-sprite-atlas.md), shares one texture across many

@@ -5,6 +5,34 @@ Step-by-step guides that follow the teaching ladder in
 complete game. Each rung has a written guide and, where applicable, a runnable
 example under [../examples](../examples).
 
+## Running the examples (Windows or Linux)
+
+Most guides have a runnable Python example you launch through the Editor. The
+commands are shown for Linux; on Windows substitute the platform bits. The shape
+is the same:
+
+```bash
+# Linux
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path /path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/<example>.py
+```
+
+```powershell
+# Windows (one line; or use a backtick ` for continuation in PowerShell)
+& "C:\O3DE\26.05\bin\Windows\profile\Default\Editor.exe" --project-path C:\path\to\YourProject --runpython C:\path\to\o3de-diorama\Docs\examples\<example>.py
+```
+
+Substitutions when a guide shows a Linux command:
+
+| Linux | Windows |
+| --- | --- |
+| `bin/Linux/profile/Default/Editor` | `bin\Windows\profile\Default\Editor.exe` |
+| `scripts/o3de.sh` | `scripts\o3de.bat` |
+| `scripts/*.sh` (capture helpers) | `scripts\*.ps1` |
+| `\` line continuation | one line, or a backtick `` ` `` in PowerShell |
+| `/` path separators | `\` |
+
 ## Start here
 
 New to the gem? The [2.5D Quick-Start](17-quickstart.md) builds the smallest
@@ -75,7 +103,6 @@ the design, see:
 | Sprite Atlas | [../examples/sprite_atlas.py](../examples/sprite_atlas.py) |
 | Tilemap | [../examples/tilemap.py](../examples/tilemap.py) |
 | Parallax and Layers | [../examples/parallax_layers.py](../examples/parallax_layers.py) |
-| Twin-Stick Shooter | [../../Samples/TwinStick](../../Samples/TwinStick) |
 | 2D Dynamic Lighting | [../examples/lighting_demo.py](../examples/lighting_demo.py) |
 | 2D Camera Controller | [../examples/camera_demo.py](../examples/camera_demo.py) |
 | 2D Particle Emitter | [../examples/particles_demo.py](../examples/particles_demo.py) |

@@ -16,6 +16,10 @@ saves it:
   --runpython /path/to/o3de-diorama/Docs/examples/lighting_demo.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## What you build
 
 A dark backdrop with a row of creature sprites and one warm **point light** in

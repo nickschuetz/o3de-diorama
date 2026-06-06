@@ -207,7 +207,7 @@ leaves the atlas unmodified. The bus clamps each channel to `0..1`.
 
 `sortOffset` is a transparent draw-order bias applied to the whole layer. Larger
 values draw on top. It is the lever for stacking tilemaps and sprites at
-different depths for a 2.5D look (see the parallax and twin-stick guides). It
+different depths for a 2.5D look (see the parallax guide). It
 applies uniformly to every cell in the layer, which is part of why the layer
 stays a single batch.
 
@@ -260,4 +260,3 @@ clamping or out-of-bounds skips, so after painting a region an agent confirms
 - [Sprite component reference](./sprite-component.md)
 - [Diorama API reference](./api.md)
 - [How-To: Tilemap](../howto/04-tilemap.md)
-- [How-To: Twin-Stick Shooter](../howto/06-twin-stick.md)

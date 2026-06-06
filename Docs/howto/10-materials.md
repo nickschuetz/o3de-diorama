@@ -14,6 +14,10 @@ mode. It builds its own level (`DioramaMaterialsDemo`):
   --runpython /path/to/o3de-diorama/Docs/examples/materials_demo.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## Important: the flash animation runs at game time
 
 A constant flash can be set in the inspector (the Sprite component's **Flash

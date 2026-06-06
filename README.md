@@ -4,6 +4,13 @@
 
 <p align="center"><em>This logo is rendered in-engine by Diorama: pixel-art sprites composited in world space with the gem's own CRT scanline pass.</em></p>
 
+<p align="center">
+  <a href="https://github.com/nickschuetz/o3de-diorama/actions/workflows/lint.yml"><img src="https://github.com/nickschuetz/o3de-diorama/actions/workflows/lint.yml/badge.svg" alt="lint"></a>
+  <img src="https://img.shields.io/badge/O3DE-26.05-orange" alt="O3DE 26.05">
+  <img src="https://img.shields.io/badge/status-beta%20v0.2.0-blueviolet" alt="status: beta v0.2.0">
+  <img src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue" alt="license: Apache-2.0 OR MIT">
+</p>
+
 # Diorama
 
 **World-space 2D and 2.5D for the Open 3D Engine.**
@@ -43,14 +50,6 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 <p align="center">
   <img src="Docs/images/diorama-features.png" alt="Diorama feature overview: sprites, rendering, depth and shadows, 2.5D and parallax, tilemap, animation, lighting, effects, post, camera, gameplay, scripting" width="900">
 </p>
-
-## Showcase
-
-<p align="center">
-  <img src="Docs/images/diorama-showcase.gif" alt="The DioramaSolarSystem sample scene animated in-engine: a setting sun and twilight sky with planets, a drifting comet, and the moon over a lit 2.5D landscape with a campfire, oak, and glowing mushrooms" width="760">
-</p>
-
-<p align="center"><em>The <code>DioramaSolarSystem</code> sample scene, captured live in-engine: depth-sorted 2.5D layers and normal-mapped terrain under dynamic light, a particle campfire and a drifting comet trail, emissive glow with bloom, a panning parallax camera, and a twilight sky. Built offline from procedural art (<code>scripts/gen_*</code>).</em></p>
 
 ## Feature status
 
@@ -214,6 +213,10 @@ Diorama complements the engine and contributes fixes back upstream. If something
 in O3DE (Atom, AzCore, asset builders, and so on) is found broken or improvable
 while working on Diorama, it is flagged and contributed back to
 [o3de/o3de](https://github.com/o3de/o3de) rather than patched around.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and submit changes,
+and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for the standards expected in project
+spaces.
 
 Guidelines:
 

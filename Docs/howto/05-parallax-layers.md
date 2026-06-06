@@ -57,6 +57,10 @@ tints, and logs how to attach the parallax script per layer:
   --runpython /path/to/o3de-diorama/Docs/examples/parallax_layers.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## Script or component
 
 The parallax motion can come from either:
@@ -74,6 +78,6 @@ time.
 
 ## Next
 
-Rung 6, the [Twin-Stick Shooter](06-twin-stick.md) capstone, puts layering to use:
-the tilemap arena, gameplay sprites, and (via LyShine) the HUD each occupy their
-own layer.
+The [side-scroller vertical slice](11-sidescroller.md) puts layering to use: three
+parallax background layers behind the gameplay sprites, each on its own layer for a
+2.5D sense of depth.

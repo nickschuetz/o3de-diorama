@@ -16,6 +16,10 @@ scene:
   --runpython /path/to/o3de-diorama/Docs/examples/camera_demo.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## Important: the controller runs at game time
 
 The controller follows and shakes only **in game mode** (it ticks through the

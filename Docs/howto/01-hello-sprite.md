@@ -48,6 +48,10 @@ whether it is drawing), so you can confirm the sprite without a screenshot.
   --runpython /path/to/o3de-diorama/Docs/examples/hello_sprite.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## Next
 
 Rung 2, [Animated Sprite](02-animated-sprite.md), plays frames from a sprite

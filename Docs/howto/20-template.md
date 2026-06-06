@@ -13,8 +13,9 @@ o3de register --gem-path <path-to>/o3de-diorama/Code
 o3de register --template-path <path-to>/o3de-diorama/Templates/Diorama2DGame
 ```
 
-(Use the `o3de` CLI that ships with your engine. On an RPM SDK install it is the
-versioned CLI, e.g. `o3de2605-cli`.)
+(Use the `o3de` CLI that ships with your engine: `scripts\o3de.bat` on Windows,
+`scripts/o3de.sh` on Linux. On an RPM SDK install it is the versioned CLI, e.g.
+`o3de2605-cli`.)
 
 ## Create a project
 

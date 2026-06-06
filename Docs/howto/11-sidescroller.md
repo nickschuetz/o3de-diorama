@@ -14,6 +14,10 @@ Build it (own level, `DioramaSideScroller`):
   --runpython /path/to/o3de-diorama/Docs/examples/sidescroller_demo.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## What it composes
 
 - **Parallax**: three background quads (`BgFar`/`BgMid`/`BgNear`) with `2D Parallax

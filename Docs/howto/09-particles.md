@@ -15,6 +15,10 @@ own level (`DioramaParticleDemo`), independent of any other scene:
   --runpython /path/to/o3de-diorama/Docs/examples/particles_demo.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## Important: particles run at game time
 
 The emitter simulates only **in game mode** (it ticks through the runtime

@@ -94,6 +94,10 @@ then verifies the result with `GetTilemapInfo` (no screenshot needed):
   --runpython /path/to/o3de-diorama/Docs/examples/tilemap.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## Autotiling (borders connect themselves)
 
 If your tileset has a 16-cell **autotile block** (one cell per combination of which

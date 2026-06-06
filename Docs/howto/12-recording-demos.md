@@ -6,6 +6,11 @@ This is both a way to produce example clips and a debugging aid: it surfaced the
 particle-emitter hang fixed in `Particles2D`. It needs native Vulkan; software
 rasterizers (lavapipe) or `--rhi=null` will not render the sprites.
 
+> **Platform:** the capture helper is Linux-specific (Xvfb + `ffmpeg x11grab`). On
+> Windows, run the `GameLauncher` normally and record with OBS Studio or
+> `ffmpeg`'s `gdigrab`; the in-engine setup is identical (the scene just needs an
+> active camera, as the demo levels arrange).
+
 ## Quick start
 
 ```bash

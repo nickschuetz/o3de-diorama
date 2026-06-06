@@ -93,6 +93,10 @@ editor:
   --runpython /path/to/o3de-diorama/Docs/examples/sprite_atlas.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 It places four sprites in a row, one per atlas cell, all using
 `atlas_2x2.png`. The result is a red, green, blue, and yellow quad side by side.
 

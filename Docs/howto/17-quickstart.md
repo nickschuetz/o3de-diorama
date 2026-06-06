@@ -15,6 +15,10 @@ Build it (its own level, `DioramaQuickStart`):
   --runpython /path/to/o3de-diorama/Docs/examples/quickstart_demo.py
 ```
 
+> **On Windows:** use `bin\Windows\profile\Default\Editor.exe` and run it on one line
+> (or use a backtick `` ` `` for line continuation). See
+> [Running the examples](README.md#running-the-examples-windows-or-linux).
+
 ## What it creates
 
 | Entity | Components | Role |
@@ -53,8 +57,7 @@ Two small, reusable pieces do all the work, and neither is new engine code:
 - **`diorama/input/diorama_move.inputbindings`** maps keys and the stick to two
   analog events, `move_x` and `move_y`. D / right-arrow / stick-right drive
   `move_x` to `+1`, A / left-arrow / stick-left to `-1`; W / S / up / down drive
-  `move_y`. This is a standard O3DE `InputEventBindingsAsset`, the same asset type
-  the twin-stick sample uses.
+  `move_y`. This is a standard O3DE `InputEventBindingsAsset`.
 - **`player_move_2d.lua`** connects to those two events through
   `InputEventNotificationBus`, tracks the live axis values (pressed/held set them,
   released clears them), and each tick moves the entity in the XY plane via
@@ -81,5 +84,5 @@ sprite: add the same two components to another entity and it moves too.
 - Add atmosphere: a 2D light ([07](07-lighting.md)) and a particle emitter
   ([09](09-particles.md)).
 - The full integration of all of these in one scene is the side-scroller
-  ([11-sidescroller.md](11-sidescroller.md)); the capstone game is the twin-stick
-  ([06-twin-stick.md](06-twin-stick.md)).
+  ([11-sidescroller.md](11-sidescroller.md)), and the cartoon solar-system diorama
+  is the layered 2.5D showcase (see the README).
