@@ -1,0 +1,111 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Diorama-0.2.0",
+  "documentNamespace": "https://github.com/nickschuetz/o3de-diorama/sbom/0.2.0",
+  "creationInfo": {
+    "created": "2026-06-06T03:18:27Z",
+    "creators": [
+      "Tool: scripts/gen_sbom.py"
+    ],
+    "licenseListVersion": "3.22"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-Diorama",
+      "name": "Diorama",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "https://github.com/nickschuetz/o3de-diorama",
+      "homepage": "https://github.com/nickschuetz/o3de-diorama",
+      "filesAnalyzed": false,
+      "supplier": "Person: Nick Schuetz",
+      "licenseConcluded": "Apache-2.0 OR MIT",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "Copyright (c) Contributors to the Open 3D Engine Project.",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:github/nickschuetz/o3de-diorama@0.2.0"
+        }
+      ],
+      "comment": "World-space 2D/2.5D gem for O3DE. Vendors no third-party code."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-O3DE-Engine",
+      "name": "Open 3D Engine",
+      "versionInfo": "26.05",
+      "downloadLocation": "https://github.com/o3de/o3de",
+      "filesAnalyzed": false,
+      "supplier": "Organization: The Linux Foundation (Open 3D Foundation)",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "comment": "The host engine (AzCore, AzFramework, Atom, asset pipeline). Provides and SBOMs the transitive 3rdParty (zlib, Lua, Qt, PhysX, OpenSSL, ...)."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-Gem-Atom-RPI",
+      "name": "Atom_RPI (O3DE gem)",
+      "versionInfo": "26.05",
+      "downloadLocation": "https://github.com/o3de/o3de",
+      "filesAnalyzed": false,
+      "supplier": "Organization: The Linux Foundation (Open 3D Foundation)",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "comment": "O3DE rendering gem dependency."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-Gem-Atom-Feature-Common",
+      "name": "Atom_Feature_Common (O3DE gem)",
+      "versionInfo": "26.05",
+      "downloadLocation": "https://github.com/o3de/o3de",
+      "filesAnalyzed": false,
+      "supplier": "Organization: The Linux Foundation (Open 3D Foundation)",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "comment": "O3DE rendering gem dependency."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-Gem-MiniAudio",
+      "name": "MiniAudio (O3DE gem)",
+      "versionInfo": "26.05",
+      "downloadLocation": "https://github.com/o3de/o3de",
+      "filesAnalyzed": false,
+      "supplier": "Organization: The Linux Foundation (Open 3D Foundation)",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "comment": "O3DE audio gem dependency; it bundles + SBOMs its own audio libraries (miniaudio, ogg, vorbis)."
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-Diorama"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Diorama",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-O3DE-Engine"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Diorama",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-Gem-Atom-RPI"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Diorama",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-Gem-Atom-Feature-Common"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Diorama",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-Gem-MiniAudio"
+    }
+  ]
+}

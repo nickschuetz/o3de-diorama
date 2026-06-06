@@ -243,6 +243,16 @@ Two workflows run in CI:
   `ci:build` label to a pull request. See
   [Docs/ci-self-hosted-runner.md](Docs/ci-self-hosted-runner.md).
 
+## Security
+
+Diorama vendors no third-party code; its dependencies are the O3DE engine and a
+few O3DE gems. A minimal SPDX SBOM of that direct surface is at
+[sbom.spdx.json](sbom.spdx.json) (regenerate with `scripts/gen_sbom.py`); the
+transitive third-party tree is owned and documented by
+[O3DE](https://github.com/o3de/o3de). To report a vulnerability, see
+[SECURITY.md](SECURITY.md) -- use GitHub's private vulnerability reporting, not a
+public issue.
+
 ## License
 
 Licensed under either of
