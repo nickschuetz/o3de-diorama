@@ -63,10 +63,17 @@ done
 sleep 6
 
 if kill -0 $GPID 2>/dev/null; then
-  # Lossless single-frame PNG (no yuv420p fringing on high-contrast pixel art).
-  PNG="${OUT%.*}.png"
-  DISPLAY="$DISP" ffmpeg -y -f x11grab -draw_mouse 0 -video_size "${W}x${H}" -i "$DISP" -frames:v 1 "$PNG" >/tmp/diorama_ffmpeg.log 2>&1
-  echo "ffmpeg rc=$? -> $PNG"
+  if [[ "$OUT" == *.mp4 ]]; then
+    # Record SECS seconds of the live (animated) scene at 30fps.
+    DISPLAY="$DISP" ffmpeg -y -f x11grab -draw_mouse 0 -video_size "${W}x${H}" -framerate 30 -i "$DISP" \
+      -t "$SECS" -pix_fmt yuv420p -movflags +faststart "$OUT" >/tmp/diorama_ffmpeg.log 2>&1
+    echo "ffmpeg rc=$? -> $OUT (${SECS}s)"
+  else
+    # Lossless single-frame PNG (no yuv420p fringing on high-contrast pixel art).
+    PNG="${OUT%.*}.png"
+    DISPLAY="$DISP" ffmpeg -y -f x11grab -draw_mouse 0 -video_size "${W}x${H}" -i "$DISP" -frames:v 1 "$PNG" >/tmp/diorama_ffmpeg.log 2>&1
+    echo "ffmpeg rc=$? -> $PNG"
+  fi
 else
   echo "launcher not running at capture time (see /tmp/diorama_launcher.log)"
 fi

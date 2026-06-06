@@ -62,34 +62,49 @@ def comet(W=720, H=360):
 
 def sky(W=1600, H=900, seed=11):
     rng = np.random.RandomState(seed)
-    # vertical gradient deep indigo -> near black
-    top = np.array([22, 16, 44]); bot = np.array([6, 5, 16])
-    g = np.linspace(0, 1, H)[:, None, None]
-    arr = (top * (1 - g) + bot * g) * np.ones((H, W, 1))
+    # TWILIGHT gradient for a setting sun: deep indigo up high (where the stars and
+    # planets read) warming down through dusky pink to a sunset glow near the horizon.
+    # warm band lifted high in the texture so it shows ABOVE the scene's horizon
+    stops = [(0.00, (30, 34, 78)), (0.20, (66, 60, 120)), (0.32, (150, 98, 128)),
+             (0.42, (236, 146, 86)), (1.00, (250, 182, 104))]
+    v = np.linspace(0, 1, H)
+    col = np.zeros((H, 3))
+    for i in range(len(stops) - 1):
+        v0, c0 = stops[i]; v1, c1 = stops[i + 1]
+        m = (v >= v0) & (v <= v1)
+        t = ((v[m] - v0) / (v1 - v0))[:, None]
+        col[m] = np.array(c0, float) * (1 - t) + np.array(c1, float) * t
+    arr = np.repeat(col[:, None, :], W, axis=1)
     img = Image.fromarray(arr.astype("uint8"), "RGB").convert("RGBA")
-    # soft nebula clouds
+    # soft nebula, only up in the cool region
     neb = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(neb)
-    for _ in range(6):
-        cx, cy = rng.randint(0, W), rng.randint(0, H); r = rng.randint(120, 300)
-        col = random.choice([(80, 50, 140), (40, 70, 150), (120, 50, 110)])
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col + (40,))
+    for _ in range(5):
+        cx, cy = rng.randint(0, W), rng.randint(0, int(H * 0.38)); r = rng.randint(120, 300)
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=random.choice([(80, 60, 150), (60, 80, 160)]) + (32,))
     img.alpha_composite(neb.filter(ImageFilter.GaussianBlur(80)))
-    # stars
+    # stars: only in the upper (dark) sky, fading out before the warm band
     d = ImageDraw.Draw(img)
-    for _ in range(420):
-        x, y = rng.randint(0, W), rng.randint(0, H); s = int(rng.choice([1, 1, 1, 2, 2, 3])); b = int(rng.randint(150, 255))
+    for _ in range(520):
+        y = rng.randint(0, int(H * 0.42)); x = rng.randint(0, W)
+        fade = max(0.0, 1.0 - (y / (H * 0.42)))          # dimmer toward the warm band
+        if rng.random() > fade * 0.9 + 0.1:
+            continue
+        s = int(rng.choice([1, 1, 1, 2, 2, 3])); b = int(rng.randint(150, 255) * (0.4 + 0.6 * fade))
         tint = random.choice([(b, b, b), (b, b, 255), (255, b, b)])
         d.ellipse([x, y, x + s, y + s], fill=tint + (255,))
-    # a couple of cartoon galaxies (soft spiral hints)
-    for _ in range(2):
-        gx, gy = rng.randint(W // 5, 4 * W // 5), rng.randint(H // 5, 3 * H // 5)
-        gimg = Image.new("RGBA", (W, H), (0, 0, 0, 0)); gd = ImageDraw.Draw(gimg)
-        for r in range(60, 6, -6):
-            gd.ellipse([gx - r, gy - r // 2, gx + r, gy + r // 2], fill=(200, 180, 230, 18))
-        img.alpha_composite(gimg.filter(ImageFilter.GaussianBlur(6)))
     img.convert("RGB").save(f"{OUT}/cartoon_sky.png"); print("cartoon_sky", (W, H))
+
+
+def spark(size=128):
+    # soft round particle (white core fading to transparent); tinted per-particle
+    # by the emitter's start/end color. Used for the comet's particle fountain.
+    n = size; ys, xs = np.mgrid[0:n, 0:n]; c = (n - 1) / 2.0
+    r = np.sqrt((xs - c) ** 2 + (ys - c) ** 2) / c
+    a = np.clip(1.0 - r, 0, 1) ** 1.8
+    arr = np.dstack([np.full((n, n), 255), np.full((n, n), 255), np.full((n, n), 255), a * 255])
+    Image.fromarray(arr.astype("uint8"), "RGBA").save(f"{OUT}/cartoon_spark.png"); print("cartoon_spark", (n, n))
 
 
 if __name__ == "__main__":
     import random as _r; _r.seed(1)
-    asteroid(); comet(); sky()
+    asteroid(); comet(); sky(); spark()
