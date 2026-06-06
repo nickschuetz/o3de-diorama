@@ -38,6 +38,20 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
   parallax, and free mixing with 3D content. This is the sweet spot pure-2D
   engines cannot reach.
 
+## At a glance
+
+<p align="center">
+  <img src="Docs/images/diorama-features.png" alt="Diorama feature overview: sprites, rendering, depth and shadows, 2.5D and parallax, tilemap, animation, lighting, effects, post, camera, gameplay, scripting" width="900">
+</p>
+
+## Showcase
+
+<p align="center">
+  <img src="Docs/images/diorama-showcase.png" alt="The DioramaSolarSystem flagship scene rendered in-engine: a setting sun and twilight sky with planets, a comet, and the moon over a lit 2.5D landscape with a campfire, oak, and glowing mushrooms" width="900">
+</p>
+
+<p align="center"><em>The <code>DioramaSolarSystem</code> flagship scene, rendered in-engine: depth-sorted 2.5D layers, normal-mapped terrain under dynamic light, a particle campfire and comet trail, emissive glow with bloom, parallax, and a twilight sky. Built offline from procedural art (<code>scripts/gen_*</code>).</em></p>
+
 ## Feature status
 
 | Area | Capability | Status |
@@ -72,7 +86,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Project | `Diorama2DGame` "New 2.5D Game" project template | Working |
 | Tilemap | Dedicated tilemap asset + builder | Planned |
 
-A known alpha limitation: the editor preview does not yet live-update to every
+A known limitation: the editor preview does not yet live-update to every
 runtime property change. See the roadmap and issues for tracking.
 
 ## Requirements
@@ -168,11 +182,16 @@ The documentation and sample ladder (full outline in
 4. Tilemap, atlas-grid component (done)
 5. Parallax and Layers, 2.5D layering + scroll script (done)
 
-An early twin-stick shooter sample exists but is not yet polished, so it is kept
-out of the published tree for now rather than shipped as a gem asset. A polished
-flagship showcase (see below) is the intended capstone.
+The flagship showcase is the **cartoon solar-system diorama**
+(`DioramaSolarSystem`): a layered 2.5D scene that exercises the whole stack at
+once -- a setting sun, planets, a rabbit-marked moon, and a comet over
+normal-mapped terrain, brought to life with a panning parallax camera, a particle
+campfire and comet trail, flickering dynamic firelight, emissive glow, and a
+twilight sky. It is authored offline by `scripts/gen_diorama_solar_level.py` from
+procedurally generated art (`scripts/gen_cartoon_*.py`).
 
-Bonus tracks: custom sprite material/shader and a
+An early twin-stick shooter sample also exists but is kept out of the published
+tree until it is polished. Bonus tracks: a custom sprite material/shader and a
 thousands-of-sprites stress scene.
 
 **What's next**
@@ -181,8 +200,6 @@ thousands-of-sprites stress scene.
   sprite component, beyond the current JSON import).
 - A scene-to-image export API (render a Diorama scene to a PNG at any resolution),
   which doubles as a deterministic headless capture path.
-- A flagship "Living Diorama" showcase: a layered miniature scene with real
-  front-to-back depth.
 - Toward `1.0`: settle and freeze the bus API surface, and stand up an
   always-available build/test CI gate (the Windows host build is now verified;
   see the status note above).
