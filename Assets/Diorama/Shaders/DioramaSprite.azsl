@@ -38,7 +38,8 @@ ShaderResourceGroup SpriteSrg : SRG_PerDraw
     // (camera right/up and the quad normal toward the camera), used to bring a
     // tangent-space normal into world space.
     // m_material.x = has-normal-map flag; m_material.y = hit-flash amount (0..1);
-    // m_material.z = outline thickness (screen-relative; 0 = no outline).
+    // m_material.z = outline thickness (screen-relative; 0 = no outline);
+    // m_material.w = point-filter flag (1 = nearest sampling, for crisp pixel art).
     Texture2D m_normalMap;
     float4 m_material;
     float4 m_camBasisRight;
@@ -58,6 +59,18 @@ ShaderResourceGroup SpriteSrg : SRG_PerDraw
         MinFilter = Linear;
         MagFilter = Linear;
         MipFilter = Linear;
+        AddressU = Clamp;
+        AddressV = Clamp;
+        AddressW = Clamp;
+    };
+
+    // Nearest-neighbor sampler used when m_material.w selects point filtering, so
+    // low-resolution pixel art stays crisp instead of being bilinearly smoothed.
+    Sampler m_pointSampler
+    {
+        MinFilter = Point;
+        MagFilter = Point;
+        MipFilter = Point;
         AddressU = Clamp;
         AddressV = Clamp;
         AddressW = Clamp;
@@ -99,7 +112,12 @@ struct PSOutput
 PSOutput MainPS(VSOutput input)
 {
     PSOutput OUT;
-    float4 sampled = SpriteSrg::m_texture.Sample(SpriteSrg::m_sampler, input.m_uv);
+    // Point filtering (m_material.w) keeps low-res pixel art crisp; otherwise the
+    // default linear sampler smooths it. Selected per draw (it is part of the batch
+    // key), so a pixel-art sprite never shares a batch with a linear-filtered one.
+    bool pointFilter = SpriteSrg::m_material.w > 0.5;
+    float4 sampled = pointFilter ? SpriteSrg::m_texture.Sample(SpriteSrg::m_pointSampler, input.m_uv)
+                                 : SpriteSrg::m_texture.Sample(SpriteSrg::m_sampler, input.m_uv);
 
     // v1 lighting: distance-attenuated colored fill, no normal map yet. The CPU
     // forces ambient = 1 and count = 0 for unlit scenes, so this collapses to the

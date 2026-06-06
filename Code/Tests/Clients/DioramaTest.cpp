@@ -335,6 +335,27 @@ namespace Diorama
         EXPECT_EQ(m_batches.size(), 2u);
     }
 
+    TEST_F(SpriteBatchPlanTest, PointFilter_DiffersBatchKey)
+    {
+        // The point-filter flag is part of the batch key because the sampler is
+        // selected per draw (m_material.w in the shader): a point-filtered sprite
+        // must not share a batch with a linear-filtered one of the same texture and
+        // sort layer, or one of them would render with the wrong filtering.
+        SpriteBatchPlan::Item linearItem{ SpriteBatchPlan::BatchKey{ Tex(1), 0.0f }, 0 };
+        SpriteBatchPlan::Item pointItem{ SpriteBatchPlan::BatchKey{ Tex(1), 0.0f }, 1 };
+        pointItem.m_key.m_pointFilter = true;
+
+        Build({ linearItem, pointItem });
+        EXPECT_EQ(m_batches.size(), 2u);
+
+        // Two sprites with the same texture, sort, and filter still coalesce.
+        SpriteBatchPlan::Item pointItem2{ SpriteBatchPlan::BatchKey{ Tex(1), 0.0f }, 2 };
+        pointItem2.m_key.m_pointFilter = true;
+        Build({ pointItem, pointItem2 });
+        ASSERT_EQ(m_batches.size(), 1u);
+        EXPECT_EQ(m_batches[0].Count(), 2u);
+    }
+
     TEST_F(SpriteBatchPlanTest, InvalidTextureItems_AreDropped)
     {
         Build({ MakeItem(0, 0.0f, 0), MakeItem(5, 0.0f, 1), MakeItem(0, 0.0f, 2) });

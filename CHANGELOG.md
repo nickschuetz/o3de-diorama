@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+- Sprite **Point Filter (pixel art)** option: a per-sprite toggle for
+  nearest-neighbor texture filtering so low-resolution pixel art stays crisp
+  instead of being bilinearly blurred. Reachable from the Inspector and the
+  `SetPointFilter` verb on `DioramaSpriteRequestBus` (and reported by
+  `GetSpriteInfo`), and part of the sprite batch key so point- and linear-filtered
+  sprites coexist in a scene. Adds a nearest sampler to the sprite shader, selected
+  per draw. Paired with a no-mipmap import recipe (the built-in
+  `UserInterface_Lossless` preset) and a new how-to
+  ([Docs/howto/06-pixel-art.md](Docs/howto/06-pixel-art.md)) plus an example
+  `pixel_sprite.png`, covering both halves of crisp pixel art (sampler + mipmaps).
+  Came out of an O3DE community request for explicit nearest-neighbor filtering.
+
 ## [0.2.0-beta] - 2026-06-05
 
 Beta milestone. The feature set is now broad across sprites, rendering, tilemaps,

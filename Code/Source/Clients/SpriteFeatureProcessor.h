@@ -168,7 +168,8 @@ namespace Diorama
             float outlineThickness,
             const AZ::Color& outlineColor,
             const AZ::Color& emissiveColor,
-            float emissiveIntensity);
+            float emissiveIntensity,
+            bool pointFilter);
 
         // The batch plan (grouping + ordering) only changes when a sprite is
         // added, removed, or its batch key (texture or sort layer) changes. It is

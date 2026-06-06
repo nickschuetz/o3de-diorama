@@ -58,7 +58,8 @@ namespace Diorama
         {
             return SpriteBatchPlan::BatchKey{ config.m_texture.GetId(),      config.m_sortOffset,         config.m_normalMap.GetId(),
                                               config.m_flashAmount,          config.m_flashColor.ToU32(), config.m_outlineThickness,
-                                              config.m_outlineColor.ToU32(), config.m_emissiveIntensity,  config.m_emissiveColor.ToU32() };
+                                              config.m_outlineColor.ToU32(), config.m_emissiveIntensity,  config.m_emissiveColor.ToU32(),
+                                              config.m_pointFilter };
         }
     } // namespace
 
@@ -319,7 +320,8 @@ namespace Diorama
         float outlineThickness,
         const AZ::Color& outlineColor,
         const AZ::Color& emissiveColor,
-        float emissiveIntensity)
+        float emissiveIntensity,
+        bool pointFilter)
     {
         // Billboard tangent basis: right and up are the camera's, the face normal is
         // their cross product (pointing toward the camera). This matches AppendQuad's
@@ -334,7 +336,9 @@ namespace Diorama
         const AZ::RHI::ShaderInputConstantIndex materialIdx = drawSrg->FindShaderInputConstantIndex(AZ::Name{ "m_material" });
         if (materialIdx.IsValid())
         {
-            drawSrg->SetConstant(materialIdx, AZ::Vector4(hasNormalMap ? 1.0f : 0.0f, flash, outline, 0.0f));
+            // .w carries the point-filter flag: the shader picks the nearest sampler
+            // when it is >= 0.5, for crisp pixel art (see DioramaSprite.azsl).
+            drawSrg->SetConstant(materialIdx, AZ::Vector4(hasNormalMap ? 1.0f : 0.0f, flash, outline, pointFilter ? 1.0f : 0.0f));
         }
         const AZ::RHI::ShaderInputConstantIndex flashIdx = drawSrg->FindShaderInputConstantIndex(AZ::Name{ "m_flashColor" });
         if (flashIdx.IsValid())
@@ -557,7 +561,8 @@ namespace Diorama
             0.0f,
             AZ::Color(1.0f, 1.0f, 1.0f, 1.0f),
             AZ::Color(1.0f, 1.0f, 1.0f, 1.0f),
-            0.0f);
+            0.0f,
+            false);
         drawSrg->Compile();
 
         m_dynamicDraw->SetSortKey(sortKey);
@@ -710,7 +715,8 @@ namespace Diorama
                 first->m_config.m_outlineThickness,
                 first->m_config.m_outlineColor,
                 first->m_config.m_emissiveColor,
-                first->m_config.m_emissiveIntensity);
+                first->m_config.m_emissiveIntensity,
+                first->m_config.m_pointFilter);
             drawSrg->Compile();
 
             // Pack all quads in this batch into one vertex/index stream. 32-bit

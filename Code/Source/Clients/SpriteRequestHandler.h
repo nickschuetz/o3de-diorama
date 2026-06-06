@@ -47,6 +47,7 @@ namespace Diorama
         void SetEmissive(float r, float g, float b, float intensity) override;
         void SetBillboard(bool enabled) override;
         void SetDoubleSided(bool enabled) override;
+        void SetPointFilter(bool enabled) override;
         void SetUVRegion(float uMin, float vMin, float uMax, float vMax) override;
         void SetFlip(bool horizontal, bool vertical) override;
         void SetSortOffset(float sortOffset) override;

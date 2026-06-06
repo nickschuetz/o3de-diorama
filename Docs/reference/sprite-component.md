@@ -160,6 +160,32 @@ double-sided card. Turn it off for effects that should only be seen from the
 front. As noted above, this setting has no visible effect on a billboard, which
 always faces the camera.
 
+#### Point Filter (pixel art)
+
+| | |
+| --- | --- |
+| Inspector label | `Point Filter (pixel art)` |
+| Config field | `m_pointFilter` (`bool`) |
+| Bus setter | `void SetPointFilter(bool enabled)` |
+| Default | `false` |
+
+When `true`, the sprite samples its texture with nearest-neighbor (point)
+filtering instead of the default linear filtering, so low-resolution pixel art
+stays crisp and blocky when scaled up instead of being bilinearly blurred. When
+`false` (default), linear filtering smooths the texture, which suits photographic
+or high-resolution art.
+
+Point filtering is part of the batch key: a point-filtered sprite draws in its
+own batch (the sampler is selected per draw), so mixing pixel-art and smooth
+sprites in a scene is fine, it just means an extra draw call for each group.
+
+This is the **sampler** half of crisp pixel art. The other half is **mipmaps**:
+linear-mipped textures still soften when a sprite is drawn smaller than the
+source, because the GPU pulls from a pre-averaged mip. For fully crisp pixel art
+at any scale, also import the texture with a **no-mipmap** preset (the built-in
+`UserInterface_Lossless` preset works well: uncompressed, no mips, no engine
+downscale). See [the pixel-art how-to](../howto/06-pixel-art.md).
+
 ### Atlas / UV region
 
 This group is collapsed by default in the Inspector (`AutoExpand` off).

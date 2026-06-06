@@ -64,6 +64,7 @@ Each has a written guide and a runnable example.
 | 2D Camera Controller | [08-camera.md](08-camera.md) | Written |
 | 2D Particle Emitter | [09-particles.md](09-particles.md) | Written |
 | 2D Materials (flash + outline) | [10-materials.md](10-materials.md) | Written |
+| Crisp Pixel Art (point filter + no mipmaps) | [06-pixel-art.md](06-pixel-art.md) | Written |
 | Side-Scroller Slice (integration) | [11-sidescroller.md](11-sidescroller.md) | Written |
 | 2D UI / HUD (text + bar + panel) | [13-ui-hud.md](13-ui-hud.md) | Written |
 | Make it Glow (post-processing + emissive) | [14-glow.md](14-glow.md) | Written |

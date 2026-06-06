@@ -41,6 +41,7 @@ namespace Diorama
         float m_sortOffset = 0.0f;
         bool m_billboard = false;
         bool m_doubleSided = true;
+        bool m_pointFilter = false; //!< Nearest-neighbor texture filtering (pixel art) vs default linear.
         bool m_flipHorizontal = false;
         bool m_flipVertical = false;
         bool m_animEnabled = false;
@@ -92,6 +93,10 @@ namespace Diorama
         //! Visible from both sides when true (default); when false the sprite is
         //! hidden when viewed from behind.
         virtual void SetDoubleSided(bool enabled) = 0;
+        //! Nearest-neighbor (point) texture filtering when true, so low-resolution
+        //! pixel art stays crisp instead of being blurred; false (default) is linear.
+        //! Pair it with a no-mipmap texture import preset for crisp results at any scale.
+        virtual void SetPointFilter(bool enabled) = 0;
 
         // Atlas / UV region.
         //! Normalized texture sub-rectangle; each value clamped to 0..1.

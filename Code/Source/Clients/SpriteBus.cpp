@@ -28,6 +28,7 @@ namespace Diorama
                 ->Field("sortOffset", &SpriteInfo::m_sortOffset)
                 ->Field("billboard", &SpriteInfo::m_billboard)
                 ->Field("doubleSided", &SpriteInfo::m_doubleSided)
+                ->Field("pointFilter", &SpriteInfo::m_pointFilter)
                 ->Field("flipHorizontal", &SpriteInfo::m_flipHorizontal)
                 ->Field("flipVertical", &SpriteInfo::m_flipVertical)
                 ->Field("animEnabled", &SpriteInfo::m_animEnabled)
@@ -53,6 +54,7 @@ namespace Diorama
                 ->Property("sortOffset", BehaviorValueGetter(&SpriteInfo::m_sortOffset), nullptr)
                 ->Property("billboard", BehaviorValueGetter(&SpriteInfo::m_billboard), nullptr)
                 ->Property("doubleSided", BehaviorValueGetter(&SpriteInfo::m_doubleSided), nullptr)
+                ->Property("pointFilter", BehaviorValueGetter(&SpriteInfo::m_pointFilter), nullptr)
                 ->Property("flipHorizontal", BehaviorValueGetter(&SpriteInfo::m_flipHorizontal), nullptr)
                 ->Property("flipVertical", BehaviorValueGetter(&SpriteInfo::m_flipVertical), nullptr)
                 ->Property("animEnabled", BehaviorValueGetter(&SpriteInfo::m_animEnabled), nullptr)
@@ -145,6 +147,12 @@ namespace Diorama
                 "SetDoubleSided",
                 &DioramaSpriteRequestBus::Events::SetDoubleSided,
                 { { { "enabled", "When true the sprite is visible from both sides; when false it is hidden when viewed from behind." } } })
+            ->Event(
+                "SetPointFilter",
+                &DioramaSpriteRequestBus::Events::SetPointFilter,
+                { { { "enabled",
+                      "When true, use nearest-neighbor (point) texture filtering so pixel art stays crisp; false (default) is linear. "
+                      "Pair with a no-mipmap texture import preset for crisp results at any scale." } } })
             ->Event(
                 "SetUVRegion",
                 &DioramaSpriteRequestBus::Events::SetUVRegion,

@@ -178,6 +178,16 @@ namespace Diorama
         NotifyChanged();
     }
 
+    void SpriteRequestHandler::SetPointFilter(bool enabled)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_pointFilter = enabled;
+        NotifyChanged();
+    }
+
     void SpriteRequestHandler::SetUVRegion(float uMin, float vMin, float uMax, float vMax)
     {
         if (m_config == nullptr)
@@ -298,6 +308,7 @@ namespace Diorama
         info.m_sortOffset = m_config->m_sortOffset;
         info.m_billboard = m_config->m_billboard;
         info.m_doubleSided = m_config->m_doubleSided;
+        info.m_pointFilter = m_config->m_pointFilter;
         info.m_flipHorizontal = m_config->m_flipHorizontal;
         info.m_flipVertical = m_config->m_flipVertical;
         info.m_animEnabled = m_config->m_animEnabled;

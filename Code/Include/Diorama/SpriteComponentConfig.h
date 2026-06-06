@@ -89,6 +89,13 @@ namespace Diorama
         //! billboard, which always faces the camera.
         bool m_doubleSided = true;
 
+        //! Use nearest-neighbor (point) texture filtering instead of the default
+        //! linear filtering. Turn this on for pixel art so low-resolution textures
+        //! stay crisp instead of being bilinearly smoothed (no need to pre-upscale
+        //! them in another program). Off (default) keeps linear, which suits
+        //! photographic or high-resolution art.
+        bool m_pointFilter = false;
+
         //! Normalized top-left of the texture sub-rectangle to sample. Together
         //! with m_uvMax this selects a region of a texture atlas or sprite sheet.
         //! The default (0,0)-(1,1) samples the whole texture.

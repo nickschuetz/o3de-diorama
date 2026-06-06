@@ -20,7 +20,7 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<SpriteComponentConfig, AZ::ComponentConfig>()
-                ->Version(8)
+                ->Version(9)
                 ->Field("Texture", &SpriteComponentConfig::m_texture)
                 ->Field("NormalMap", &SpriteComponentConfig::m_normalMap)
                 ->Field("FlashColor", &SpriteComponentConfig::m_flashColor)
@@ -34,6 +34,7 @@ namespace Diorama
                 ->Field("Tint", &SpriteComponentConfig::m_tint)
                 ->Field("Billboard", &SpriteComponentConfig::m_billboard)
                 ->Field("DoubleSided", &SpriteComponentConfig::m_doubleSided)
+                ->Field("PointFilter", &SpriteComponentConfig::m_pointFilter)
                 ->Field("UvMin", &SpriteComponentConfig::m_uvMin)
                 ->Field("UvMax", &SpriteComponentConfig::m_uvMax)
                 ->Field("FlipHorizontal", &SpriteComponentConfig::m_flipHorizontal)
@@ -115,6 +116,12 @@ namespace Diorama
                         &SpriteComponentConfig::m_doubleSided,
                         "Double Sided",
                         "Visible from both sides; turn off to hide the sprite when viewed from behind")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SpriteComponentConfig::m_pointFilter,
+                        "Point Filter (pixel art)",
+                        "Nearest-neighbor sampling so low-res pixel art stays crisp instead of being blurred. "
+                        "Pair it with a no-mipmap texture import preset (e.g. UserInterface_Lossless) for crisp results at any scale")
                     ->ClassElement(AZ::Edit::ClassElements::Group, "Atlas / UV Region")
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, false)
                     ->DataElement(

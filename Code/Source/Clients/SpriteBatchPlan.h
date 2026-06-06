@@ -42,13 +42,18 @@ namespace Diorama::SpriteBatchPlan
         //! differ in emissive must not share a batch. Default 0 intensity = none.
         float m_emissiveIntensity = 0.0f;
         AZ::u32 m_emissiveColor = 0xFFFFFFFFu;
+        //! Nearest-neighbor (point) texture filtering for crisp pixel art. The sampler
+        //! is selected per draw (m_material.w in the shader), so a point-filtered
+        //! sprite must not share a batch with a linear-filtered one. Default = linear.
+        bool m_pointFilter = false;
 
         bool operator==(const BatchKey& other) const
         {
             return m_textureId == other.m_textureId && m_sortOffset == other.m_sortOffset && m_normalMapId == other.m_normalMapId &&
                 m_flashAmount == other.m_flashAmount && m_flashColor == other.m_flashColor &&
                 m_outlineThickness == other.m_outlineThickness && m_outlineColor == other.m_outlineColor &&
-                m_emissiveIntensity == other.m_emissiveIntensity && m_emissiveColor == other.m_emissiveColor;
+                m_emissiveIntensity == other.m_emissiveIntensity && m_emissiveColor == other.m_emissiveColor &&
+                m_pointFilter == other.m_pointFilter;
         }
         bool operator!=(const BatchKey& other) const
         {
@@ -155,7 +160,11 @@ namespace Diorama::SpriteBatchPlan
                 {
                     return lhs.m_key.m_emissiveIntensity < rhs.m_key.m_emissiveIntensity;
                 }
-                return lhs.m_key.m_emissiveColor < rhs.m_key.m_emissiveColor;
+                if (lhs.m_key.m_emissiveColor != rhs.m_key.m_emissiveColor)
+                {
+                    return lhs.m_key.m_emissiveColor < rhs.m_key.m_emissiveColor;
+                }
+                return lhs.m_key.m_pointFilter < rhs.m_key.m_pointFilter;
             });
 
         for (AZ::u32 i = 0; i < outOrdered.size();)
