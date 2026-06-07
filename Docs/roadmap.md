@@ -19,11 +19,14 @@ ScriptCanvas). An early 2.5D twin-stick sample (not yet polished) is kept out of
 the published tree for now.
 
 Most of the tiers below have since shipped (each tracked inline as **Shipped**):
-2D lighting, the 2D camera, 2D collision, particles, sprite materials, parallax,
-UI/HUD, audio, the 2D Look post-profile + CRT overlay, the in-editor tilemap paint
-tool, skeletal cutout animation, Aseprite import, and the `Diorama2DGame` project
-template. What remains are the deeper versions (warping CRT pass, autotiling,
-DragonBones mesh deform, native `.aseprite`) and the flagship demo.
+2D lighting, the 2D camera (with versus framing + zoom), 2D collision (with pushbox
+resolution), particles, sprite materials, parallax, UI/HUD, audio, the 2D Look
+post-profile + CRT overlay, the in-editor tilemap paint tool, autotiling (4-bit +
+47-blob), a dedicated tilemap asset + builder (`.dtilemap` + Tiled `.tmj` import,
+multi-layer), native `.aseprite` import (parser + AssetBuilder), skeletal cutout
+animation, point-filter pixel art, sprite transpose/rotation, animation frame events,
+and hit-stop, plus the `Diorama2DGame` project template. What remains are the deeper
+versions (warping CRT pass, DragonBones mesh deform) and the flagship demo.
 
 ## Tier 1 - Differentiators (lean into Atom)
 
@@ -78,9 +81,14 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   camera-component design below (a pixel-perfect mode).
 - **2D camera component** (S-M). Follow, smoothing, deadzone, bounds, lookahead,
   and screen shake (a Cinemachine-2D analogue). Every 2D game needs it; cheap and
-  high impact, and it absorbs the gameplay-juice work. **Design done**
-  ([design/2d-camera.md](design/2d-camera.md)): drive the camera transform with
-  damped follow + trauma shake; sample script first, then a C++ component.
+  high impact, and it absorbs the gameplay-juice work. **Shipped**
+  ([design/2d-camera.md](design/2d-camera.md), [howto/08-camera.md](howto/08-camera.md)):
+  a C++ `2D Camera Controller` with damped follow, deadzone, lookahead, world
+  bounds, trauma shake, and a pixel-perfect mode, all on the
+  `DioramaCamera2DRequestBus`. Extended with **versus framing** (`SetSecondaryTarget`
+  centers on the midpoint of two targets) and **distance zoom/dolly** (`SetZoom`
+  manual, `SetAutoZoom` auto-dollies as the targets separate) for fighting and
+  co-op layouts.
 - **Tilemap tooling** (L). In-editor tile *painting*, autotiling / rule tiles,
   multiple layers, animated tiles, and per-tile collision shapes. Tilemaps are
   data-driven only today. **Design done**
@@ -96,8 +104,12 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   ([howto/04-tilemap.md](howto/04-tilemap.md#autotiling-borders-connect-themselves)).
   **Shipped (blob)**: `AutotileBlob(baseTile)` -- the 47-tile corner-aware scheme on the
   same `TilemapAutotile.h` core (a corner counts only when both adjacent edges are
-  present, reducing 256 neighbor combos to exactly 47). Remaining: a `DioramaTilesetRule`
-  asset for custom mask->cell layouts, multiple layers, animated tiles, per-tile collision.
+  present, reducing 256 neighbor combos to exactly 47). **Shipped (asset + layers)**: a
+  dedicated `DioramaTilemapAsset` (`.dtilemapc`) with a custom `.dtilemap` JSON builder
+  and a Tiled `.tmj` importer, **multiple layers**, and **per-tile flip/rotate**
+  (orientation bits packed above the atlas index), driven by the `SetTilemapByPath`
+  bus verb and the editor's **Tilemap Asset** field. Remaining: a `DioramaTilesetRule`
+  asset for custom mask->cell layouts, animated tiles, per-tile collision.
 - **Skeletal 2D animation** (L). Bone deformation (Spine / DragonBones style), the
   AAA-2D animation standard. **Design done**
   ([design/2d-skeletal-animation.md](design/2d-skeletal-animation.md)): phased

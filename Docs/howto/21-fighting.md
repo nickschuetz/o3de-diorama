@@ -17,7 +17,7 @@ function Attack:OnActivate()
     self.handler = DioramaSpriteNotificationBus.Connect(self, self.entityId)
 end
 function Attack:OnAnimationFrame(frame)
-    if frame == 5 then AudioBus.Broadcast.PlayOneShot("swing") end
+    if frame == 5 then DioramaAudioRequestBus.Broadcast.PlayOneShot("diorama/audio/swing.wav", 1.0) end
 end
 function Attack:OnAnimationFinished()
     -- move recovery is over; return to neutral

@@ -285,8 +285,8 @@ build the 2.5D look on top of that order, each a console variable defaulting on:
   do not cast.
 
 Because the depth sort orders *within* a layer, give the floor and backgrounds a
-lower sort offset than the gameplay sprites (the twin-stick sample puts the ocean
-floor on a negative offset), or a distant sprite could sort beneath the flat
+lower sort offset than the gameplay sprites (for example put a floor or ocean
+layer on a negative offset), or a distant sprite could sort beneath the flat
 ground quad. A note on the shader: it sets `CullMode: None` and disables the depth
 test specifically so a flat floor renders under a tilted 2.5D camera and the
 painter's order is authoritative.

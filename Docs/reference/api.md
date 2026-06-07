@@ -77,11 +77,13 @@ maps 1:1 in both Lua and Python, and the name in the reflection is exactly the
 name you call. The reflected names are, verbatim from the `BehaviorContext`
 reflection in `Code/Source/Clients/SpriteBus.cpp` and `TilemapBus.cpp`:
 
-`SetTextureByPath`, `SetSize`, `SetPivot`, `SetTint`, `SetBillboard`,
-`SetDoubleSided`, `SetUVRegion`, `SetFlip`, `SetSortOffset`, `SetFrameGrid`,
-`SetAnimationEnabled`, `SetPlayback`, `SetStartFrame`, `PlaySpriteSheet`,
-`GetSpriteInfo`, `SetAtlasByPath`, `SetAtlasGrid`, `SetGridSize`, `SetTileSize`,
-`SetTile`, `Fill`, `Clear`, `Autotile`, `AutotileBlob`, `GetTilemapInfo`.
+`SetTextureByPath`, `SetNormalMapByPath`, `SetSize`, `SetPivot`, `SetTint`,
+`SetFlash`, `SetOutline`, `SetEmissive`, `SetBillboard`, `SetDoubleSided`,
+`SetPointFilter`, `SetUVRegion`, `SetFlip`, `SetTranspose`, `SetSortOffset`,
+`SetFrameGrid`, `SetAnimationEnabled`, `SetPlayback`, `SetPlaybackSpeed`,
+`SetStartFrame`, `PlaySpriteSheet`, `GetSpriteInfo`, `SetAtlasByPath`,
+`SetTilemapByPath`, `SetAtlasGrid`, `SetGridSize`, `SetTileSize`, `SetTile`,
+`Fill`, `Clear`, `Autotile`, `AutotileBlob`, `GetTilemapInfo`.
 
 The per-argument names and tooltips in the tables below are likewise reflected
 into the C++ `BehaviorContext` (readable via `GetArgumentName` and
@@ -106,17 +108,24 @@ parameter in the [Sprite component reference](./sprite-component.md).
 | Verb | Signature (after entity id) | Returns | Clamping / validation | Effect |
 | ---- | --------------------------- | ------- | --------------------- | ------ |
 | `SetTextureByPath` | `productPath: string` | `bool` | Empty string clears the texture and returns `true`. Otherwise resolves the path; returns `false` if it does not resolve to an asset. Accepts a source path too (see below). | [Texture](./sprite-component.md#texture) |
+| `SetNormalMapByPath` | `productPath: string` | `bool` | Same resolve and empty-clears-and-returns-`true` rules as `SetTextureByPath`. Sets the tangent-space normal map for 2D lighting. | [Normal Map](./sprite-component.md#normal-map) |
 | `SetSize` | `width: float, height: float` | void | Each clamped to `>= 0`. | [Size](./sprite-component.md#size) |
 | `SetPivot` | `x: float, y: float` | void | Each clamped to `0..1`. | [Pivot](./sprite-component.md#pivot) |
 | `SetTint` | `r: float, g: float, b: float, a: float` | void | Each channel clamped to `0..1`. | [Tint](./sprite-component.md#tint) |
+| `SetFlash` | `r: float, g: float, b: float, amount: float` | void | Each channel and `amount` clamped to `0..1`. Blends the sprite toward the flash color by `amount` (hit flash); `amount = 0` is off. | [Flash](./sprite-component.md#flash) |
+| `SetOutline` | `r: float, g: float, b: float, thickness: float` | void | Channels clamped to `0..1`; `thickness` clamped to `>= 0` (in texels). Draws a silhouette outline; `thickness = 0` is off. | [Outline](./sprite-component.md#outline) |
+| `SetEmissive` | `r: float, g: float, b: float, intensity: float` | void | Channels clamped to `0..1`; `intensity` clamped to `>= 0`. Adds unlit emissive color (feeds bloom); `intensity = 0` is off. | [Emissive](./sprite-component.md#emissive) |
 | `SetBillboard` | `enabled: bool` | void | None. | [Billboard](./sprite-component.md#billboard) |
 | `SetDoubleSided` | `enabled: bool` | void | None. | [Double Sided](./sprite-component.md#double-sided) |
+| `SetPointFilter` | `enabled: bool` | void | None. | [Point Filter](./sprite-component.md#point-filter-pixel-art) |
 | `SetUVRegion` | `uMin: float, vMin: float, uMax: float, vMax: float` | void | Each clamped to `0..1`, then sorted so `min <= max` per axis (region is well formed regardless of argument order). | [UV Min](./sprite-component.md#uv-min) / [UV Max](./sprite-component.md#uv-max) |
 | `SetFlip` | `horizontal: bool, vertical: bool` | void | None. | [Flip Horizontal](./sprite-component.md#flip-horizontal) / [Flip Vertical](./sprite-component.md#flip-vertical) |
+| `SetTranspose` | `transpose: bool` | void | None. Swaps the UV diagonal (transpose); combine with flips to get all four 90-degree rotations of the region. | [Transpose](./sprite-component.md#transpose) |
 | `SetSortOffset` | `sortOffset: float` | void | None (any value, positive or negative). | [Sort Offset](./sprite-component.md#sort-offset) |
 | `SetFrameGrid` | `columns: int, rows: int, frameCount: int` | void | `columns`, `rows`, `frameCount` each clamped to `>= 1`. The effective frame count is additionally capped at `columns * rows` at read time. | [Columns](./sprite-component.md#columns) / [Rows](./sprite-component.md#rows) / [Frame Count](./sprite-component.md#frame-count) |
 | `SetAnimationEnabled` | `enabled: bool` | void | None. | [Animated](./sprite-component.md#animated) |
 | `SetPlayback` | `framesPerSecond: float, loop: bool` | void | `framesPerSecond` clamped to `>= 0`. | [Frames Per Second](./sprite-component.md#frames-per-second) / [Loop](./sprite-component.md#loop) |
+| `SetPlaybackSpeed` | `speed: float` | void | Clamped to `>= 0`. Time-scale multiplier on animation advance (`1` = normal, `0` = paused, `0.2` = slow-motion); the global hit-stop / slow-motion knob. | [Playback Speed](./sprite-component.md#playback-speed) |
 | `SetStartFrame` | `frame: int` | void | Clamped to `>= 0` on store; clamped to the valid frame range at read time. | [Start Frame](./sprite-component.md#start-frame) |
 | `PlaySpriteSheet` | `columns: int, rows: int, frameCount: int, framesPerSecond: float, loop: bool` | void | `columns`/`rows`/`frameCount` clamped to `>= 1`; `framesPerSecond` clamped to `>= 0`; also sets `animEnabled = true`. | [Convenience: PlaySpriteSheet](./sprite-component.md#convenience-playspritesheet) |
 | `GetSpriteInfo` | (none) | `SpriteInfo` | Read-only. Safe to poll. | [Verify loop](#query-and-verify-the-verify-loop) |
@@ -151,6 +160,7 @@ parameter in the [Tilemap component reference](./tilemap-component.md).
 | Verb | Signature (after entity id) | Returns | Clamping / validation | Effect |
 | ---- | --------------------------- | ------- | --------------------- | ------ |
 | `SetAtlasByPath` | `productPath: string` | `bool` | Empty string clears the atlas and returns `true`. Otherwise resolves the path; returns `false` if it does not resolve. Accepts a source path too (same retry as `SetTextureByPath`). | [Atlas](./tilemap-component.md#atlas) |
+| `SetTilemapByPath` | `productPath: string` | `bool` | Resolves a compiled `.dtilemapc` tilemap asset (built from a `.dtilemap` or Tiled `.tmj` source) and drives the whole map (all layers, grid, tiles, atlas) from it. Empty string detaches the asset and returns `true`; `false` if it does not resolve. | [Tilemap Asset](./tilemap-component.md#tilemap-asset) |
 | `SetAtlasGrid` | `columns: int, rows: int` | void | Each clamped to `>= 1`. | [Atlas columns and atlas rows](./tilemap-component.md#atlas-columns-and-atlas-rows) |
 | `SetGridSize` | `columns: int, rows: int` | void | Each clamped to `>= 1`. | [Columns and rows](./tilemap-component.md#columns-and-rows) |
 | `SetTileSize` | `width: float, height: float` | void | Each clamped to `>= 0`. | [Tile size](./tilemap-component.md#tile-size) |
@@ -176,6 +186,9 @@ Drives the **2D Camera Controller** on a camera entity (how-to [08-camera](../ho
 | Verb | Signature (after entity id) | Returns | Effect |
 | ---- | --------------------------- | ------- | ------ |
 | `SetTarget` | `target: EntityId` | void | Entity the camera follows. |
+| `SetSecondaryTarget` | `target: EntityId` | void | Second entity to frame; when valid the camera centers on the midpoint of the two (versus camera). Invalid id clears it. |
+| `SetZoom` | `dolly: float` | void | Extra distance to pull the camera back from the play plane; turns auto-zoom off. |
+| `SetAutoZoom` | `base, perSeparation, minDolly, maxDolly: float` | void | Auto-dolly as the two targets separate: `base` + `perSeparation` per world unit between targets, clamped to `minDolly..maxDolly`. `perSeparation > 0` enables it. |
 | `SetFollowOffset` | `x: float, y: float, z: float` | void | Offset held from the target. |
 | `SetSmoothTime` | `seconds: float` | void | Follow smoothing time (`0` snaps). |
 | `SetDeadzone` | `halfX: float, halfY: float` | void | Half-extents of the no-move deadzone. |
@@ -233,7 +246,7 @@ Drives a **2D Parallax Layer** (how-to [05-parallax-layers](../howto/05-parallax
 
 ## Collision buses
 
-2D collision (how-to in the twin-stick sample). There are two request buses plus a
+2D collision for gameplay scripts. There are two request buses plus a
 notification bus.
 
 **`Diorama2DColliderRequestBus`** — per-entity collider config (addressed by entity id):
@@ -255,6 +268,7 @@ notification bus.
 | ---- | --------- | ------- | ------ |
 | `OverlapCircle` | `x, z, radius: float, layerMask: u32` | `EntityId[]` | Entities overlapping the circle. |
 | `OverlapBox` | `x, z, halfWidth, halfHeight: float, layerMask: u32` | `EntityId[]` | Entities overlapping the box. |
+| `ComputeBoxPushOut` | `x, z, halfWidth, halfHeight: float, layerMask: u32, exclude: EntityId` | `Vector2` | Summed minimum-translation vector to push a box out of every overlapping collider on `layerMask`, excluding `exclude` (pass the caller's own id). Add it to the entity's position to resolve pushbox overlap; `(0, 0)` when nothing overlaps. |
 | `Raycast2D` | `x, z, dirX, dirZ, maxDistance: float, layerMask: u32` | `Raycast2DResult` | First hit along the ray. |
 
 `Diorama2DCollisionNotificationBus` delivers enter/exit events (see [Notifications](#notifications-event-driven)).
@@ -370,6 +384,7 @@ Reflected property names (read from `DioramaSpriteInfo`):
 | `sortOffset` | float | Current draw-order bias. |
 | `billboard` | bool | Faces the camera. |
 | `doubleSided` | bool | Visible from behind. |
+| `pointFilter` | bool | Nearest-neighbor (crisp pixel-art) sampling vs default linear. |
 | `flipHorizontal`, `flipVertical` | bool | Region mirroring. |
 | `animEnabled` | bool | Sprite-sheet playback is on. |
 | `currentFrame` | int | Frame currently on screen (resolved from the presenter). |
@@ -383,6 +398,7 @@ Reflected property names (read from `DioramaTilemapInfo`):
 | -------- | ---- | ------- |
 | `atlasPath` | string | Resolved atlas product path, empty if none. |
 | `atlasLoaded` | bool | True once the atlas asset has streamed in. |
+| `hasSourceAsset` | bool | True when a compiled `.dtilemapc` tilemap asset drives this map (vs. cells set directly through the bus). |
 | `visible` | bool | True when the layer is registered and actually drawing. |
 | `columns`, `rows` | int | Current tilemap grid dimensions. |
 | `atlasColumns`, `atlasRows` | int | Current atlas grid dimensions. |
@@ -429,12 +445,14 @@ entity id as the request bus.
 | `OnTextureReady` | `productPath: string` | The texture finished loading (or changed and reloaded). |
 | `OnVisibilityChanged` | `visible: bool` | Drawability changed: the sprite became visible or stopped being drawn. |
 | `OnAnimationFinished` | (none) | A non-looping clip reached and held its last frame. |
+| `OnAnimationFrame` | `frameIndex: int` | The displayed frame advanced (fires for both sprite-sheet and Aseprite playback). Drive per-frame gameplay (hitbox activation, footstep audio) off this rather than guessing frame timing. |
 
 The bus is reflected to the `BehaviorContext` with a handler
 (`DioramaSpriteNotificationHandler`), so a script can connect a handler and
-implement any subset of the three callbacks. The common use is waiting for
+implement any subset of the four callbacks. The common use is waiting for
 `OnTextureReady` after `SetTextureByPath` rather than polling `textureLoaded`,
-and waiting for `OnAnimationFinished` on a one-shot clip.
+waiting for `OnAnimationFinished` on a one-shot clip, and hanging per-frame
+gameplay logic (hitboxes, footsteps) on `OnAnimationFrame`.
 
 There is no notification bus for the tilemap; poll `GetTilemapInfo` to confirm
 tilemap state.

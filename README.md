@@ -57,9 +57,11 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | --- | --- | --- |
 | Sprite | World-space sprite quad rendered through Atom | Working |
 | Sprite | Editor viewport preview via a shared presenter | Working |
-| Sprite | Atlas UV sub-regions, horizontal/vertical flip | Working |
+| Sprite | Atlas UV sub-regions, horizontal/vertical flip, anti-diagonal transpose (90&deg; rotations) | Working |
 | Sprite | Billboard (camera-facing) and fixed orientation | Working |
-| Sprite | Sprite-sheet / flipbook animation | Working |
+| Sprite | Point filter (crisp pixel art) | Working |
+| Sprite | Sprite-sheet / flipbook animation + frame events (`OnAnimationFrame`) | Working |
+| Sprite | Playback speed / time-scale (hit-stop, slow motion) | Working |
 | Rendering | Batched feature processor (texture + sort-layer batching) | Working |
 | Rendering | Automatic camera-distance depth sort | Working |
 | Rendering | Soft ground shadows under billboards | Working |
@@ -67,8 +69,10 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | 2.5D | Depth-sorted layers + tilted 2.5D camera | Working |
 | Scripting | Typed per-feature request buses (Lua, Python, ScriptCanvas) | Working |
 | Gameplay | 2D collision: colliders, triggers, and queries reachable from scripts | Working |
+| Gameplay | Pushbox resolution (`ComputeBoxPushOut` minimum-translation) | Working |
 | 2.5D | Parallax background layers | Working |
 | Camera | 2D camera controller (follow, deadzone, bounds, shake) | Working |
+| Camera | Versus framing (two-target midpoint) + distance zoom/dolly | Working |
 | Camera | Orthographic / pixel-perfect camera | Working |
 | Lighting | 2D dynamic lights + normal-mapped sprites | Working |
 | Effects | 2D particle emitter | Working |
@@ -84,7 +88,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Asset pipeline | Runtime asset reference: play a `.dioramasheet` product directly | Working |
 | Audio | One-shot SFX + music via MiniAudio | Working |
 | Project | `Diorama2DGame` "New 2.5D Game" project template | Working |
-| Asset pipeline | Dedicated tilemap asset + builder (`.dtilemap` JSON source &rarr; validated `.dtilemapc` product) | Working |
+| Asset pipeline | Dedicated tilemap asset + builder (`.dtilemap` JSON or Tiled `.tmj` &rarr; validated `.dtilemapc`), multi-layer + per-tile flip/rotate | Working |
 
 A known limitation: the editor preview does not yet live-update to every
 runtime property change. See the roadmap and issues for tracking.

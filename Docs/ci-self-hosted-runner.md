@@ -37,8 +37,10 @@ confirms the gem builds and tests there, not only on Linux.
 - A host O3DE project to build the gem through (any project with the standard
   layout; this repo is developed against a `DioramaSandbox` project).
 - Build tooling matching the engine: CMake plus, on Linux, Ninja
-  (`ninja-build`) and a clang toolchain; on Windows, Visual Studio 2022 (the
-  C++ workload) and its CMake.
+  (`ninja-build`) and a clang toolchain; on Windows, Visual Studio 2022 or 2026
+  (the C++ workload) and its CMake. The Windows host build has been verified
+  (VS2026 / MSVC); `scripts/ci_build_test.ps1` auto-detects the newest installed
+  Visual Studio generator.
 
 ## One-time setup
 

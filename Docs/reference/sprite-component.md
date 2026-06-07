@@ -31,7 +31,7 @@ considered ready (see `OnTextureReady` below).
 
 ## Parameters
 
-Eighteen serialized parameters, grouped here exactly as the header and the
+Twenty-eight serialized parameters, grouped here exactly as the header and the
 Inspector group them.
 
 ### Texture / Appearance
@@ -62,6 +62,73 @@ itself ready. Use the `OnTextureReady` notification (or poll
 rather than assuming the assignment was instantaneous.
 
 With no texture assigned the quad has nothing to sample and does not draw.
+
+#### Normal Map
+
+| | |
+| --- | --- |
+| Inspector label | `Normal Map` |
+| Config field | `m_normalMap` (`AZ::Data::Asset<AZ::RPI::StreamingImageAsset>`) |
+| Bus setter | `bool SetNormalMapByPath(AZStd::string_view productPath)` |
+| Default | none (unassigned); the sprite lights as a flat card |
+| Load behavior | `PreLoad` |
+
+An optional tangent-space normal map. When assigned, the sprite responds to 2D
+lights ([Lighting how-to](../howto/07-lighting.md)) with per-texel surface
+normals, so a flat card picks up directional shading and rim highlights as a
+light moves. With no normal map the sprite lights as a uniformly flat surface.
+`SetNormalMapByPath` resolves and clears exactly like `SetTextureByPath`
+(empty string clears and returns `true`; a bad path returns `false`).
+
+### Material effects
+
+A small set of post-lighting effects (2D materials v1) for game-feel: a hit
+flash, a silhouette outline, and an emissive add. Each is off at its default, so
+a fresh sprite is unaffected. Each color and its scalar pair set together through
+one bus verb.
+
+#### Flash
+
+| | |
+| --- | --- |
+| Inspector label | `Flash Color` / `Flash Amount` |
+| Config fields | `m_flashColor` (`AZ::Color`), `m_flashAmount` (`float`) |
+| Bus setter | `void SetFlash(float r, float g, float b, float amount)` |
+| Default | white, `amount` `0.0` (off) |
+| Range | channels and `amount` clamped to 0..1 (bus) |
+
+Blends the lit sprite toward `Flash Color` by `Flash Amount`. The classic hit
+flash: pulse `amount` to 1.0 on damage and decay it back to 0. At `amount = 0`
+the flash is inert.
+
+#### Outline
+
+| | |
+| --- | --- |
+| Inspector label | `Outline Color` / `Outline Thickness` |
+| Config fields | `m_outlineColor` (`AZ::Color`), `m_outlineThickness` (`float`) |
+| Bus setter | `void SetOutline(float r, float g, float b, float thickness)` |
+| Default | white, `thickness` `0.0` (off) |
+| Range | channels clamped to 0..1; `thickness` clamped to `>= 0` (texels) |
+
+Draws an outline of `Outline Color` around the sprite's opaque silhouette,
+`Outline Thickness` texels wide. Use it for selection highlights or readability
+against a busy background. `thickness = 0` disables it.
+
+#### Emissive
+
+| | |
+| --- | --- |
+| Inspector label | `Emissive Color` / `Emissive Intensity` |
+| Config fields | `m_emissiveColor` (`AZ::Color`), `m_emissiveIntensity` (`float`) |
+| Bus setter | `void SetEmissive(float r, float g, float b, float intensity)` |
+| Default | white, `intensity` `0.0` (off) |
+| Range | channels clamped to 0..1; `intensity` clamped to `>= 0` (bus) |
+
+Adds `Emissive Color` scaled by `Emissive Intensity` to the lit color. An
+intensity above 1 pushes the sprite into HDR, where the [2D Look](./api.md#dioramalookrequestbus)
+bloom picks it up as a glow. Pair an emissive sprite with bloom for neon and
+energy effects. `intensity = 0` disables it.
 
 #### Size
 
@@ -253,6 +320,22 @@ Both flips apply to the active region, which means they also apply correctly to
 the current animation frame: flipping a walking sheet mirrors each frame in
 place.
 
+#### Transpose
+
+| | |
+| --- | --- |
+| Inspector label | `Transpose` |
+| Config field | `m_transpose` (`bool`) |
+| Bus setter | `void SetTranspose(bool transpose)` |
+| Default | `false` |
+
+Swaps the sampled region across its diagonal (exchanges the U and V mapping at
+the quad corners). On its own it mirrors along the main diagonal; combined with
+`Flip Horizontal` and `Flip Vertical` it yields all four 90-degree rotations of a
+region from a single source. This is how a tile or sprite can be rotated for
+free without a rotated copy in the atlas, and it composes with the animation
+frame grid the same way the flips do.
+
 ### Layering
 
 This group is collapsed by default in the Inspector (`AutoExpand` off).
@@ -358,6 +441,23 @@ to `[1, Columns * Rows]`, so it can never exceed the grid capacity or drop below
 The playback rate. The Inspector shows a ` fps` suffix and enforces a minimum of
 0.0. The bus setter `SetPlayback` sets the rate and the loop flag together.
 
+#### Playback Speed
+
+| | |
+| --- | --- |
+| Inspector label | `Playback Speed` |
+| Config field | `m_playbackSpeed` (`float`) |
+| Bus setter | `void SetPlaybackSpeed(float speed)` |
+| Default | `1.0` |
+| Range | clamped to `>= 0` |
+
+A time-scale multiplier applied on top of `Frames Per Second`: `1.0` plays at the
+authored rate, `0.0` pauses on the current frame, `0.2` is slow motion, `2.0` is
+double speed. It is the knob for global effects that retime animation without
+rewriting each clip's fps, most notably hit-stop (briefly drop to near zero on
+impact) and slow-motion. Unlike setting `Frames Per Second` to 0, restoring
+`Playback Speed` to 1 resumes at the original authored rate.
+
 #### Loop
 
 | | |
@@ -418,6 +518,7 @@ to poll.
 | `m_sortOffset` | `float` | Resolved sort offset |
 | `m_billboard` | `bool` | Resolved billboard flag |
 | `m_doubleSided` | `bool` | Resolved double-sided flag |
+| `m_pointFilter` | `bool` | Resolved point-filter (pixel-art sampling) flag |
 | `m_flipHorizontal` | `bool` | Resolved horizontal flip |
 | `m_flipVertical` | `bool` | Resolved vertical flip |
 | `m_animEnabled` | `bool` | Resolved animation-enabled flag |
@@ -439,11 +540,14 @@ For event-driven callers that prefer subscribing over polling, the
 | `OnTextureReady(const AZStd::string& productPath)` | The texture finished loading, or changed and reloaded |
 | `OnVisibilityChanged(bool visible)` | Drawability changed: the sprite became visible or stopped being drawn |
 | `OnAnimationFinished()` | A non-looping clip reached and held its last frame |
+| `OnAnimationFrame(int frameIndex)` | The displayed frame advanced (fires for both sprite-sheet and Aseprite playback) |
 
 A `DioramaSpriteNotificationHandler` is reflected to the BehaviorContext so
 scripts and agents can subscribe to these events (for example, wait for
-`OnTextureReady` before reading pixels, or react to `OnAnimationFinished`
-instead of polling `m_currentFrame`).
+`OnTextureReady` before reading pixels, react to `OnAnimationFinished`
+instead of polling `m_currentFrame`, or hang per-frame gameplay such as hitbox
+activation and footstep audio on `OnAnimationFrame` rather than guessing frame
+timing).
 
 ## See also
 

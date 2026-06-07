@@ -7,8 +7,8 @@ a tilemap is an atlas applied across a grid of cells, drawn as one batched layer
 
 A `Tilemap` component that fills a grid of cells, each showing one cell of a
 shared atlas texture, and an arena floor painted entirely through the AI-native
-`DioramaTilemapRequestBus`. This is the arena foundation for the twin-stick
-shooter capstone (rung 6).
+`DioramaTilemapRequestBus`. This is the kind of arena foundation a top-down
+shooter or RPG map builds on.
 
 ## The tilemap model
 
@@ -222,5 +222,5 @@ can confirm an asset is driving the map.
 ## Next
 
 Rung 5 (Parallax and Layers) stacks tilemaps and sprites at different sort
-offsets and depths for a 2.5D look. Rung 6 (the twin-stick capstone) uses a
-tilemap as the arena floor under sprite-based players, enemies, and projectiles.
+offsets and depths for a 2.5D look. From there a tilemap makes a natural arena
+floor under sprite-based players, enemies, and projectiles in a top-down game.

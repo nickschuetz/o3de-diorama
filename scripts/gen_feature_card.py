@@ -34,17 +34,17 @@ def neon_text(xy, text, font, color, glow=8):
 
 # arcade neon palette (echoes the logo's sunset + cyan)
 TILES = [
-    ("SPRITE", (255, 206, 70), "World-space sprite quads via Atom; atlas UV, H/V flip, billboard or fixed orientation."),
+    ("SPRITE", (255, 206, 70), "World-space sprite quads via Atom; atlas UV, flip, 90-degree transpose, point-filter pixel art."),
     ("RENDERING", (255, 150, 52), "Batched feature processor (texture + sort-layer); automatic camera-distance depth sort."),
     ("DEPTH+SHADOW", (90, 210, 255), "2.5D draw order by world depth, plus soft ground shadows under billboarded sprites."),
     ("2.5D+PARALLAX", (120, 235, 150), "Depth-sorted layers, parallax backgrounds, and a tilted 2.5D camera."),
-    ("TILEMAP", (90, 225, 210), "Atlas tilemaps with 4-bit and 47-blob (corner-aware) autotiling and an in-editor paint tool."),
-    ("ANIMATION", (200, 150, 255), "Sprite-sheet / flipbook playback; native .aseprite import via a custom AssetBuilder."),
+    ("TILEMAP", (90, 225, 210), "Atlas tilemaps: 4-bit + 47-blob autotiling, in-editor paint, multi-layer .dtilemap / Tiled .tmj."),
+    ("ANIMATION", (200, 150, 255), "Sprite-sheet / flipbook playback with frame events; native .aseprite import via AssetBuilder."),
     ("LIGHTING", (255, 224, 110), "Gem-native 2D point + directional lights; normal-mapped sprites for shaped shading."),
-    ("EFFECTS", (255, 96, 150), "2D particle emitter; per-sprite flash, outline, and emissive material verbs."),
+    ("EFFECTS", (255, 96, 150), "2D particles; per-sprite flash, outline, emissive; hit-stop / slow-motion time-scale."),
     ("POST", (180, 130, 255), "Bloom + vignette via a 2D Look component, plus a retro CRT scanline pass."),
-    ("CAMERA", (90, 200, 255), "Follow, deadzone, bounds, and shake; orthographic / pixel-perfect projection."),
-    ("GAMEPLAY", (140, 230, 130), "2D collision: colliders, triggers, and queries reachable from game scripts."),
+    ("CAMERA", (90, 200, 255), "Follow, deadzone, bounds, shake; versus framing + auto-zoom; ortho / pixel-perfect."),
+    ("GAMEPLAY", (140, 230, 130), "2D collision: colliders, triggers, queries, and pushbox resolution, from game scripts."),
     ("SCRIPTING", (255, 210, 90), "Typed per-feature request buses, usable from Lua, Python, and Script Canvas."),
 ]
 cols, rows = 4, 3

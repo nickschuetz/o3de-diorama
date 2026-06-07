@@ -1,7 +1,11 @@
 # Design: tilemap tooling (in-editor painting, autotiling, layers, collision)
 
-Status: design (Tier-2 roadmap item). No implementation yet. Builds on the
-existing data-driven tilemap component (`DioramaTilemapRequestBus`: SetTile, Fill,
+Status: **shipped** (in-editor painting, 4-bit + 47-blob autotiling, layers, plus a
+dedicated `.dtilemap` asset + builder and Tiled `.tmj` import). See
+[how-to 04](../howto/04-tilemap.md) and the CHANGELOG. **Note:** autotiling shipped
+as the `Autotile` / `AutotileBlob` bus verbs, not the `DioramaTilesetRule` JSON asset
+sketched below; treat that section as historical design rationale. Builds on the
+data-driven tilemap component (`DioramaTilemapRequestBus`: SetTile, Fill,
 SetGridSize, SetAtlasGrid, ...).
 
 ## Goal

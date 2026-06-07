@@ -119,7 +119,7 @@ Two consequences for how you author:
 
 ## Next
 
-- **Tilemap** (rung 4, planned): render a whole grid of atlas tiles from a
+- **Tilemap** ([rung 4](04-tilemap.md)): render a whole grid of atlas tiles from a
   single asset.
-- **Parallax and Layers** (rung 5, planned): use the sort offset and depth to
-  build 2.5D scenes.
+- **Parallax and Layers** ([rung 5](05-parallax-layers.md)): use the sort offset and
+  depth to build 2.5D scenes.

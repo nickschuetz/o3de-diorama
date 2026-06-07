@@ -1,9 +1,10 @@
 # Design: Aseprite / sprite-sheet import
 
-Status: **partially shipped.** The JSON sprite-sheet importer (editor-time) and the
-native-binary **parser + compositor + atlas packer** (phases 1 + 2a) are merged and
-unit-tested. What remains is **phase 2b: the AssetBuilder** that runs the parser under
-the AssetProcessor and emits product assets. The detailed phase-2b design is at the
+Status: **shipped (phases 1, 2a, 2b).** The JSON sprite-sheet importer (editor-time),
+the native-binary parser + compositor + atlas packer, AND the AssetBuilder
+(`DioramaAsepriteBuilder` -> `.dioramasheet` product, consumed via the component's
+asset reference) are all merged and unit-tested. See [how-to 19](../howto/19-aseprite.md).
+The detailed phase-2b design is at the
 bottom of this doc; the sections above are the original plan and remain the reference.
 
 ## Goal

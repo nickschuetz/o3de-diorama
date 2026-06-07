@@ -1,5 +1,8 @@
 # 2D UI / HUD (parity surface)
 
+Status: **v1 shipped** — `DioramaUIComponent` / `DioramaUIRequestBus` + the
+`UILayout2D` core + [how-to 13](../howto/13-ui-hud.md).
+
 A screen-space HUD/UI layer that is **at parity with the rest of Diorama**: AI- and
 human-drivable through a typed request bus, with an editor twin and demos, the same
 model the sprite and tilemap buses follow. This closes the "UI/HUD parity" gap in the

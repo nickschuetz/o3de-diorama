@@ -54,13 +54,15 @@ of the texture), identical to the sprite UV convention.
 
 ## Parameters
 
-The configuration exposes nine serialized fields. Seven appear in the inspector
-across three groups (Atlas, Grid, Appearance). The tile data array is authored
-through the bus or a build script, not the raw inspector. Below, each parameter
-lists its inspector label, its config field, and the matching bus setter.
+The configuration exposes ten serialized fields. Eight appear in the inspector
+across four groups (Source, Atlas, Grid, Appearance). The tile data array is
+authored through the bus or a build script, not the raw inspector. Below, each
+parameter lists its inspector label, its config field, and the matching bus
+setter.
 
 | Parameter | Inspector label | Config field | Type | Default | Range / clamp |
 | --------- | --------------- | ------------ | ---- | ------- | ------------- |
+| Tilemap asset | Tilemap Asset | `m_tilemapAsset` | `Asset<DioramaTilemapAsset>` | none (PreLoad) | optional compiled `.dtilemapc`; supplies grid/atlas/tiles when set |
 | Atlas | Atlas | `m_atlas` | `Asset<StreamingImageAsset>` | none (PreLoad) | must resolve to an asset |
 | Atlas columns | Atlas Columns | `m_atlasColumns` | `int` | 1 | inspector Min 1; helper clamps to >= 1 |
 | Atlas rows | Atlas Rows | `m_atlasRows` | `int` | 1 | inspector Min 1; helper clamps to >= 1 |
@@ -70,6 +72,34 @@ lists its inspector label, its config field, and the matching bus setter.
 | Tiles | (not in inspector) | `m_tiles` | `vector<s32>` | empty | row-major, length `columns*rows`; `-1` = empty |
 | Tint | Tint | `m_tint` | `Color` | `(1, 1, 1, 1)` | bus clamps channels to 0..1 |
 | Sort offset | Sort Offset | `m_sortOffset` | `float` | `0.0` | unbounded |
+
+### Tilemap asset
+
+- Inspector label: **Tilemap Asset** ("Optional compiled tilemap (.dtilemapc)"),
+  group Source.
+- Config field: `m_tilemapAsset` (`AZ::Data::Asset<DioramaTilemapAsset>`,
+  `PreLoad`).
+- Bus setter: `bool SetTilemapByPath(AZStd::string_view productPath)`.
+
+The optional compiled tilemap asset. A `.dtilemapc` product is built from either
+a Diorama `.dtilemap` JSON source or a Tiled `.tmj` export (see the
+[Tilemap how-to](../howto/04-tilemap.md) and the
+[tilemap-tooling design](../design/2d-tilemap-tooling.md)). When an asset is
+assigned it is authoritative: it supplies the atlas, the grid dimensions, the
+tile data, and every additional layer, and the inline fields below act only as
+the fallback for a tilemap authored directly (no asset). `SetTilemapByPath`
+resolves and clears like the other path setters (empty string detaches and
+returns `true`; an unresolved path returns `false`), and
+`GetTilemapInfo().hasSourceAsset` reports whether an asset is currently driving
+the map.
+
+A compiled tilemap can carry **multiple layers** and **per-tile orientation**.
+Each tile entry packs three orientation bits above its atlas index
+(`FlipHorizontal`, `FlipVertical`, `FlipDiagonal` / anti-diagonal transpose in
+`DioramaTilemapAsset`), so a single atlas cell can be mirrored or rotated in
+90-degree steps per cell, the same UV scheme the Sprite component's flip and
+transpose use. The low 28 bits are the atlas cell index. Layers beyond the first
+render as additional batched sprite groups stacked by sort offset.
 
 ### Atlas
 
@@ -157,7 +187,10 @@ carries whatever was set; the clamp lives in the bus setter.
   authored through the bus or a build script.
 - Config field: `m_tiles` (`AZStd::vector<AZ::s32>`, default empty).
 - Bus setters: `void SetTile(int column, int row, int tileIndex)`,
-  `void Fill(int tileIndex)`, `void Clear()`.
+  `void Fill(int tileIndex)`, `void Clear()`, plus the two autotile rewrites
+  `void Autotile(int baseTileIndex)` (4-bit edge mask) and
+  `void AutotileBlob(int baseTileIndex)` (47-tile corner-aware blob); see the
+  [API reference](./api.md#dioramatilemaprequestbus) for their exact mask rules.
 
 `tiles` is the row-major tile data: one entry per cell, length `columns * rows`,
 ordered so the entry for `(col, row)` is at index `row * columns + col`. Each
@@ -237,6 +270,7 @@ required.
 | ----- | ---- | ------- | ------- |
 | `atlasPath` | `string` | empty | Resolved atlas product path, empty if none assigned. |
 | `atlasLoaded` | `bool` | `false` | True once the atlas asset has streamed in. |
+| `hasSourceAsset` | `bool` | `false` | True when a compiled `.dtilemapc` asset is driving the map (vs. cells set inline through the bus). |
 | `visible` | `bool` | `false` | True when the layer is registered and drawable. |
 | `columns` | `int` | 1 | Resolved tilemap width in cells. |
 | `rows` | `int` | 1 | Resolved tilemap height in cells. |

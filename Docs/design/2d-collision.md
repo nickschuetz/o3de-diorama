@@ -1,6 +1,9 @@
 # Design: 2D collision and triggers reachable from gameplay scripts
 
-Status: design (Tier-2 roadmap item, task #28). No implementation yet.
+Status: **shipped.** Gem-native colliders, triggers, contact/trigger events, and
+queries (`OverlapCircle`/`OverlapBox`/`Raycast2D`), plus pushbox resolution
+(`ComputeBoxPushOut` / `Collision2D::MinimumTranslation`). The names below match what
+shipped; see the CHANGELOG and [how-to 21](../howto/21-fighting.md) (pushbox).
 
 ## Problem
 

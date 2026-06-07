@@ -1,6 +1,9 @@
 # Design: DioramaSpriteRequestBus (AI-native sprite API)
 
-Status: accepted, not yet implemented. Date: 2026-05-30.
+Status: **shipped and extended.** The base bus matches this spec; later verbs
+(`SetNormalMapByPath`, `SetFlash`, `SetOutline`, `SetEmissive`, `SetPointFilter`,
+`SetTranspose`, `SetPlaybackSpeed`) and the `OnAnimationFrame` notification were added
+on top. See [reference/api.md](../reference/api.md). Date: 2026-05-30.
 
 ## Motivation
 

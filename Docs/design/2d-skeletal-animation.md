@@ -1,6 +1,8 @@
 # Design: skeletal 2D animation (cutout and mesh deform)
 
-Status: design (Tier-2 roadmap item). No implementation yet.
+Status: **v1 (transform-hierarchy cutout) shipped** — `DioramaSkeletalClipComponent`
++ [how-to 18](../howto/18-skeletal.md). v2 (DragonBones mesh deform) and v3 (EMotionFX)
+remain design.
 
 ## Goal
 

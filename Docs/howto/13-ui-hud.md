@@ -54,15 +54,16 @@ Python, launcher Lua, and Script Canvas drive them identically.
 health bar, and a corner panel into their own level, then leaves the bar pulsing via
 the script above.
 
-## Porting the twin-stick score HUD off LyShine
+## Porting a score HUD off LyShine
 
-The twin-stick sample's "Befriended" counter is a LyShine canvas. To make it a
-Diorama HUD (the parity proof end to end):
+If you have an existing HUD built on a LyShine canvas (say a score counter), you
+can move it onto Diorama's UI so the whole game renders through one gem (the
+parity proof end to end):
 
 1. Add an entity with a **2D UI Element** (Kind **Text**, anchored Top-Left) for the
    counter, and optionally a **Bar** for a health/cooldown gauge.
-2. In `twin_stick_game.lua`, replace the LyShine text update with
-   `DioramaUIRequestBus.Event.SetText(counterEntity, "Befriended: " .. count)`.
+2. In your gameplay script, replace the LyShine text update with
+   `DioramaUIRequestBus.Event.SetText(counterEntity, "Score: " .. count)`.
 3. Remove the LyShine canvas component.
 
 The score then renders through the same gem bus as everything else, with no UI gem

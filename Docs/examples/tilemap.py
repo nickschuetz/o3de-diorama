@@ -5,7 +5,8 @@ then verify the result with GetTilemapInfo (no screenshot needed).
 A tilemap is a grid of cells, each drawing one cell of a shared atlas texture.
 Every cell goes through the same batched sprite feature processor, so a whole
 layer that shares the atlas collapses into a single draw call. This is teaching
-ladder rung 4 and the arena foundation for the twin-stick capstone (rung 6).
+ladder rung 4, and a tilemap like this makes a natural arena floor for a
+top-down game.
 
 Run in the editor:
   <engine>/bin/Linux/profile/Default/Editor \

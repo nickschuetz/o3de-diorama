@@ -14,6 +14,7 @@ A short summary of the change and the motivation.
 - [ ] Docs updated in the same change (how-to/reference) when behavior changed.
 - [ ] If the version or dependencies changed, `sbom.spdx.json` was regenerated (`python3 scripts/gen_sbom.py`).
 - [ ] Unit tests added/updated and pass locally (`scripts/ci_build_test.sh`).
+- [ ] All commits are signed off for the DCO (`git commit -s`); see CONTRIBUTING.md.
 
 ## How this was tested
 
