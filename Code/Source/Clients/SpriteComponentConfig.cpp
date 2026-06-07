@@ -20,7 +20,7 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<SpriteComponentConfig, AZ::ComponentConfig>()
-                ->Version(10)
+                ->Version(11)
                 ->Field("Texture", &SpriteComponentConfig::m_texture)
                 ->Field("NormalMap", &SpriteComponentConfig::m_normalMap)
                 ->Field("FlashColor", &SpriteComponentConfig::m_flashColor)
@@ -46,6 +46,7 @@ namespace Diorama
                 ->Field("FrameRows", &SpriteComponentConfig::m_frameRows)
                 ->Field("FrameCount", &SpriteComponentConfig::m_frameCount)
                 ->Field("FramesPerSecond", &SpriteComponentConfig::m_framesPerSecond)
+                ->Field("PlaybackSpeed", &SpriteComponentConfig::m_playbackSpeed)
                 ->Field("Loop", &SpriteComponentConfig::m_loop)
                 ->Field("StartFrame", &SpriteComponentConfig::m_startFrame);
 
@@ -176,6 +177,12 @@ namespace Diorama
                     ->Attribute(AZ::Edit::Attributes::Min, 1)
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default, &SpriteComponentConfig::m_framesPerSecond, "Frames Per Second", "Playback rate")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SpriteComponentConfig::m_playbackSpeed,
+                        "Playback Speed",
+                        "Time-scale multiplier (1 = normal, 0 = freeze / hit-stop, <1 = slow motion)")
                     ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
                     ->Attribute(AZ::Edit::Attributes::Suffix, " fps")
                     ->DataElement(AZ::Edit::UIHandlers::Default, &SpriteComponentConfig::m_loop, "Loop", "Loop or hold the last frame")

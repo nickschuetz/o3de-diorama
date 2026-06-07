@@ -235,6 +235,31 @@ namespace Diorama
         return OverlapShape(query, layerMask);
     }
 
+    AZ::Vector2 Collision2DSystemComponent::ComputeBoxPushOut(
+        float x, float z, float halfWidth, float halfHeight, AZ::u32 layerMask, AZ::EntityId exclude)
+    {
+        Collision2D::Collider query;
+        query.m_center = AZ::Vector2(x, z);
+        query.m_shape.m_type = Collision2D::ShapeType::Box;
+        query.m_shape.m_halfExtents = AZ::Vector2(halfWidth < 0.0f ? 0.0f : halfWidth, halfHeight < 0.0f ? 0.0f : halfHeight);
+
+        AZ::Vector2 total(0.0f, 0.0f);
+        for (const auto& entry : m_colliders)
+        {
+            if (entry.first == exclude)
+            {
+                continue; // never push out of the caller's own collider
+            }
+            const Collision2D::Collider& c = entry.second;
+            if (!c.m_enabled || (layerMask != 0u && (c.m_layer & layerMask) == 0u))
+            {
+                continue;
+            }
+            total += Collision2D::MinimumTranslation(query, c);
+        }
+        return total;
+    }
+
     Raycast2DResult Collision2DSystemComponent::Raycast2D(float x, float z, float dirX, float dirZ, float maxDistance, AZ::u32 layerMask)
     {
         Raycast2DResult result;

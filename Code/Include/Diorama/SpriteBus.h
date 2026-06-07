@@ -118,6 +118,9 @@ namespace Diorama
         virtual void SetAnimationEnabled(bool enabled) = 0;
         //! Playback rate (frames per second) and whether the clip loops.
         virtual void SetPlayback(float framesPerSecond, bool loop) = 0;
+        //! Time-scale the animation: 1 = normal, 0 = freeze (hit-stop), <1 = slow
+        //! motion, >1 = fast-forward. Clamped non-negative.
+        virtual void SetPlaybackSpeed(float speed) = 0;
         //! Frame shown first (and while not playing); clamped to range.
         virtual void SetStartFrame(int frame) = 0;
         //! Convenience: set the grid, set playback, and enable animation in one

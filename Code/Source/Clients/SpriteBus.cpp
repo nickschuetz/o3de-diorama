@@ -189,6 +189,10 @@ namespace Diorama
                 { { { "framesPerSecond", "Playback rate in frames per second." },
                     { "loop", "When true the clip repeats; when false it holds the last frame." } } })
             ->Event(
+                "SetPlaybackSpeed",
+                &DioramaSpriteRequestBus::Events::SetPlaybackSpeed,
+                { { { "speed", "Time-scale: 1 = normal, 0 = freeze (hit-stop), <1 = slow motion, >1 = fast. Clamped >= 0." } } })
+            ->Event(
                 "SetStartFrame",
                 &DioramaSpriteRequestBus::Events::SetStartFrame,
                 { { { "frame", "Frame shown first and while not playing; clamped to range." } } })

@@ -139,6 +139,11 @@ namespace Diorama
         //! Playback rate in frames per second.
         float m_framesPerSecond = 12.0f;
 
+        //! Time-scale multiplier for playback (1 = normal). 0 freezes the animation
+        //! in place (hit-stop), < 1 is slow motion, > 1 fast-forward. Clamped
+        //! non-negative. Mirrors the Aseprite component's speed control.
+        float m_playbackSpeed = 1.0f;
+
         //! Loop back to the first frame after the last, or hold the last frame.
         bool m_loop = true;
 

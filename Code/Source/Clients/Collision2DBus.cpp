@@ -143,7 +143,16 @@ namespace Diorama
                     { "dirX", "Ray direction X (need not be normalized)." },
                     { "dirZ", "Ray direction Z (need not be normalized)." },
                     { "maxDistance", "Maximum distance to search along the ray." },
-                    { "layerMask", "Category mask to test against; 0 means any layer." } } });
+                    { "layerMask", "Category mask to test against; 0 means any layer." } } })
+            ->Event(
+                "ComputeBoxPushOut",
+                &Diorama2DCollisionRequestBus::Events::ComputeBoxPushOut,
+                { { { "x", "Box center, plane X." },
+                    { "z", "Box center, plane Z." },
+                    { "halfWidth", "Box half-width (plane X)." },
+                    { "halfHeight", "Box half-height (plane Z)." },
+                    { "layerMask", "Category mask of colliders to push out of; 0 means any layer." },
+                    { "exclude", "Entity to ignore (pass the caller's own id so it never pushes out of itself)." } } });
 
         behaviorContext->EBus<Diorama2DCollisionNotificationBus>("Diorama2DCollisionNotificationBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)

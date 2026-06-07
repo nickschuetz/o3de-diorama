@@ -70,9 +70,27 @@ CRT post, parallax stages, a LyShine HUD for health/meter, and MiniAudio for
 SFX/voice. Combine those with the three pieces above and you have the core of a
 2.5D sprite fighter.
 
+## Hit-stop and slow motion
+
+Freeze the animation on impact for that crunchy feel: set the playback time-scale
+to 0, then back to 1 after a few frames. `SetPlaybackSpeed` does it for sprite-sheet
+sprites and `SetSpeed` for Aseprite (both clamp `>= 0`); a value between 0 and 1 is
+slow motion. The shipped `Assets/Diorama/Examples/Fighting/hitstop.lua` wraps this:
+call `Freeze(seconds)` on a hit, and movement scripts check `IsFrozen()` to skip
+their step so the whole character holds.
+
+## Pushboxes (characters don't overlap)
+
+Give each character a 2D Collider as its pushbox (a box on a dedicated "pushbox"
+layer) and run `Assets/Diorama/Examples/Fighting/pushbox.lua`. Each tick it calls
+`Diorama2DCollisionRequestBus::ComputeBoxPushOut(x, z, halfW, halfH, layerMask,
+self)` for the net minimum-translation vector to separate from the other pushboxes
+(excluding itself) and nudges the entity by it. When both characters run it, each
+takes its half of the separation and they part naturally. The collision system
+computes the vector; applying it stays a gameplay decision (so it never fights your
+movement code).
+
 ## Known gaps (today)
 
-- **Hit-stop** (freeze frames) is game-side: toggle `SetAnimationEnabled` or scale
-  `SetPlayback` fps for the freeze.
-- **Pushboxes** (characters shoving each other apart) are game-side via
-  `OverlapBox`; the collision system detects, it does not resolve.
+- **Motion-input parsing/buffering** (quarter-circles, charge) and
+  **rollback/determinism** are game-framework concerns, not the renderer's.

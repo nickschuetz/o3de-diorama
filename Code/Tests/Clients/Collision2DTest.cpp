@@ -340,4 +340,44 @@ namespace Diorama
         Step({ PairKey::Make(1, 2) });
         EXPECT_EQ(m_began.size(), 1u); // begins again after a clear
     }
+
+    // ---- MinimumTranslation (pushbox resolution primitive) ----
+
+    class Collision2DMTVTest : public ::testing::Test
+    {
+    protected:
+        static constexpr float Tol = 1e-4f;
+    };
+
+    TEST_F(Collision2DMTVTest, NoOverlap_IsZero)
+    {
+        const AZ::Vector2 mtv = Collision2D::MinimumTranslation(MakeCircle(1, 0.0f, 0.0f, 0.5f), MakeCircle(2, 5.0f, 0.0f, 0.5f));
+        EXPECT_NEAR(mtv.GetLength(), 0.0f, Tol);
+    }
+
+    TEST_F(Collision2DMTVTest, Circles_PushAlongCenterLine)
+    {
+        // radii 1 + 1 = 2, centers 1.5 apart on X -> penetration 0.5, push 'a' to -X.
+        const AZ::Vector2 mtv = Collision2D::MinimumTranslation(MakeCircle(1, 0.0f, 0.0f, 1.0f), MakeCircle(2, 1.5f, 0.0f, 1.0f));
+        EXPECT_NEAR(mtv.GetX(), -0.5f, Tol);
+        EXPECT_NEAR(mtv.GetY(), 0.0f, Tol);
+    }
+
+    TEST_F(Collision2DMTVTest, Boxes_ResolveAlongLeastPenetrationAxis)
+    {
+        // Two unit half-extent boxes; centers (0,0) and (1.5, 0.2). X overlap = 0.5,
+        // Y overlap = 1.8 -> resolve along X (least), pushing 'a' to -X by 0.5.
+        const AZ::Vector2 mtv = Collision2D::MinimumTranslation(MakeBox(1, 0.0f, 0.0f, 1.0f, 1.0f), MakeBox(2, 1.5f, 0.2f, 1.0f, 1.0f));
+        EXPECT_NEAR(mtv.GetX(), -0.5f, Tol);
+        EXPECT_NEAR(mtv.GetY(), 0.0f, Tol);
+    }
+
+    TEST_F(Collision2DMTVTest, CircleVsBox_PushesCircleOut)
+    {
+        // Circle (r 0.5) at (1.2, 0) vs box half-extent 1 at origin: closest point on
+        // the box is (1, 0), distance 0.2 < 0.5 -> push the circle +X by 0.3.
+        const AZ::Vector2 mtv = Collision2D::MinimumTranslation(MakeCircle(1, 1.2f, 0.0f, 0.5f), MakeBox(2, 0.0f, 0.0f, 1.0f, 1.0f));
+        EXPECT_NEAR(mtv.GetX(), 0.3f, Tol);
+        EXPECT_NEAR(mtv.GetY(), 0.0f, Tol);
+    }
 } // namespace Diorama

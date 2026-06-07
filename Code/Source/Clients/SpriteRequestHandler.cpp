@@ -270,6 +270,16 @@ namespace Diorama
         NotifyChanged();
     }
 
+    void SpriteRequestHandler::SetPlaybackSpeed(float speed)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_playbackSpeed = AZ::GetMax(0.0f, speed);
+        NotifyChanged();
+    }
+
     void SpriteRequestHandler::SetStartFrame(int frame)
     {
         if (m_config == nullptr)

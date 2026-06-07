@@ -121,6 +121,78 @@ namespace Diorama::Collision2D
         return (c.m_center - closest).GetLengthSq() <= c.m_shape.m_radius * c.m_shape.m_radius;
     }
 
+    //! Minimum translation vector to push collider 'a' out of collider 'b': its
+    //! direction is where 'a' should move and its length is the penetration depth.
+    //! Returns a zero vector when the two are not overlapping. Two boxes resolve
+    //! along the axis of least penetration. This is the primitive a pushbox uses to
+    //! keep characters from standing inside each other (the core only computes the
+    //! vector; the caller decides how to apply it).
+    inline AZ::Vector2 MinimumTranslation(const Collider& a, const Collider& b)
+    {
+        if (!Overlaps(a, b))
+        {
+            return AZ::Vector2(0.0f, 0.0f);
+        }
+
+        const ShapeType ta = a.m_shape.m_type;
+        const ShapeType tb = b.m_shape.m_type;
+
+        if (ta == ShapeType::Circle && tb == ShapeType::Circle)
+        {
+            const AZ::Vector2 delta = a.m_center - b.m_center;
+            const float dist = delta.GetLength();
+            const float depth = (a.m_shape.m_radius + b.m_shape.m_radius) - dist;
+            if (dist > 1e-6f)
+            {
+                return delta / dist * depth;
+            }
+            return AZ::Vector2(depth, 0.0f); // coincident centers: push along +X
+        }
+
+        if (ta == ShapeType::Box && tb == ShapeType::Box)
+        {
+            const float dx = a.m_center.GetX() - b.m_center.GetX();
+            const float dy = a.m_center.GetY() - b.m_center.GetY();
+            const float ox = (a.m_shape.m_halfExtents.GetX() + b.m_shape.m_halfExtents.GetX()) - std::fabs(dx);
+            const float oy = (a.m_shape.m_halfExtents.GetY() + b.m_shape.m_halfExtents.GetY()) - std::fabs(dy);
+            if (ox < oy)
+            {
+                return AZ::Vector2(dx < 0.0f ? -ox : ox, 0.0f);
+            }
+            return AZ::Vector2(0.0f, dy < 0.0f ? -oy : oy);
+        }
+
+        // Circle vs box. Resolve the circle against the box, then flip the sign if
+        // 'a' was the box (the vector must move 'a').
+        const bool aIsCircle = (ta == ShapeType::Circle);
+        const Collider& circle = aIsCircle ? a : b;
+        const Collider& box = aIsCircle ? b : a;
+        const float minX = box.m_center.GetX() - box.m_shape.m_halfExtents.GetX();
+        const float maxX = box.m_center.GetX() + box.m_shape.m_halfExtents.GetX();
+        const float minY = box.m_center.GetY() - box.m_shape.m_halfExtents.GetY();
+        const float maxY = box.m_center.GetY() + box.m_shape.m_halfExtents.GetY();
+        const float cx = Internal::Clamp(circle.m_center.GetX(), minX, maxX);
+        const float cy = Internal::Clamp(circle.m_center.GetY(), minY, maxY);
+        const AZ::Vector2 toCircle = circle.m_center - AZ::Vector2(cx, cy);
+        const float distSq = toCircle.GetLengthSq();
+        AZ::Vector2 pushCircle;
+        if (distSq > 1e-12f)
+        {
+            const float dist = std::sqrt(distSq);
+            pushCircle = toCircle / dist * (circle.m_shape.m_radius - dist);
+        }
+        else
+        {
+            // Circle center is inside the box: push out along the box's least-penetration axis.
+            const float dx = circle.m_center.GetX() - box.m_center.GetX();
+            const float dy = circle.m_center.GetY() - box.m_center.GetY();
+            const float ox = (box.m_shape.m_halfExtents.GetX() + circle.m_shape.m_radius) - std::fabs(dx);
+            const float oy = (box.m_shape.m_halfExtents.GetY() + circle.m_shape.m_radius) - std::fabs(dy);
+            pushCircle = (ox < oy) ? AZ::Vector2(dx < 0.0f ? -ox : ox, 0.0f) : AZ::Vector2(0.0f, dy < 0.0f ? -oy : oy);
+        }
+        return aIsCircle ? pushCircle : -pushCircle;
+    }
+
     //! Result of a ray cast: the hit collider's id, the parametric distance t
     //! along the (normalized) ray direction, and the world hit point.
     struct RayHit

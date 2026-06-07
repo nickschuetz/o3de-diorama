@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Hit-stop / slow-motion + pushbox resolution** (fighting follow-ups). Sprites
+  gain a `m_playbackSpeed` time-scale (Inspector + `SetPlaybackSpeed` bus verb;
+  0 = freeze for hit-stop, <1 = slow motion), matching the Aseprite component's
+  `SetSpeed`. The 2D collision system gains `ComputeBoxPushOut` (global bus): the
+  net minimum-translation vector to separate a box from overlapping colliders on a
+  layer, excluding a given entity, backed by a new pure `Collision2D::MinimumTranslation`
+  core (circle/box/circle-box, least-penetration axis; unit-tested). Two reusable
+  samples ship under `Assets/Diorama/Examples/Fighting/` (`hitstop.lua`,
+  `pushbox.lua`). The renderer provides the primitives; freezing time and applying
+  the push stay gameplay decisions.
 - **Sprite UV transpose (anti-diagonal flip) + rotated tiles.** Sprites gain a
   `m_transpose` option (Inspector + `SetTranspose` bus verb) that reflects the
   sampled region across its anti-diagonal; combined with the H/V flips it produces

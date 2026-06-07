@@ -12,6 +12,7 @@
 #include <AzCore/Component/ComponentBus.h>
 #include <AzCore/Component/EntityId.h>
 #include <AzCore/EBus/EBus.h>
+#include <AzCore/Math/Vector2.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/RTTI/RTTI.h>
 #include <AzCore/std/containers/vector.h>
@@ -175,6 +176,13 @@ namespace Diorama
         virtual AZStd::vector<AZ::EntityId> OverlapBox(float x, float z, float halfWidth, float halfHeight, AZ::u32 layerMask) = 0;
         //! Nearest collider hit by a ray from (x,z) along (dirX,dirZ), up to maxDistance.
         virtual Raycast2DResult Raycast2D(float x, float z, float dirX, float dirZ, float maxDistance, AZ::u32 layerMask) = 0;
+        //! Net push-out vector to separate a box at (x, z) from every overlapping
+        //! collider on layerMask, excluding the entity 'exclude' (pass the caller's
+        //! own id). Add the result to the entity's position to resolve pushbox
+        //! overlap; when both characters do this each frame, they part naturally.
+        //! Returns (0, 0) when nothing overlaps.
+        virtual AZ::Vector2 ComputeBoxPushOut(
+            float x, float z, float halfWidth, float halfHeight, AZ::u32 layerMask, AZ::EntityId exclude) = 0;
     };
 
     using Diorama2DCollisionRequestBus = AZ::EBus<Diorama2DCollisionRequests>;

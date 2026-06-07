@@ -55,6 +55,7 @@ namespace Diorama
         void SetFrameGrid(int columns, int rows, int frameCount) override;
         void SetAnimationEnabled(bool enabled) override;
         void SetPlayback(float framesPerSecond, bool loop) override;
+        void SetPlaybackSpeed(float speed) override;
         void SetStartFrame(int frame) override;
         void PlaySpriteSheet(int columns, int rows, int frameCount, float framesPerSecond, bool loop) override;
         SpriteInfo GetSpriteInfo() override;

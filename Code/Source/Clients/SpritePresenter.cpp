@@ -212,8 +212,10 @@ namespace Diorama
 
         const int previousFrame = m_frameState.m_frame;
         const bool wasFinished = m_frameState.m_finished;
+        // Time-scale the step (0 = hit-stop freeze, <1 = slow motion).
+        const float scaledDelta = deltaTime * (m_config.m_playbackSpeed < 0.0f ? 0.0f : m_config.m_playbackSpeed);
         m_frameState =
-            SpriteAnimation::Advance(m_frameState, deltaTime, m_config.m_framesPerSecond, m_config.GetFrameCount(), m_config.m_loop);
+            SpriteAnimation::Advance(m_frameState, scaledDelta, m_config.m_framesPerSecond, m_config.GetFrameCount(), m_config.m_loop);
 
         if (m_frameState.m_frame != previousFrame)
         {

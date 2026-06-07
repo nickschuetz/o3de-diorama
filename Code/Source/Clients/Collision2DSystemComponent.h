@@ -86,6 +86,8 @@ namespace Diorama
         AZStd::vector<AZ::EntityId> OverlapCircle(float x, float z, float radius, AZ::u32 layerMask) override;
         AZStd::vector<AZ::EntityId> OverlapBox(float x, float z, float halfWidth, float halfHeight, AZ::u32 layerMask) override;
         Raycast2DResult Raycast2D(float x, float z, float dirX, float dirZ, float maxDistance, AZ::u32 layerMask) override;
+        AZ::Vector2 ComputeBoxPushOut(
+            float x, float z, float halfWidth, float halfHeight, AZ::u32 layerMask, AZ::EntityId exclude) override;
 
         // AZ::TickBus
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
