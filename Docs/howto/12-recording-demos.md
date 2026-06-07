@@ -92,6 +92,10 @@ platform differences:
 - **Capture is `ffmpeg gdigrab`** instead of `x11grab`: by default it grabs the
   launcher window by title (`CAP_WINDOW`, default `DioramaSandbox`); set
   `$env:CAP_MODE = 'desktop'` to grab the whole screen if the title does not match.
+- **One Asset Processor at a time.** Close the O3DE Editor before capturing: the
+  launcher starts its own Asset Processor, and a second one collides over its port.
+  The script refuses to run while the Editor is open and clears stray Asset
+  Processors first.
 
 ```powershell
 # video (default 8s)

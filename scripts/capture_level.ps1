@@ -86,8 +86,14 @@ function Set-LoadLevel($name) {
     ($d | ConvertTo-Json -Depth 32) | Set-Content -Path $LL -Encoding utf8
 }
 
-# Hard-kill any prior launcher so it does not share/clobber Game.log.
-Get-Process -Name 'DioramaSandbox.GameLauncher' -ErrorAction SilentlyContinue | Stop-Process -Force
+# Single-instance guard: running two Asset Processors (or two Editors) at once
+# causes a resource/port collision (the launcher also auto-starts an AP). Refuse to
+# run while the Editor is open rather than silently killing it (it may hold unsaved
+# work), and clear any prior launcher / stray Asset Processor so exactly one AP runs.
+if (Get-Process -Name 'Editor' -ErrorAction SilentlyContinue) {
+    Fail 'the O3DE Editor is running. Close it (and let its Asset Processor exit) first, then re-run; two Asset Processors at once collide.'
+}
+Get-Process -Name 'DioramaSandbox.GameLauncher', 'AssetProcessor', 'AssetProcessorBatch' -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 2
 
 Write-Host "== capture: level=$Level out=$Out mode=$Mode rhi=$Rhi $W`x$H =="
