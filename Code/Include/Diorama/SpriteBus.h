@@ -103,6 +103,9 @@ namespace Diorama
         virtual void SetUVRegion(float uMin, float vMin, float uMax, float vMax) = 0;
         //! Mirror the sampled region horizontally and/or vertically.
         virtual void SetFlip(bool horizontal, bool vertical) = 0;
+        //! Reflect the sampled region across its anti-diagonal (swap U/V). Combined
+        //! with the flips this gives the four 90-degree rotations (best on square art).
+        virtual void SetTranspose(bool transpose) = 0;
 
         // Layering (2.5D).
         //! Transparent draw-order bias; larger draws on top.

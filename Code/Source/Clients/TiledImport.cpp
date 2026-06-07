@@ -18,6 +18,7 @@ namespace Diorama::TiledImport
         // Tiled stores flip/rotation in the top GID bits; the cell index is the rest.
         constexpr AZ::u32 TiledFlipHorizontal = 0x80000000u;
         constexpr AZ::u32 TiledFlipVertical = 0x40000000u;
+        constexpr AZ::u32 TiledFlipDiagonal = 0x20000000u; // anti-diagonal (transpose)
         constexpr AZ::u32 TiledGidIndexMask = 0x1FFFFFFFu; // strips H, V, and diagonal bits
 
         bool ReadInt(const rapidjson::Value& obj, const char* key, int& out)
@@ -198,8 +199,8 @@ namespace Diorama::TiledImport
                     if (candidate >= 0 && candidate < atlasCells)
                     {
                         cell = candidate;
-                        // Carry horizontal/vertical mirroring; the diagonal flag is a
-                        // rotation the sprite path cannot express yet, so it is dropped.
+                        // Carry all three Tiled orientation flags: H/V mirror and the
+                        // anti-diagonal transpose (together they give every rotation).
                         if (rawGid & TiledFlipHorizontal)
                         {
                             cell |= TilemapTile::FlipHorizontal;
@@ -207,6 +208,10 @@ namespace Diorama::TiledImport
                         if (rawGid & TiledFlipVertical)
                         {
                             cell |= TilemapTile::FlipVertical;
+                        }
+                        if (rawGid & TiledFlipDiagonal)
+                        {
+                            cell |= TilemapTile::FlipDiagonal;
                         }
                     }
                 }

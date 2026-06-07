@@ -110,6 +110,13 @@ namespace Diorama
         //! Mirror the sampled region vertically.
         bool m_flipVertical = false;
 
+        //! Reflect the sampled region across its anti-diagonal (swap the U and V
+        //! axes). Applied before the flips, matching Tiled's diagonal-flip flag, so
+        //! transpose combined with the two flips yields all four 90-degree rotations
+        //! and mirrors of a (square) cell. Best on square sprites/tiles; a non-square
+        //! region transposed maps onto the quad rotated.
+        bool m_transpose = false;
+
         //! Additional sort bias for transparent draw ordering. Larger values draw
         //! later (on top). Use this to layer overlapping sprites in 2.5D scenes
         //! without moving them in depth.

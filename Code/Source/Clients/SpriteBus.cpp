@@ -166,6 +166,10 @@ namespace Diorama
                 { { { "horizontal", "Mirror the sampled region left-to-right." },
                     { "vertical", "Mirror the sampled region top-to-bottom." } } })
             ->Event(
+                "SetTranspose",
+                &DioramaSpriteRequestBus::Events::SetTranspose,
+                { { { "transpose", "Reflect across the anti-diagonal (swap U/V); with the flips this gives 90-degree rotations." } } })
+            ->Event(
                 "SetSortOffset",
                 &DioramaSpriteRequestBus::Events::SetSortOffset,
                 { { { "sortOffset", "Transparent draw-order bias; larger values draw on top." } } })

@@ -222,9 +222,12 @@ namespace Diorama
         tileConfig.m_billboard = false;
         tileConfig.m_doubleSided = true;
         m_config.GetTileUVRegion(tileIndex, tileConfig.m_uvMin, tileConfig.m_uvMax);
-        // Apply packed per-tile orientation flags (e.g. a mirrored tile from Tiled).
+        // Apply packed per-tile orientation flags (e.g. a mirrored or rotated tile
+        // from Tiled): H/V mirror plus anti-diagonal transpose (the three give all
+        // eight square orientations).
         tileConfig.m_flipHorizontal = TilemapTile::FlipH(tileIndex);
         tileConfig.m_flipVertical = TilemapTile::FlipV(tileIndex);
+        tileConfig.m_transpose = TilemapTile::FlipD(tileIndex);
         return tileConfig;
     }
 

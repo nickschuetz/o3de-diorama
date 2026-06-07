@@ -20,7 +20,7 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<SpriteComponentConfig, AZ::ComponentConfig>()
-                ->Version(9)
+                ->Version(10)
                 ->Field("Texture", &SpriteComponentConfig::m_texture)
                 ->Field("NormalMap", &SpriteComponentConfig::m_normalMap)
                 ->Field("FlashColor", &SpriteComponentConfig::m_flashColor)
@@ -39,6 +39,7 @@ namespace Diorama
                 ->Field("UvMax", &SpriteComponentConfig::m_uvMax)
                 ->Field("FlipHorizontal", &SpriteComponentConfig::m_flipHorizontal)
                 ->Field("FlipVertical", &SpriteComponentConfig::m_flipVertical)
+                ->Field("Transpose", &SpriteComponentConfig::m_transpose)
                 ->Field("SortOffset", &SpriteComponentConfig::m_sortOffset)
                 ->Field("AnimEnabled", &SpriteComponentConfig::m_animEnabled)
                 ->Field("FrameColumns", &SpriteComponentConfig::m_frameColumns)
@@ -144,6 +145,11 @@ namespace Diorama
                         &SpriteComponentConfig::m_flipVertical,
                         "Flip Vertical",
                         "Mirror the sampled region vertically")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SpriteComponentConfig::m_transpose,
+                        "Transpose",
+                        "Reflect across the anti-diagonal (swap U/V); with the flips this gives 90-degree rotations")
                     ->ClassElement(AZ::Edit::ClassElements::Group, "Layering")
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, false)
                     ->DataElement(
@@ -182,22 +188,13 @@ namespace Diorama
     void SpriteComponentConfig::GetCornerUVs(float outU[4], float outV[4]) const
     {
         // Corner order matches SpriteRenderer's vertices and indices:
-        // 0 bottom-left, 1 bottom-right, 2 top-right, 3 top-left.
-        float uMin = m_uvMin.GetX();
-        float uMax = m_uvMax.GetX();
-        float vMin = m_uvMin.GetY();
-        float vMax = m_uvMax.GetY();
+        // 0 bottom-left, 1 bottom-right, 2 top-right, 3 top-left. Texture V increases
+        // downward, so the bottom corners use vMax.
+        const float uMin = m_uvMin.GetX();
+        const float uMax = m_uvMax.GetX();
+        const float vMin = m_uvMin.GetY();
+        const float vMax = m_uvMax.GetY();
 
-        if (m_flipHorizontal)
-        {
-            AZStd::swap(uMin, uMax);
-        }
-        if (m_flipVertical)
-        {
-            AZStd::swap(vMin, vMax);
-        }
-
-        // Texture V increases downward, so the quad's bottom edge uses vMax.
         outU[0] = uMin;
         outV[0] = vMax; // bottom-left
         outU[1] = uMax;
@@ -206,6 +203,30 @@ namespace Diorama
         outV[2] = vMin; // top-right
         outU[3] = uMin;
         outV[3] = vMin; // top-left
+
+        // Orientation as corner-UV permutations, in Tiled's order: anti-diagonal
+        // (transpose) first, then horizontal, then vertical. For flip-only cases this
+        // is identical to swapping the U / V ranges; transpose adds the remaining
+        // square symmetries (so transpose + a flip is a 90-degree rotation).
+        const auto swapCorners = [&](int a, int b)
+        {
+            AZStd::swap(outU[a], outU[b]);
+            AZStd::swap(outV[a], outV[b]);
+        };
+        if (m_transpose)
+        {
+            swapCorners(1, 3); // reflect across the bottom-left -> top-right diagonal
+        }
+        if (m_flipHorizontal)
+        {
+            swapCorners(0, 1);
+            swapCorners(3, 2);
+        }
+        if (m_flipVertical)
+        {
+            swapCorners(0, 3);
+            swapCorners(1, 2);
+        }
     }
 
     int SpriteComponentConfig::GetFrameColumns() const

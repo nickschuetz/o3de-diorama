@@ -50,6 +50,7 @@ namespace Diorama
         void SetPointFilter(bool enabled) override;
         void SetUVRegion(float uMin, float vMin, float uMax, float vMax) override;
         void SetFlip(bool horizontal, bool vertical) override;
+        void SetTranspose(bool transpose) override;
         void SetSortOffset(float sortOffset) override;
         void SetFrameGrid(int columns, int rows, int frameCount) override;
         void SetAnimationEnabled(bool enabled) override;

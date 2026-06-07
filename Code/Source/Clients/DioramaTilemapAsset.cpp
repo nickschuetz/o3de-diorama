@@ -77,7 +77,8 @@ namespace Diorama
                 {
                     continue;
                 }
-                const AZ::s32 allowed = TilemapTile::IndexMask | TilemapTile::FlipHorizontal | TilemapTile::FlipVertical;
+                const AZ::s32 allowed =
+                    TilemapTile::IndexMask | TilemapTile::FlipHorizontal | TilemapTile::FlipVertical | TilemapTile::FlipDiagonal;
                 if ((tile & ~allowed) != 0 || TilemapTile::CellIndex(tile) >= atlasCells)
                 {
                     return false;

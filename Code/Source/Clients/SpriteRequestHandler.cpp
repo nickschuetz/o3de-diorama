@@ -215,6 +215,16 @@ namespace Diorama
         NotifyChanged();
     }
 
+    void SpriteRequestHandler::SetTranspose(bool transpose)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_transpose = transpose;
+        NotifyChanged();
+    }
+
     void SpriteRequestHandler::SetSortOffset(float sortOffset)
     {
         if (m_config == nullptr)

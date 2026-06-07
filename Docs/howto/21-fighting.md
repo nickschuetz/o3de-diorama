@@ -72,8 +72,6 @@ SFX/voice. Combine those with the three pieces above and you have the core of a
 
 ## Known gaps (today)
 
-- **Diagonal/rotated tiles and 90-degree sprite rotation** are not supported, so a
-  Tiled diagonal-flip flag is dropped; H/V mirroring works.
 - **Hit-stop** (freeze frames) is game-side: toggle `SetAnimationEnabled` or scale
   `SetPlayback` fps for the freeze.
 - **Pushboxes** (characters shoving each other apart) are game-side via

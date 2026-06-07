@@ -41,14 +41,15 @@ namespace Diorama
     {
         static constexpr AZ::s32 FlipHorizontal = 0x40000000; //!< bit 30
         static constexpr AZ::s32 FlipVertical = 0x20000000; //!< bit 29
-        static constexpr AZ::s32 IndexMask = 0x1FFFFFFF; //!< low 29 bits = atlas cell index
+        static constexpr AZ::s32 FlipDiagonal = 0x10000000; //!< bit 28 (anti-diagonal / transpose)
+        static constexpr AZ::s32 IndexMask = 0x0FFFFFFF; //!< low 28 bits = atlas cell index (>> the 1M atlas-cell cap)
 
         //! True for the empty sentinel (-1). Check before decoding flags or the index.
         inline bool IsEmpty(AZ::s32 tile)
         {
             return tile < 0;
         }
-        //! Atlas cell index with flip flags stripped (valid only when not empty).
+        //! Atlas cell index with the orientation flags stripped (valid only when not empty).
         inline AZ::s32 CellIndex(AZ::s32 tile)
         {
             return tile & IndexMask;
@@ -60,6 +61,11 @@ namespace Diorama
         inline bool FlipV(AZ::s32 tile)
         {
             return (tile & FlipVertical) != 0;
+        }
+        //! Anti-diagonal flip (transpose); with H/V this gives 90-degree rotations.
+        inline bool FlipD(AZ::s32 tile)
+        {
+            return (tile & FlipDiagonal) != 0;
         }
     } // namespace TilemapTile
 

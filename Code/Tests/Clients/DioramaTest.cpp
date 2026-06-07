@@ -97,6 +97,36 @@ namespace Diorama
         ExpectCorners(config, 0.0f, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f);
     }
 
+    TEST_F(SpriteUVTest, Transpose_ReflectsAcrossAntiDiagonal)
+    {
+        // Whole texture, transpose only: reflect across the BL->TR diagonal swaps the
+        // BR and TL corner UVs (BL and TR sit on the diagonal and stay put).
+        SpriteComponentConfig config;
+        config.m_transpose = true;
+        // BL(0,1) BR(0,0) TR(1,0) TL(1,1)
+        ExpectCorners(config, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f);
+    }
+
+    TEST_F(SpriteUVTest, TransposeThenFlipH_IsA90DegreeRotation)
+    {
+        // transpose + horizontal flip is a quarter turn: the four corner UVs cycle.
+        SpriteComponentConfig config;
+        config.m_transpose = true;
+        config.m_flipHorizontal = true;
+        // After transpose: BL(0,1) BR(0,0) TR(1,0) TL(1,1); flipH swaps 0<->1, 3<->2:
+        // BL(0,0) BR(0,1) TR(1,1) TL(1,0)
+        ExpectCorners(config, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f);
+    }
+
+    TEST_F(SpriteUVTest, FlipOnly_UnchangedByTransposeRefactor)
+    {
+        // Guard the refactor: flip-only behavior must match the original range-swap.
+        SpriteComponentConfig config;
+        config.m_flipHorizontal = true;
+        // BL(1,1) BR(0,1) TR(0,0) TL(1,0)
+        ExpectCorners(config, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    }
+
     TEST_F(SpriteUVTest, FlipHorizontal_SwapsLeftAndRightU)
     {
         SpriteComponentConfig config;
@@ -1690,6 +1720,21 @@ namespace Diorama
         EXPECT_TRUE(TilemapTile::FlipH(tile));
         EXPECT_FALSE(TilemapTile::FlipV(tile));
         EXPECT_TRUE(m_asset.IsValid()); // flip bits are accepted by validation
+    }
+
+    TEST_F(TiledImportTest, DiagonalFlagBecomesTranspose)
+    {
+        // GID 1 with the anti-diagonal bit (0x20000000) resolves to cell 0 with the
+        // transpose (FlipD) bit set, so the tile renders rotated.
+        const AZStd::string json = AZStd::string::format(
+            R"({ "width": 1, "height": 1, "tilesets": [ { "firstgid": 1, "columns": 1, "tilecount": 1, "image": "t.png" } ],
+                 "layers": [ { "type": "tilelayer", "data": [%u] } ] })",
+            0x20000001u);
+        ASSERT_TRUE(Parse(json.c_str())) << m_error.c_str();
+        const AZ::s32 tile = m_asset.m_layers[0].m_tiles[0];
+        EXPECT_EQ(TilemapTile::CellIndex(tile), 0);
+        EXPECT_TRUE(TilemapTile::FlipD(tile));
+        EXPECT_TRUE(m_asset.IsValid());
     }
 
     TEST_F(TiledImportTest, ExternalTileset_ResolvedViaCallback)

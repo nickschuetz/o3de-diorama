@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Sprite UV transpose (anti-diagonal flip) + rotated tiles.** Sprites gain a
+  `m_transpose` option (Inspector + `SetTranspose` bus verb) that reflects the
+  sampled region across its anti-diagonal; combined with the H/V flips it produces
+  all four 90-degree rotations and mirrors of a square cell. Tilemaps carry it as a
+  per-tile `FlipDiagonal` bit, and the Tiled `.tmj` importer now maps Tiled's
+  diagonal-flip flag onto it, so **rotated/flipped Tiled tiles import correctly**
+  (previously the diagonal flag was dropped). The corner-UV math is unit-tested and
+  flip-only behavior is unchanged.
 - **Animation frame events** for frame-exact gameplay (fighting games, action games):
   `DioramaSpriteNotificationBus::OnAnimationFrame(frameIndex)` fires every time the
   displayed frame advances, on both sprite-sheet and Aseprite playback, and
