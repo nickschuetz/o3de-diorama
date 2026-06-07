@@ -254,6 +254,16 @@ Missing table-stakes (no design doc yet):
   input directly today.
 - **Save/load** of game state, and **off-screen culling** for bullet-hell / large
   tile scenes (the batch helps, but explicit culling is not there yet).
+- **Large / streaming worlds** (community ask). Diorama itself ships no
+  chunk-pager or LOD; its components are plain per-entity components that register
+  on activate and unregister on deactivate, so they already spawn and despawn
+  cleanly with O3DE's spawnable/prefab streaming, and tilemap chunks can be
+  hot-swapped at runtime via `SetTilemapByPath`. What is missing is a region/grid
+  paging layer on top of the spawnable system (stream prefabs and tilemap chunks
+  by camera proximity) plus the off-screen culling above, so an open 2.5D world
+  with thousands of entities (grass, trees, walls all as entities, per the
+  *Edentopia* approach) stays affordable. A natural complementary gem rather than
+  core, but worth a design once a concrete world size/shape is in hand.
 
 Recommended order (closes gaps, then leans into the differentiators): audio ->
 post-processing (already designed, biggest "looks AAA" payoff) -> animation depth
