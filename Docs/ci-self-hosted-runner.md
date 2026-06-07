@@ -130,11 +130,23 @@ default).
 
 ## First Windows bring-up
 
-The Windows leg and `ci_build_test.ps1` were authored on Linux and have not yet
-run on a real Windows host, so two path assumptions may need adjusting the first
-time: the `AzTestRunner.exe` location and the CMake generator. Resolve them
-interactively **before** turning the CI leg loose, by running the script
-directly on the Windows machine:
+The Windows leg is **validated**: `ci_build_test.ps1` builds the gem and runs the
+unit suite green on a Windows host (VS2026 / MSVC; all sprite UV / animation /
+batch-plan tests pass). The script's path assumptions (`AzTestRunner.exe`
+location, CMake generator) auto-resolve via `vswhere`. The one non-obvious snag
+is the **runner service account** (below). To bring up a new Windows host, or to
+debug a failure, run the script directly first:
+
+> **Runner service account.** O3DE's Python is set up per Windows user profile
+> (`%USERPROFILE%\.o3de\Python`). If the runner is installed as a service under
+> the default `NT AUTHORITY\NetworkService` account, `o3de register` fails with
+> *"Python has not been setup completely for O3DE"* because that account has no
+> O3DE venv. Run the runner as the **same user that ran `get_python.bat`**:
+> either interactively with `run.cmd` from that user's session, or install the
+> service with `config.cmd ... --runasservice --windowslogonaccount "<host>\<user>"
+> --windowslogonpassword "<pw>"`. Running interactively in a desktop session also
+> gives the runner GPU access, which a session-0 service never has, so it is the
+> better choice if you later add rendering tests.
 
 1. **Install the prerequisites**: O3DE 26.05 SDK, the 3rdParty packages, a host
    project (e.g. `DioramaSandbox`), Visual Studio 2022 with the C++ workload,
