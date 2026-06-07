@@ -6,10 +6,10 @@ This is both a way to produce example clips and a debugging aid: it surfaced the
 particle-emitter hang fixed in `Particles2D`. It needs native Vulkan; software
 rasterizers (lavapipe) or `--rhi=null` will not render the sprites.
 
-> **Platform:** the capture helper is Linux-specific (Xvfb + `ffmpeg x11grab`). On
-> Windows, run the `GameLauncher` normally and record with OBS Studio or
-> `ffmpeg`'s `gdigrab`; the in-engine setup is identical (the scene just needs an
-> active camera, as the demo levels arrange).
+> **Platform:** the Linux helper is `scripts/capture_level.sh` (Xvfb + `ffmpeg
+> x11grab`). On Windows use `scripts/capture_level.ps1` (same flow, no Xvfb): see
+> [On Windows](#on-windows) below. The in-engine setup is identical on both, the
+> scene just needs an active camera, as the demo levels arrange.
 
 ## Quick start
 
@@ -76,3 +76,34 @@ This complements the no-screenshot state queries (`GetSpriteInfo`) described in
 [../architecture.md](../architecture.md#verifying-state-without-a-screenshot): the
 queries confirm a component's resolved state, while a capture confirms the scene
 actually renders.
+
+## On Windows
+
+`scripts/capture_level.ps1` is the Windows counterpart of `capture_level.sh`. It
+runs the same flow (set `LoadLevel` -> `AssetProcessorBatch` -> launch the
+`GameLauncher` -> wait for the level in `Game.log` -> capture -> restore), with two
+platform differences:
+
+- **No Xvfb.** Windows GPU rendering needs a logged-in desktop session with a
+  display, so run this *in that session* (the same interactive session a
+  self-hosted runner uses), with a monitor (or a dummy/virtual display) attached.
+  RHI defaults to **DX12** (no software-rasterizer trap to avoid); override with
+  `$env:CAP_RHI = 'vulkan'`.
+- **Capture is `ffmpeg gdigrab`** instead of `x11grab`: by default it grabs the
+  launcher window by title (`CAP_WINDOW`, default `DioramaSandbox`); set
+  `$env:CAP_MODE = 'desktop'` to grab the whole screen if the title does not match.
+
+```powershell
+# video (default 8s)
+scripts\capture_level.ps1 -Level MyLevel -Out out.mp4 -Seconds 10
+
+# single PNG frame (deterministic; the seed for an automated "not blank" check)
+scripts\capture_level.ps1 -Level MyLevel -Out frame.png -Still
+```
+
+Needs `ffmpeg` on `PATH` (`winget install Gyan.FFmpeg`). The level requirements
+(an active camera; processed into the cache) are identical to Linux, and the script
+handles the cache build for you. The `-Still` mode writes one PNG and is what a CI
+visual check would assert against (a black frame is tiny and near-zero variance; a
+rendered frame is not), so the same script serves both on-demand demos and a future
+automated check.
