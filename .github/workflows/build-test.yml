@@ -44,7 +44,7 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:build'))
     runs-on: [self-hosted, o3de, Linux]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Show environment
         run: |
@@ -74,7 +74,7 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:build'))
     runs-on: [self-hosted, o3de, windows]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Show environment
         shell: pwsh

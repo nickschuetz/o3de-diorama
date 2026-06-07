@@ -18,8 +18,8 @@ jobs:
     name: clang-format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install clang-format (pinned)
@@ -36,7 +36,7 @@ jobs:
     name: spdx-headers
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Check SPDX license headers
         run: ./scripts/check_spdx_headers.sh
 
@@ -44,7 +44,7 @@ jobs:
     name: hygiene
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Trailing whitespace and EOF newlines
@@ -72,7 +72,7 @@ jobs:
     name: json-valid
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Validate JSON manifests
         # Templates/ is excluded: a project-template's .json/.setreg contain ${...}
         # placeholders (and are only valid JSON once instantiated), so jq would reject
@@ -90,8 +90,8 @@ jobs:
     name: sbom
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: SBOM is current
