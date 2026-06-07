@@ -32,6 +32,8 @@
     DIORAMA_PROJECT  host project (default C:\projects\DioramaSandbox)
     O3DE_ENGINE_PATH engine/SDK    (default C:\O3DE\26.05.0)
     CAP_W, CAP_H     render size    (default 1280 720)
+    CAP_SETTLE       seconds to wait after launch before capturing (default 20),
+                     raise it if the scene renders later than the grab fires
     CAP_RHI          dx12 (default) or vulkan
     CAP_WINDOW       GameLauncher window title for gdigrab (default DioramaSandbox)
     CAP_MODE         window (default; grab just the launcher window) or desktop
@@ -130,7 +132,11 @@ for ($i = 0; $i -lt 20; $i++) {
     }
     Start-Sleep -Seconds 3
 }
-Start-Sleep -Seconds 8   # settle: reload + animation populate
+# Settle: let the level finish loading and render PAST the splash before grabbing.
+# The log "loaded" check can false-match the early LoadLevel command, so this fixed
+# settle is the real safety net. Bump CAP_SETTLE if your scene takes longer to appear.
+$settle = if ($env:CAP_SETTLE) { [int]$env:CAP_SETTLE } else { 20 }
+Start-Sleep -Seconds $settle
 
 $rc = 1
 if (-not $proc.HasExited) {
