@@ -107,3 +107,22 @@ handles the cache build for you. The `-Still` mode writes one PNG and is what a 
 visual check would assert against (a black frame is tiny and near-zero variance; a
 rendered frame is not), so the same script serves both on-demand demos and a future
 automated check.
+
+### Monitor power and unattended runs
+
+Windows GPU rendering needs a display *attached to the session*, so the physical
+monitor's power state matters for unattended captures:
+
+- **System sleep is fatal** (the runner and capture stop). Disable it:
+  `powercfg /change standby-timeout-ac 0` and `powercfg /change hibernate-timeout-ac 0`.
+- **A monitor merely asleep** (power-save / "turn off display after N min") is
+  usually fine: Windows keeps the display attached and the compositor keeps
+  rendering, so capture still works.
+- **A monitor physically powered off or unplugged is risky**, especially over
+  DisplayPort, where power-off acts as a hot-unplug: Windows drops the display and
+  the scene renders black or fails.
+
+The robust fix for any unattended/headless box is a **dummy display plug** (a cheap
+HDMI/DisplayPort headless dongle) or a virtual display driver: it presents a
+constant EDID so the GPU always has a stable display regardless of the real
+monitor. Recommended if captures run while the monitor is off.
