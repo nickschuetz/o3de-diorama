@@ -7,6 +7,7 @@
 
 #include <Clients/SpriteFeatureProcessor.h>
 #include <Clients/SpritePresenter.h>
+#include <Diorama/SpriteBus.h>
 
 #include <Atom/RPI.Public/Scene.h>
 
@@ -210,12 +211,19 @@ namespace Diorama
         }
 
         const int previousFrame = m_frameState.m_frame;
+        const bool wasFinished = m_frameState.m_finished;
         m_frameState =
             SpriteAnimation::Advance(m_frameState, deltaTime, m_config.m_framesPerSecond, m_config.GetFrameCount(), m_config.m_loop);
 
         if (m_frameState.m_frame != previousFrame)
         {
             Push();
+            // Frame-exact hook for gameplay (hitbox activation, sfx, cancel windows).
+            DioramaSpriteNotificationBus::Event(m_entityId, &DioramaSpriteNotifications::OnAnimationFrame, m_frameState.m_frame);
+        }
+        if (m_frameState.m_finished && !wasFinished)
+        {
+            DioramaSpriteNotificationBus::Event(m_entityId, &DioramaSpriteNotifications::OnAnimationFinished);
         }
     }
 

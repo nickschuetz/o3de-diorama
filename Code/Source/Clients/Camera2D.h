@@ -103,6 +103,25 @@ namespace Diorama::Camera2D
         return targetVelocity.GetNormalized() * distance;
     }
 
+    //! Midpoint of two target positions, the follow point when framing two
+    //! characters (a fighting camera centers on the pair).
+    inline AZ::Vector2 Midpoint(const AZ::Vector2& a, const AZ::Vector2& b)
+    {
+        return (a + b) * 0.5f;
+    }
+
+    //! Dolly distance (how far to pull the camera back from the play plane) for a
+    //! given separation between framed targets: base + separation * perUnit, clamped
+    //! to [minDolly, maxDolly]. Pulls the view out as two fighters move apart and back
+    //! in as they close, the classic versus-camera behaviour. perUnit <= 0 disables
+    //! the separation term (a constant base dolly).
+    inline float SeparationDolly(float separation, float base, float perUnit, float minDolly, float maxDolly)
+    {
+        const float raw = base + (perUnit > 0.0f ? separation * perUnit : 0.0f);
+        const float hi = maxDolly < minDolly ? minDolly : maxDolly;
+        return Internal::Clamp(raw, minDolly, hi);
+    }
+
     //! Snap a position to a whole-texel grid for pixel-perfect rendering. ppu is
     //! pixels per world unit; <= 0 disables snapping (returns the input).
     inline AZ::Vector2 PixelSnap(const AZ::Vector2& pos, float pixelsPerUnit)

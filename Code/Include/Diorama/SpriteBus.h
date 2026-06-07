@@ -150,6 +150,15 @@ namespace Diorama
         virtual void OnAnimationFinished()
         {
         }
+        //! The displayed animation frame advanced to frameIndex (sprite-sheet or
+        //! Aseprite playback). Fires on every frame change, so games can trigger
+        //! frame-exact logic: activate a hitbox, play a sound, open a cancel window.
+        //! For Aseprite this is the document frame index; for a sprite sheet it is
+        //! the sheet frame index.
+        virtual void OnAnimationFrame(int frameIndex)
+        {
+            AZ_UNUSED(frameIndex);
+        }
     };
 
     using DioramaSpriteNotificationBus = AZ::EBus<DioramaSpriteNotifications>;
@@ -167,7 +176,8 @@ namespace Diorama
             AZ::SystemAllocator,
             OnTextureReady,
             OnVisibilityChanged,
-            OnAnimationFinished);
+            OnAnimationFinished,
+            OnAnimationFrame);
 
         void OnTextureReady(const AZStd::string& productPath) override
         {
@@ -180,6 +190,10 @@ namespace Diorama
         void OnAnimationFinished() override
         {
             Call(FN_OnAnimationFinished);
+        }
+        void OnAnimationFrame(int frameIndex) override
+        {
+            Call(FN_OnAnimationFrame, frameIndex);
         }
     };
 

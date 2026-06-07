@@ -63,6 +63,21 @@ namespace Diorama
                 &DioramaCamera2DRequestBus::Events::SetTarget,
                 { { { "target", "Entity to follow; an invalid id clears the target." } } })
             ->Event(
+                "SetSecondaryTarget",
+                &DioramaCamera2DRequestBus::Events::SetSecondaryTarget,
+                { { { "target", "Second entity to frame; when valid the camera centers on the midpoint of the two (versus camera)." } } })
+            ->Event(
+                "SetZoom",
+                &DioramaCamera2DRequestBus::Events::SetZoom,
+                { { { "dolly", "Distance to pull the camera back from the play plane (extra dolly); turns auto-zoom off." } } })
+            ->Event(
+                "SetAutoZoom",
+                &DioramaCamera2DRequestBus::Events::SetAutoZoom,
+                { { { "base", "Dolly distance at zero separation." },
+                    { "perSeparation", "Extra dolly per world unit of separation between the two targets (>0 enables auto-zoom)." },
+                    { "minDolly", "Minimum dolly distance (clamp)." },
+                    { "maxDolly", "Maximum dolly distance (clamp)." } } })
+            ->Event(
                 "SetFollowOffset",
                 &DioramaCamera2DRequestBus::Events::SetFollowOffset,
                 { { { "x", "Follow offset X (world units)." },

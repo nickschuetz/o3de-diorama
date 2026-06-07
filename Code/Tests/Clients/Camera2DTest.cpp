@@ -130,4 +130,21 @@ namespace Diorama
         EXPECT_NEAR(r.GetX(), 2.0f, Tol);
         EXPECT_NEAR(r.GetY(), 0.0f, Tol);
     }
+
+    TEST_F(Camera2DTest, Midpoint_CentersTwoTargets)
+    {
+        const AZ::Vector2 m = Camera2D::Midpoint(AZ::Vector2(-2.0f, 4.0f), AZ::Vector2(6.0f, 0.0f));
+        EXPECT_NEAR(m.GetX(), 2.0f, Tol);
+        EXPECT_NEAR(m.GetY(), 2.0f, Tol);
+    }
+
+    TEST_F(Camera2DTest, SeparationDolly_ScalesAndClamps)
+    {
+        // base 2 + separation * 0.5, clamped to [2, 6].
+        EXPECT_NEAR(Camera2D::SeparationDolly(0.0f, 2.0f, 0.5f, 2.0f, 6.0f), 2.0f, Tol);
+        EXPECT_NEAR(Camera2D::SeparationDolly(4.0f, 2.0f, 0.5f, 2.0f, 6.0f), 4.0f, Tol); // 2 + 2
+        EXPECT_NEAR(Camera2D::SeparationDolly(100.0f, 2.0f, 0.5f, 2.0f, 6.0f), 6.0f, Tol); // clamps to max
+        // perUnit <= 0 -> constant base (no separation term).
+        EXPECT_NEAR(Camera2D::SeparationDolly(50.0f, 3.0f, 0.0f, 0.0f, 100.0f), 3.0f, Tol);
+    }
 } // namespace Diorama

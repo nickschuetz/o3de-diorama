@@ -312,6 +312,7 @@ namespace Diorama
         m_elapsed += deltaTime * m_config.m_speed;
         const Aseprite::TagData tag = CurrentTag(m_doc, m_tagIndex);
 
+        bool justFinished = false;
         if (!m_config.m_looping)
         {
             const float cycle = CycleSeconds(m_doc, tag);
@@ -319,6 +320,7 @@ namespace Diorama
             {
                 m_elapsed = AZ::GetClamp(m_elapsed, 0.0f, cycle);
                 m_playing = false;
+                justFinished = true;
             }
         }
 
@@ -326,6 +328,13 @@ namespace Diorama
         if (frame != m_currentFrame)
         {
             ApplyFrame(frame);
+            // Frame-exact hook on the shared sprite notification bus, so the same
+            // OnAnimationFrame subscribers work for sprite-sheet and Aseprite playback.
+            DioramaSpriteNotificationBus::Event(GetEntityId(), &DioramaSpriteNotifications::OnAnimationFrame, m_currentFrame);
+        }
+        if (justFinished)
+        {
+            DioramaSpriteNotificationBus::Event(GetEntityId(), &DioramaSpriteNotifications::OnAnimationFinished);
         }
     }
 

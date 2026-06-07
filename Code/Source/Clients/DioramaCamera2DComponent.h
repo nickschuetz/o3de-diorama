@@ -70,6 +70,22 @@ namespace Diorama
         float m_pixelsPerUnit = 0.0f;
         //! Disabled cameras freeze where they are.
         bool m_enabled = true;
+
+        //! Optional second target. When valid, the camera frames the midpoint of the
+        //! two targets (a versus / fighting camera) instead of following m_target alone.
+        AZ::EntityId m_secondaryTarget;
+        //! Manual extra dolly: distance to pull the camera back from the play plane
+        //! (along its out-of-plane axis), on top of the follow offset. Used when
+        //! m_autoZoom is false.
+        float m_zoom = 0.0f;
+        //! When true the dolly is computed from the two targets' separation instead of
+        //! using m_zoom: dolly = clamp(m_zoomBase + separation * m_zoomPerSeparation,
+        //! m_zoomMin, m_zoomMax). Pulls the view out as the targets move apart.
+        bool m_autoZoom = false;
+        float m_zoomBase = 0.0f;
+        float m_zoomPerSeparation = 0.0f;
+        float m_zoomMin = 0.0f;
+        float m_zoomMax = 100.0f;
     };
 
     //! Runtime 2D camera controller. Place it on a camera entity (one with an Atom
@@ -103,6 +119,9 @@ namespace Diorama
 
         // DioramaCamera2DRequests
         void SetTarget(AZ::EntityId target) override;
+        void SetSecondaryTarget(AZ::EntityId target) override;
+        void SetZoom(float dolly) override;
+        void SetAutoZoom(float base, float perSeparation, float minDolly, float maxDolly) override;
         void SetFollowOffset(float x, float y, float z) override;
         void SetSmoothTime(float seconds) override;
         void SetDeadzone(float halfX, float halfY) override;

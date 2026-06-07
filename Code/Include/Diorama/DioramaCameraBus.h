@@ -52,6 +52,16 @@ namespace Diorama
 
         //! Entity to follow. An invalid id clears the target (camera holds still).
         virtual void SetTarget(AZ::EntityId target) = 0;
+        //! Optional second entity to frame. When valid, the camera centers on the
+        //! midpoint of the two targets (a versus / fighting camera); invalid clears it.
+        virtual void SetSecondaryTarget(AZ::EntityId target) = 0;
+        //! Manually pull the camera back from the play plane by this distance (extra
+        //! dolly on top of the follow offset). Turns auto-zoom off; clamped non-negative.
+        virtual void SetZoom(float dolly) = 0;
+        //! Auto-zoom from the two targets' separation: dolly = clamp(base +
+        //! separation * perSeparation, minDolly, maxDolly). perSeparation > 0 enables
+        //! it (the view pulls out as the pair separates and back in as they close).
+        virtual void SetAutoZoom(float base, float perSeparation, float minDolly, float maxDolly) = 0;
         //! Offset added to the target to frame the shot (keeps the 2.5D framing).
         virtual void SetFollowOffset(float x, float y, float z) = 0;
         //! Follow smoothing time in seconds; 0 snaps. Clamped non-negative.

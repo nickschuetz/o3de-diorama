@@ -31,7 +31,7 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<DioramaCamera2DConfig>()
-                ->Version(1)
+                ->Version(2) // 2: secondary target + zoom/dolly fields
                 ->Field("target", &DioramaCamera2DConfig::m_target)
                 ->Field("plane", &DioramaCamera2DConfig::m_plane)
                 ->Field("followOffset", &DioramaCamera2DConfig::m_followOffset)
@@ -45,7 +45,14 @@ namespace Diorama
                 ->Field("traumaDecay", &DioramaCamera2DConfig::m_traumaDecay)
                 ->Field("pixelSnap", &DioramaCamera2DConfig::m_pixelSnap)
                 ->Field("pixelsPerUnit", &DioramaCamera2DConfig::m_pixelsPerUnit)
-                ->Field("enabled", &DioramaCamera2DConfig::m_enabled);
+                ->Field("enabled", &DioramaCamera2DConfig::m_enabled)
+                ->Field("secondaryTarget", &DioramaCamera2DConfig::m_secondaryTarget)
+                ->Field("zoom", &DioramaCamera2DConfig::m_zoom)
+                ->Field("autoZoom", &DioramaCamera2DConfig::m_autoZoom)
+                ->Field("zoomBase", &DioramaCamera2DConfig::m_zoomBase)
+                ->Field("zoomPerSeparation", &DioramaCamera2DConfig::m_zoomPerSeparation)
+                ->Field("zoomMin", &DioramaCamera2DConfig::m_zoomMin)
+                ->Field("zoomMax", &DioramaCamera2DConfig::m_zoomMax);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -122,7 +129,40 @@ namespace Diorama
                         "Texels per world unit for pixel snap (<=0 disables)")
                     ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
                     ->DataElement(
-                        AZ::Edit::UIHandlers::CheckBox, &DioramaCamera2DConfig::m_enabled, "Enabled", "Disabled cameras freeze in place");
+                        AZ::Edit::UIHandlers::CheckBox, &DioramaCamera2DConfig::m_enabled, "Enabled", "Disabled cameras freeze in place")
+                    ->ClassElement(AZ::Edit::ClassElements::Group, "Versus / Zoom")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaCamera2DConfig::m_secondaryTarget,
+                        "Secondary Target",
+                        "Optional second entity; when set, the camera frames the midpoint of the two")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaCamera2DConfig::m_zoom,
+                        "Zoom (manual dolly)",
+                        "Distance to pull back from the play plane when Auto Zoom is off")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaCamera2DConfig::m_autoZoom,
+                        "Auto Zoom",
+                        "Compute the dolly from the two targets' separation instead of the manual value")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaCamera2DConfig::m_zoomBase,
+                        "Zoom Base",
+                        "Auto-zoom dolly at zero separation")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaCamera2DConfig::m_zoomPerSeparation,
+                        "Zoom Per Separation",
+                        "Extra dolly per world unit of separation (auto-zoom)")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaCamera2DConfig::m_zoomMin, "Zoom Min", "Minimum auto-zoom dolly")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaCamera2DConfig::m_zoomMax, "Zoom Max", "Maximum auto-zoom dolly")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f);
             }
         }
     }
@@ -254,20 +294,45 @@ namespace Diorama
             AZ::Vector3 targetWorld = AZ::Vector3::CreateZero();
             AZ::TransformBus::EventResult(targetWorld, m_config.m_target, &AZ::TransformBus::Events::GetWorldTranslation);
 
-            const AZ::Vector3 desired = targetWorld + m_config.m_followOffset;
-            outOfPlane = OutOfPlane(desired);
+            // Frame point: the single target, or the midpoint of two targets (a versus
+            // / fighting camera), with their separation for auto-zoom.
+            AZ::Vector2 followInPlane = ProjectToPlane(targetWorld);
+            float followDepth = OutOfPlane(targetWorld);
+            float separation = 0.0f;
+            if (m_config.m_secondaryTarget.IsValid())
+            {
+                AZ::Vector3 secondWorld = AZ::Vector3::CreateZero();
+                AZ::TransformBus::EventResult(secondWorld, m_config.m_secondaryTarget, &AZ::TransformBus::Events::GetWorldTranslation);
+                const AZ::Vector2 secondInPlane = ProjectToPlane(secondWorld);
+                separation = (followInPlane - secondInPlane).GetLength();
+                followInPlane = Camera2D::Midpoint(followInPlane, secondInPlane);
+                followDepth = (followDepth + OutOfPlane(secondWorld)) * 0.5f;
+            }
 
-            const AZ::Vector2 targetInPlane = ProjectToPlane(targetWorld);
+            // Decompose the follow offset (linear projection), so the single-target,
+            // no-zoom path is byte-identical to before.
+            const AZ::Vector2 offsetInPlane = ProjectToPlane(m_config.m_followOffset);
+            const float offsetDepth = OutOfPlane(m_config.m_followOffset);
+            const float baseDepth = followDepth + offsetDepth;
+
+            // Dolly (zoom): pull further from the play plane, manual or from separation.
+            const float dolly = m_config.m_autoZoom
+                ? Camera2D::SeparationDolly(
+                      separation, m_config.m_zoomBase, m_config.m_zoomPerSeparation, m_config.m_zoomMin, m_config.m_zoomMax)
+                : (m_config.m_zoom < 0.0f ? 0.0f : m_config.m_zoom);
+            const float backSign = (offsetDepth >= 0.0f) ? 1.0f : -1.0f;
+            outOfPlane = baseDepth + backSign * dolly;
+
             AZ::Vector2 velocity = AZ::Vector2(0.0f, 0.0f);
             if (m_hasPrevTarget && deltaTime > 0.0f)
             {
-                velocity = (targetInPlane - m_prevTarget) / deltaTime;
+                velocity = (followInPlane - m_prevTarget) / deltaTime;
             }
-            m_prevTarget = targetInPlane;
+            m_prevTarget = followInPlane;
             m_hasPrevTarget = true;
 
             const AZ::Vector2 lookahead = Camera2D::Lookahead(velocity, m_config.m_lookahead);
-            const AZ::Vector2 goal = ProjectToPlane(desired) + lookahead;
+            const AZ::Vector2 goal = followInPlane + offsetInPlane + lookahead;
             const AZ::Vector2 afterDeadzone = Camera2D::ApplyDeadzone(m_center, goal, m_config.m_deadzoneHalf);
             m_center = Camera2D::SmoothFollow(m_center, afterDeadzone, m_config.m_smoothTime, deltaTime);
             if (m_config.m_useBounds)
@@ -297,6 +362,27 @@ namespace Diorama
     {
         m_config.m_target = target;
         m_hasPrevTarget = false; // restart velocity tracking for the new target
+    }
+
+    void DioramaCamera2DComponent::SetSecondaryTarget(AZ::EntityId target)
+    {
+        m_config.m_secondaryTarget = target;
+        m_hasPrevTarget = false; // the follow point changes (midpoint vs single)
+    }
+
+    void DioramaCamera2DComponent::SetZoom(float dolly)
+    {
+        m_config.m_zoom = dolly < 0.0f ? 0.0f : dolly;
+        m_config.m_autoZoom = false;
+    }
+
+    void DioramaCamera2DComponent::SetAutoZoom(float base, float perSeparation, float minDolly, float maxDolly)
+    {
+        m_config.m_zoomBase = base < 0.0f ? 0.0f : base;
+        m_config.m_zoomPerSeparation = perSeparation < 0.0f ? 0.0f : perSeparation;
+        m_config.m_zoomMin = minDolly < 0.0f ? 0.0f : minDolly;
+        m_config.m_zoomMax = maxDolly < m_config.m_zoomMin ? m_config.m_zoomMin : maxDolly;
+        m_config.m_autoZoom = true;
     }
 
     void DioramaCamera2DComponent::SetFollowOffset(float x, float y, float z)

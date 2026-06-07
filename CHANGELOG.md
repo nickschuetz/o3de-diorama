@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Animation frame events** for frame-exact gameplay (fighting games, action games):
+  `DioramaSpriteNotificationBus::OnAnimationFrame(frameIndex)` fires every time the
+  displayed frame advances, on both sprite-sheet and Aseprite playback, and
+  `OnAnimationFinished` now actually fires when a non-looping clip ends. A new
+  example (`Assets/Diorama/Examples/Fighting/frame_hitbox.lua`) uses it to drive a
+  per-frame attack hitbox (startup / active / recovery frames) through the existing
+  2D Collider bus, the per-frame hitbox pattern fighters need.
+- **Camera versus framing + zoom** on the 2D camera: `SetSecondaryTarget` frames the
+  midpoint of two characters, and `SetZoom` / `SetAutoZoom` dolly the camera back
+  from the play plane (manually, or automatically from the targets' separation so
+  the view pulls out as fighters move apart). The single-target, no-zoom path is
+  unchanged. Pure math (`Camera2D::Midpoint`, `SeparationDolly`) is unit-tested.
 - **Dedicated tilemap asset + builder.** A tilemap can now be authored as a
   `.dtilemap` JSON source that the new `DioramaTilemapBuilder` compiles into a
   validated, compact `DioramaTilemapAsset` product (`.dtilemapc`); a Tilemap
