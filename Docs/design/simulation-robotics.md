@@ -33,17 +33,25 @@ This is not hypothetical. The pieces are converging:
 - **O3DE's next release theme is simulation and robotics.** The engine is leaning
   directly into this space.
 - **A fully open, Fedora-native ROS 2 is shipping as RPMs**, development-only today
-  and official-grade soon:
-  - **Jazzy** RPMs live in the **`hellaenergy/ros2-jazzy`** COPR: **Fedora 44+ and
-    CentOS Stream 10**, **x86_64 and aarch64**, via `ros-jazzy-ros-base` /
-    `ros-jazzy-ros-desktop`. Confirmed installed here under `/opt/ros/jazzy`
-    (`ros-jazzy-*-1.fc44`).
-  - **Lyrical** RPMs (development-only, ahead of the LTS) now live in the
-    **`hellaenergy/ros2`** COPR, the staging ground for the next release.
+  and official-grade soon. **Favor Lyrical, the latest release:**
+  - **Lyrical (recommended)**: the [`hellaenergy/ros2`](https://copr.fedorainfracloud.org/coprs/hellaenergy/ros2)
+    COPR carries the latest ROS 2 release and the one heading to official Fedora
+    support, so new work targets it. Metapackages `ros-lyrical-ros-base` /
+    `ros-lyrical-ros-desktop`, **Fedora 44+ and CentOS Stream 10**, **x86_64 and
+    aarch64**.
+  - **Jazzy (prior LTS)**: the [`hellaenergy/ros2-jazzy`](https://copr.fedorainfracloud.org/coprs/hellaenergy/ros2-jazzy)
+    COPR carries Jazzy via `ros-jazzy-ros-base` / `ros-jazzy-ros-desktop`. Confirmed
+    installed here under `/opt/ros/jazzy` (`ros-jazzy-*-1.fc44`), which is what the
+    header checks below are verified against; the message types are identical across
+    distros, so everything carries straight to Lyrical.
   - Both COPRs are explicitly **development-only**; Open Robotics takes on
     **official** Fedora support starting with **Lyrical Luth (the 2026 LTS)**.
-  - The Jazzy COPR already ships **`gazebo_msgs` specifically for the O3DE ROS 2
-    Gem**, so O3DE integration is already inside the packaging scope.
+  - The COPRs already ship **`gazebo_msgs` specifically for the O3DE ROS 2 Gem**, so
+    O3DE integration is already inside the packaging scope.
+- **The Fedora Robotics SIG** ([docs.fedoraproject.org/en-US/robotics-sig](https://docs.fedoraproject.org/en-US/robotics-sig/))
+  is organizing exactly this: a Fedora-native robotics stack. This work develops in
+  collaboration with the SIG (the maintainer is a contributor), which gives the
+  packaging and the O3DE / Diorama angle a natural home in the wider effort.
 - **The O3DE robotics stack (the ROS 2 Gem, Apache-2.0) lives in `o3de-extras`**, a
   clean, separable home next to where a Diorama bridge would naturally sit.
 
@@ -88,7 +96,7 @@ never put content into the world the robot sees; Diorama can:
   a *human* are already served by rviz/Foxglove; markers that must appear in a
   *rendered camera feed* share the fiducial justification. This one is gated:
   `visualization_msgs` is not in the minimal COPR set today, so it needs either
-  `ros-jazzy-visualization-msgs` added to the COPR (small, permissive BSD) or a
+  `ros-lyrical-visualization-msgs` added to the COPR (small, permissive BSD) or a
   Diorama-native marker layer first.
 
 ## The `diorama-ros2` bridge (sketch)
@@ -109,12 +117,15 @@ story is opt-in:
 ## Packaging chain: all RPM, all open
 
 ```
-ros-jazzy-ros-base   (hellaenergy/ros2-jazzy COPR; official with Lyrical later)
+ros-lyrical-ros-base (hellaenergy/ros2 COPR; recommended, latest + heading official)
   -> o3de            (RPM SDK, COPR)
   -> diorama         (one gem dep Atom_RPI, no bundled third-party, verified)
   -> diorama-ros2    (deps: the ROS 2 Gem + system ros-base
                       [+ visualization-msgs if used])
 ```
+
+Jazzy (`hellaenergy/ros2-jazzy`, `ros-jazzy-ros-base`) is the supported fallback for
+the prior LTS; the chain is identical with the distro name swapped.
 
 Target matrix mirrors the COPR: Fedora 44+ / CentOS Stream 10, x86_64 + aarch64.
 License hygiene is Fedora-clean by construction: Diorama is `Apache-2.0 OR MIT` with
@@ -174,6 +185,7 @@ with no change to the bridge.
 1. A focused `diorama-ros2` bridge design doc (subscription-to-bus mapping,
    node-sharing, CMake/subpackage layout), grounded against the ROS 2 Gem source.
 2. Prototype the live `OccupancyGrid` subscriber -> tilemap against the installed
-   Jazzy + ROS 2 Gem; verify a published grid renders and updates as a ground tilemap.
+   ROS 2 (Jazzy today, Lyrical going forward) + ROS 2 Gem; verify a published grid
+   renders and updates as a ground tilemap.
    That single moving costmap is the whole vision in miniature, and the fastest way to
    make it real.
