@@ -70,6 +70,38 @@ namespace Diorama
         return true;
     }
 
+    bool TilemapRequestHandler::SetTilemapByPath(AZStd::string_view productPath)
+    {
+        if (m_config == nullptr)
+        {
+            return false;
+        }
+
+        if (productPath.empty())
+        {
+            m_config->m_tilemapAsset = {};
+            NotifyChanged(); // the component reloads (clears the asset) on change
+            return true;
+        }
+
+        AZ::Data::AssetId assetId;
+        AZ::Data::AssetCatalogRequestBus::BroadcastResult(
+            assetId,
+            &AZ::Data::AssetCatalogRequests::GetAssetIdByPath,
+            AZStd::string(productPath).c_str(),
+            azrtti_typeid<DioramaTilemapAsset>(),
+            false);
+        if (!assetId.IsValid())
+        {
+            return false;
+        }
+
+        m_config->m_tilemapAsset = AZ::Data::Asset<DioramaTilemapAsset>(assetId, AZ::AzTypeInfo<DioramaTilemapAsset>::Uuid());
+        m_config->m_tilemapAsset.SetAutoLoadBehavior(AZ::Data::AssetLoadBehavior::PreLoad);
+        NotifyChanged(); // the component queues the load + applies it on ready
+        return true;
+    }
+
     void TilemapRequestHandler::SetAtlasGrid(int columns, int rows)
     {
         if (m_config == nullptr)
@@ -254,6 +286,7 @@ namespace Diorama
         info.m_tileHeight = m_config->m_tileSize.GetY();
         info.m_filledTileCount = m_config->CountFilledTiles();
         info.m_sortOffset = m_config->m_sortOffset;
+        info.m_hasSourceAsset = m_config->m_tilemapAsset.GetId().IsValid();
 
         if (m_presenter != nullptr)
         {

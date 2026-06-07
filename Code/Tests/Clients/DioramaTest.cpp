@@ -34,8 +34,10 @@
 #include <Clients/SpriteComponent.h>
 #include <Clients/SpritePresenter.h>
 #include <Clients/SpriteRequestHandler.h>
+#include <Clients/TiledImport.h>
 #include <Clients/TilemapAutotile.h>
 #include <Clients/TilemapComponent.h>
+#include <Clients/TilemapLayers.h>
 #include <Clients/TilemapPaint.h>
 #include <Clients/TilemapSource.h>
 #include <Diorama/DioramaLightBus.h>
@@ -1631,5 +1633,128 @@ namespace Diorama
     TEST_F(TilemapSourceTest, MissingDimensions_AreRejected)
     {
         EXPECT_FALSE(Parse(R"({ "atlasColumns": 1, "atlasRows": 1, "tiles": [0] })"));
+    }
+
+    // ---- Tiled (.tmj) import ----
+
+    class TiledImportTest : public ::testing::Test
+    {
+    protected:
+        DioramaTilemapAsset m_asset;
+        AZStd::string m_error;
+
+        bool Parse(const char* json)
+        {
+            m_error.clear();
+            return TiledImport::Parse(json, m_asset, m_error);
+        }
+    };
+
+    TEST_F(TiledImportTest, OrthogonalMap_MapsGidsToCells)
+    {
+        // 2x2 map, one embedded tileset (firstgid 1, 2x2 atlas). Tiled GID 0 = empty;
+        // GID g maps to cell g - firstgid.
+        ASSERT_TRUE(Parse(R"({
+            "orientation": "orthogonal", "width": 2, "height": 2,
+            "tilewidth": 16, "tileheight": 16,
+            "tilesets": [ { "firstgid": 1, "columns": 2, "tilecount": 4, "image": "tiles.png" } ],
+            "layers": [ { "type": "tilelayer", "name": "ground", "data": [1, 2, 0, 4] } ]
+        })"))
+            << m_error.c_str();
+        EXPECT_EQ(m_asset.m_columns, 2);
+        EXPECT_EQ(m_asset.m_rows, 2);
+        EXPECT_EQ(m_asset.m_atlasColumns, 2);
+        EXPECT_EQ(m_asset.m_atlasRows, 2);
+        EXPECT_EQ(m_asset.m_atlasTexturePath, "tiles.png");
+        ASSERT_EQ(m_asset.m_layers.size(), 1u);
+        const auto& tiles = m_asset.m_layers[0].m_tiles;
+        ASSERT_EQ(tiles.size(), 4u);
+        EXPECT_EQ(tiles[0], 0); // gid 1 -> cell 0
+        EXPECT_EQ(tiles[1], 1); // gid 2 -> cell 1
+        EXPECT_EQ(tiles[2], -1); // gid 0 -> empty
+        EXPECT_EQ(tiles[3], 3); // gid 4 -> cell 3
+        EXPECT_TRUE(m_asset.IsValid());
+    }
+
+    TEST_F(TiledImportTest, FlipFlagsAreMaskedOff)
+    {
+        // GID 1 with the horizontal-flip bit (0x80000000) still resolves to cell 0.
+        const AZStd::string json = AZStd::string::format(
+            R"({ "width": 1, "height": 1, "tilesets": [ { "firstgid": 1, "columns": 1, "tilecount": 1, "image": "t.png" } ],
+                 "layers": [ { "type": "tilelayer", "data": [%u] } ] })",
+            0x80000001u);
+        ASSERT_TRUE(Parse(json.c_str())) << m_error.c_str();
+        EXPECT_EQ(m_asset.m_layers[0].m_tiles[0], 0);
+    }
+
+    TEST_F(TiledImportTest, MultipleTileLayers_BecomeMultipleLayers)
+    {
+        ASSERT_TRUE(Parse(R"({
+            "width": 1, "height": 1,
+            "tilesets": [ { "firstgid": 1, "columns": 2, "tilecount": 2, "image": "t.png" } ],
+            "layers": [
+                { "type": "tilelayer", "name": "a", "data": [1] },
+                { "type": "objectgroup", "name": "objs" },
+                { "type": "tilelayer", "name": "b", "data": [2] }
+            ]
+        })"))
+            << m_error.c_str();
+        // The object layer is skipped; two tile layers remain, sort offsets 0 and 1.
+        ASSERT_EQ(m_asset.m_layers.size(), 2u);
+        EXPECT_EQ(m_asset.m_layers[0].m_name, "a");
+        EXPECT_EQ(m_asset.m_layers[1].m_name, "b");
+        EXPECT_FLOAT_EQ(m_asset.m_layers[1].m_sortOffset, 1.0f);
+    }
+
+    TEST_F(TiledImportTest, NonOrthogonal_IsRejected)
+    {
+        EXPECT_FALSE(Parse(R"({ "orientation": "isometric", "width": 1, "height": 1,
+            "tilesets": [ { "firstgid": 1, "columns": 1, "tilecount": 1, "image": "t.png" } ],
+            "layers": [ { "type": "tilelayer", "data": [1] } ] })"));
+    }
+
+    TEST_F(TiledImportTest, ExternalTileset_IsRejected)
+    {
+        EXPECT_FALSE(Parse(R"({ "width": 1, "height": 1,
+            "tilesets": [ { "firstgid": 1, "source": "shared.tsx" } ],
+            "layers": [ { "type": "tilelayer", "data": [1] } ] })"));
+    }
+
+    TEST_F(TiledImportTest, DataLengthMismatch_IsRejected)
+    {
+        EXPECT_FALSE(Parse(R"({ "width": 2, "height": 2,
+            "tilesets": [ { "firstgid": 1, "columns": 1, "tilecount": 1, "image": "t.png" } ],
+            "layers": [ { "type": "tilelayer", "data": [1, 1] } ] })"));
+    }
+
+    // ---- Multi-layer config builder (drives one presenter per layer) ----
+
+    TEST(TilemapLayersTest, BuildLayerConfig_CopiesGridAndLayerData)
+    {
+        DioramaTilemapAsset asset;
+        asset.m_columns = 2;
+        asset.m_rows = 1;
+        asset.m_atlasColumns = 4;
+        asset.m_atlasRows = 1;
+        asset.m_tileWidth = 2.0f;
+        asset.m_tileHeight = 3.0f;
+        DioramaTilemapLayerData ground;
+        ground.m_tiles = { 0, 1 };
+        ground.m_sortOffset = 0.0f;
+        asset.m_layers.push_back(ground);
+        DioramaTilemapLayerData decor;
+        decor.m_tiles = { -1, 2 };
+        decor.m_sortOffset = 5.0f;
+        asset.m_layers.push_back(decor);
+
+        const TilemapComponentConfig layer1 = BuildTilemapLayerConfig(asset, 1);
+        EXPECT_EQ(layer1.m_columns, 2);
+        EXPECT_EQ(layer1.m_rows, 1);
+        EXPECT_EQ(layer1.m_atlasColumns, 4);
+        EXPECT_FLOAT_EQ(layer1.m_tileSize.GetX(), 2.0f);
+        EXPECT_FLOAT_EQ(layer1.m_tileSize.GetY(), 3.0f);
+        EXPECT_FLOAT_EQ(layer1.m_sortOffset, 5.0f);
+        ASSERT_EQ(layer1.m_tiles.size(), 2u);
+        EXPECT_EQ(layer1.m_tiles[1], 2);
     }
 } // namespace Diorama

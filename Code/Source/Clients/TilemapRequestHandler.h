@@ -37,6 +37,7 @@ namespace Diorama
 
         // DioramaTilemapRequests
         bool SetAtlasByPath(AZStd::string_view productPath) override;
+        bool SetTilemapByPath(AZStd::string_view productPath) override;
         void SetAtlasGrid(int columns, int rows) override;
         void SetGridSize(int columns, int rows) override;
         void SetTileSize(float width, float height) override;

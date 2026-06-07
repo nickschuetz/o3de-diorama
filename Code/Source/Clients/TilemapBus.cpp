@@ -28,7 +28,8 @@ namespace Diorama
                 ->Field("tileWidth", &TilemapInfo::m_tileWidth)
                 ->Field("tileHeight", &TilemapInfo::m_tileHeight)
                 ->Field("filledTileCount", &TilemapInfo::m_filledTileCount)
-                ->Field("sortOffset", &TilemapInfo::m_sortOffset);
+                ->Field("sortOffset", &TilemapInfo::m_sortOffset)
+                ->Field("hasSourceAsset", &TilemapInfo::m_hasSourceAsset);
         }
 
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
@@ -49,7 +50,8 @@ namespace Diorama
                 ->Property("tileWidth", BehaviorValueGetter(&TilemapInfo::m_tileWidth), nullptr)
                 ->Property("tileHeight", BehaviorValueGetter(&TilemapInfo::m_tileHeight), nullptr)
                 ->Property("filledTileCount", BehaviorValueGetter(&TilemapInfo::m_filledTileCount), nullptr)
-                ->Property("sortOffset", BehaviorValueGetter(&TilemapInfo::m_sortOffset), nullptr);
+                ->Property("sortOffset", BehaviorValueGetter(&TilemapInfo::m_sortOffset), nullptr)
+                ->Property("hasSourceAsset", BehaviorValueGetter(&TilemapInfo::m_hasSourceAsset), nullptr);
         }
     }
 
@@ -74,6 +76,12 @@ namespace Diorama
                 "SetAtlasByPath",
                 &DioramaTilemapRequestBus::Events::SetAtlasByPath,
                 { { { "productPath", "Atlas product path, e.g. 'diorama/textures/tiles.png'. Returns false if it does not resolve." } } })
+            ->Event(
+                "SetTilemapByPath",
+                &DioramaTilemapRequestBus::Events::SetTilemapByPath,
+                { { { "productPath",
+                      "Compiled tilemap asset product path, e.g. 'diorama/maps/level1.dtilemapc'. Loads the whole map (grid, "
+                      "atlas, layers) from the asset. Empty clears it (back to inline). Returns false if it does not resolve." } } })
             ->Event(
                 "SetAtlasGrid",
                 &DioramaTilemapRequestBus::Events::SetAtlasGrid,

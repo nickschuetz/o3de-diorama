@@ -86,21 +86,38 @@ namespace Diorama
             [this]()
             {
                 m_presenter.SetConfig(m_config);
+                // A verb may have assigned a different tilemap asset (SetTilemapByPath);
+                // load and apply it if the id changed.
+                RefreshTilemapAsset();
             });
 
         // Asset-reference mode: when a compiled tilemap asset is assigned, load it
         // and apply it on ready (over the inline config). With none, the inline
         // config the presenter already has is authoritative.
-        if (m_config.m_tilemapAsset.GetId().IsValid())
+        RefreshTilemapAsset();
+    }
+
+    void TilemapComponent::RefreshTilemapAsset()
+    {
+        const AZ::Data::AssetId id = m_config.m_tilemapAsset.GetId();
+        if (id == m_loadedTilemapAssetId)
+        {
+            return;
+        }
+        AZ::Data::AssetBus::Handler::BusDisconnect();
+        m_extraLayers.Clear();
+        m_loadedTilemapAssetId = id;
+        if (id.IsValid())
         {
             m_config.m_tilemapAsset.QueueLoad();
-            AZ::Data::AssetBus::Handler::BusConnect(m_config.m_tilemapAsset.GetId());
+            AZ::Data::AssetBus::Handler::BusConnect(id);
         }
     }
 
     void TilemapComponent::Deactivate()
     {
         AZ::Data::AssetBus::Handler::BusDisconnect();
+        m_extraLayers.Clear();
         m_requestHandler.Disconnect();
         m_presenter.Disconnect();
     }
@@ -129,8 +146,8 @@ namespace Diorama
         m_config.m_atlasRows = asset.m_atlasRows;
         m_config.m_tileSize = AZ::Vector2(asset.m_tileWidth, asset.m_tileHeight);
 
-        // Phase 1 renders the first layer; carrying the rest is the multi-layer
-        // rendering follow-up. IsValid() guarantees at least one layer exists.
+        // Layer 0 renders on this component's own presenter (so the request bus keeps
+        // editing it); IsValid() guarantees at least one layer exists.
         const DioramaTilemapLayerData& layer = asset.m_layers.front();
         m_config.m_tiles = layer.m_tiles;
         m_config.m_tint = layer.m_tint;
@@ -150,5 +167,8 @@ namespace Diorama
         }
 
         m_presenter.SetConfig(m_config);
+
+        // Render every layer beyond the first as additional batched layers.
+        m_extraLayers.Rebuild(GetEntityId(), asset);
     }
 } // namespace Diorama

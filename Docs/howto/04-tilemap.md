@@ -196,8 +196,25 @@ The source treats your map as untrusted: dimensions, layer count, tile-array
 length, and every tile index are bounded and the map is rejected if inconsistent,
 so a malformed file fails the build instead of feeding bad data to the renderer.
 
-> **Phase 1:** the component renders the first layer; multi-layer rendering and a
-> Tiled (`.tmj`) importer that emits the same asset are planned follow-ups.
+**Every layer renders.** A multi-layer asset draws all its layers, each as its own
+batched layer at its own sort offset (layer 0 is the one the request bus edits).
+
+### Import from Tiled
+
+If you author maps in [Tiled](https://www.mapeditor.org/), export them as JSON
+(`.tmj`) and the same builder imports them into the same `DioramaTilemapAsset`. It
+supports finite **orthogonal** maps with an **embedded** tileset and integer tile
+layers; Tiled GIDs map to atlas cells (`0` is empty), and flip/rotation flags are
+masked off for now. Object/image layers and external tilesets (`.tsx`/`.tsj`) are
+skipped. The world tile size defaults to 1.0 (Tiled's pixel sizes describe the
+atlas, not world units); set it on the component if you need a different scale.
+
+### Swapping the map from a script
+
+`DioramaTilemapRequestBus` has **`SetTilemapByPath`**: pass a `.dtilemapc` product
+path and the whole map (grid, atlas, layers) loads from the asset, so a script or
+agent can change levels at runtime. `GetTilemapInfo` reports `hasSourceAsset` so you
+can confirm an asset is driving the map.
 
 ## Next
 

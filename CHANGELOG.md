@@ -49,6 +49,16 @@ before 1.0.
   AssetBuilder) and load its frames/tags/atlas at runtime, so a native import is a
   drop-in animated sprite with no manual JSON step. The inline JSON-import path
   still works and is the fallback when no sheet asset is assigned.
+- Tilemap asset follow-ups on the dedicated tilemap asset + builder:
+  **multi-layer rendering** (every layer of a `DioramaTilemapAsset` now draws, each
+  as its own batched layer at its own sort offset, not just the first), **native
+  Tiled `.tmj` import** (the builder also compiles finite orthogonal Tiled maps into
+  the same product, mapping GIDs to atlas cells with flip bits masked; a from-scratch
+  parser, no third-party library), **editor preview from the asset** (the
+  EditorTilemapComponent loads and previews the referenced map, all layers, in the
+  viewport), and a **`SetTilemapByPath`** verb on `DioramaTilemapRequestBus` so a
+  script or agent can swap the whole map at runtime (`GetTilemapInfo` reports
+  `hasSourceAsset`). `TiledImport::Parse` is pure and unit-tested.
 - A first sample **cartoon solar-system diorama** showcase (`DioramaSolarSystem`),
   authored offline from procedural art (`scripts/gen_cartoon_*.py`,
   `scripts/gen_diorama_solar_level.py`): a layered 2.5D scene with a setting sun,

@@ -6,7 +6,9 @@
  */
 
 #include <Clients/TilemapComponent.h>
+#include <Clients/TilemapLayers.h>
 #include <Clients/TilemapPaint.h>
+#include <Diorama/DioramaTilemapAsset.h>
 #include <Tools/EditorTilemapComponent.h>
 #include <Tools/EditorTilemapPaintComponentMode.h>
 
@@ -121,15 +123,61 @@ namespace Diorama
         TilemapPaintEditorRequestBus::Handler::BusConnect(GetEntityId());
         m_componentModeDelegate.ConnectWithSingleComponentMode<EditorTilemapComponent, EditorTilemapPaintComponentMode>(
             AZ::EntityComponentIdPair(GetEntityId(), GetId()), nullptr);
+
+        // If a tilemap asset is referenced, preview it (all layers) over the inline
+        // config; otherwise the inline preview from Connect above stands.
+        RefreshTilemapAsset();
     }
 
     void EditorTilemapComponent::Deactivate()
     {
+        AZ::Data::AssetBus::Handler::BusDisconnect();
+        m_extraLayers.Clear();
         m_componentModeDelegate.Disconnect();
         TilemapPaintEditorRequestBus::Handler::BusDisconnect();
         m_requestHandler.Disconnect();
         m_presenter.Disconnect();
         AzToolsFramework::Components::EditorComponentBase::Deactivate();
+    }
+
+    void EditorTilemapComponent::RefreshTilemapAsset()
+    {
+        const AZ::Data::AssetId id = m_config.m_tilemapAsset.GetId();
+        if (id == m_previewAssetId)
+        {
+            return;
+        }
+        AZ::Data::AssetBus::Handler::BusDisconnect();
+        m_extraLayers.Clear();
+        m_previewAssetId = id;
+        if (id.IsValid())
+        {
+            m_config.m_tilemapAsset.QueueLoad();
+            AZ::Data::AssetBus::Handler::BusConnect(id);
+        }
+        else
+        {
+            // Asset cleared: fall back to the inline config for the preview.
+            m_presenter.SetConfig(m_config);
+        }
+    }
+
+    void EditorTilemapComponent::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
+    {
+        const auto* tilemap = asset.GetAs<DioramaTilemapAsset>();
+        if (tilemap == nullptr || !tilemap->IsValid())
+        {
+            return;
+        }
+        // Preview the asset without baking it into the persisted config: drive the
+        // preview with a transient layer-0 config and render the extra layers.
+        m_presenter.SetConfig(BuildTilemapLayerConfig(*tilemap, 0));
+        m_extraLayers.Rebuild(GetEntityId(), *tilemap);
+    }
+
+    void EditorTilemapComponent::OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset)
+    {
+        OnAssetReady(asset);
     }
 
     void EditorTilemapComponent::PersistConfig()
@@ -163,8 +211,14 @@ namespace Diorama
 
     AZ::u32 EditorTilemapComponent::OnConfigChanged()
     {
-        // Push the edited values to the live preview immediately.
-        m_presenter.SetConfig(m_config);
+        // With no asset assigned, the inline config drives the preview. With one
+        // assigned, the asset drives it, so do not clobber the preview with the
+        // (empty) inline config; RefreshTilemapAsset handles a changed/cleared asset.
+        if (!m_config.m_tilemapAsset.GetId().IsValid())
+        {
+            m_presenter.SetConfig(m_config);
+        }
+        RefreshTilemapAsset();
         return AZ::Edit::PropertyRefreshLevels::None;
     }
 

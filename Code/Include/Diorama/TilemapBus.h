@@ -42,6 +42,7 @@ namespace Diorama
         float m_tileHeight = 1.0f;
         int m_filledTileCount = 0; //!< Number of non-empty cells.
         float m_sortOffset = 0.0f;
+        bool m_hasSourceAsset = false; //!< True when a compiled tilemap asset drives this map.
     };
 
     //! Stable, typed, agent-facing API for driving a single tilemap, addressed by
@@ -57,6 +58,11 @@ namespace Diorama
         //! Assign the atlas texture by product path. Returns false if the path
         //! does not resolve to an asset.
         virtual bool SetAtlasByPath(AZStd::string_view productPath) = 0;
+        //! Reference a compiled tilemap asset by product path (a `.dtilemapc`), so
+        //! the whole map (grid, atlas, layers) loads from the asset instead of the
+        //! inline tiles. Empty clears it (back to inline). Returns false if the path
+        //! does not resolve to an asset.
+        virtual bool SetTilemapByPath(AZStd::string_view productPath) = 0;
         //! How the atlas is divided into tile cells; each value clamped to >= 1.
         virtual void SetAtlasGrid(int columns, int rows) = 0;
         //! Tilemap grid dimensions in cells; each value clamped to >= 1.

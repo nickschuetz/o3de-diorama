@@ -362,7 +362,7 @@ it before emitting a product, the security stance VISION calls for:
 | Source | Builder | Product asset | Runtime consumer |
 |---|---|---|---|
 | `.aseprite` / `.ase` | `DioramaAsepriteBuilder` | atlas image + `.dioramasheet` (`DioramaAsepriteSheetAsset`) | `DioramaAsepriteComponent` references it and plays it |
-| `.dtilemap` (JSON) | `DioramaTilemapBuilder` | `.dtilemapc` (`DioramaTilemapAsset`, multi-layer) | `TilemapComponent` references it via its **Tilemap Asset** field |
+| `.dtilemap` (JSON) or Tiled `.tmj` | `DioramaTilemapBuilder` | `.dtilemapc` (`DioramaTilemapAsset`, multi-layer) | `TilemapComponent` references it via its **Tilemap Asset** field or `SetTilemapByPath`; every layer renders |
 
 The product assets are loaded at runtime by `AzFramework::GenericAssetHandler`
 instances the `DioramaSystemComponent` registers, so they stream like any other

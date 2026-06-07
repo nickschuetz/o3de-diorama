@@ -7,6 +7,7 @@
 
 #include <Builders/DioramaTilemapBuilder.h>
 
+#include <Clients/TiledImport.h>
 #include <Clients/TilemapSource.h>
 #include <Diorama/DioramaTilemapAsset.h>
 
@@ -33,8 +34,9 @@ namespace Diorama
         AssetBuilderSDK::AssetBuilderDesc descriptor;
         descriptor.m_name = "Diorama Tilemap Builder";
         descriptor.m_busId = AZ::Uuid::CreateString(BusIdString);
-        descriptor.m_version = 1;
+        descriptor.m_version = 2; // 2: also import Tiled .tmj
         descriptor.m_patterns.emplace_back("*.dtilemap", AssetBuilderSDK::AssetBuilderPattern::Wildcard);
+        descriptor.m_patterns.emplace_back("*.tmj", AssetBuilderSDK::AssetBuilderPattern::Wildcard);
         descriptor.m_createJobFunction =
             [this](const AssetBuilderSDK::CreateJobsRequest& request, AssetBuilderSDK::CreateJobsResponse& response)
         {
@@ -85,16 +87,20 @@ namespace Diorama
             return;
         }
 
+        AZ::IO::Path sourcePath(request.m_fullPath);
+        const AZStd::string extension = sourcePath.Extension().Native(); // includes the dot, e.g. ".tmj"
+
         DioramaTilemapAsset asset;
         AZStd::string parseError;
-        if (!TilemapSource::Parse(fileResult.GetValue(), asset, parseError))
+        const bool parsed = (extension == ".tmj") ? TiledImport::Parse(fileResult.GetValue(), asset, parseError)
+                                                  : TilemapSource::Parse(fileResult.GetValue(), asset, parseError);
+        if (!parsed)
         {
             AZ_Error("DioramaTilemapBuilder", false, "%s: %s", request.m_fullPath.c_str(), parseError.c_str());
             response.m_resultCode = AssetBuilderSDK::ProcessJobResult_Failed;
             return;
         }
 
-        AZ::IO::Path sourcePath(request.m_fullPath);
         const AZStd::string baseName = sourcePath.Stem().Native();
         const AZStd::string productFile = AZStd::string::format("%s/%s.dtilemapc", request.m_tempDirPath.c_str(), baseName.c_str());
         // Binary ObjectStream: the product loads with a copy, not a re-parse of the
