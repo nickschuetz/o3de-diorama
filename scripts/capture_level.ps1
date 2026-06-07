@@ -108,14 +108,24 @@ if (Test-Path $ApBatch) {
 New-Item -ItemType Directory -Force -Path (Split-Path $GameLog) | Out-Null
 Set-Content -Path $GameLog -Value '' -ErrorAction SilentlyContinue
 
-$launchArgs = @("--project-path=$Proj", "--rhi=$Rhi", '--r_fullscreen=0', "--r_width=$W", "--r_height=$H")
+# --connect_to_assetprocessor=0 runs the launcher straight from the cache that the
+# AssetProcessorBatch step above just built, so it does NOT try to start its own
+# Asset Processor (which collides on port 45643 with any AP already running and
+# leaves the launcher stuck on the splash). The level is already baked, so no live
+# AP is needed for capture.
+$launchArgs = @(
+    "--project-path=$Proj", "--rhi=$Rhi", '--r_fullscreen=0', "--r_width=$W", "--r_height=$H",
+    '--connect_to_assetprocessor=0'
+)
 $proc = Start-Process -FilePath $Launcher -ArgumentList $launchArgs -PassThru
 
-# Wait (up to ~3 min) for "<Level> loaded" in Game.log, bailing if the launcher dies.
+# Wait (up to ~60s; off-cache load is fast) for the level to load, bailing if the
+# launcher dies. Match the level name next to "load" in either order, since the log
+# wording varies; if not seen we still capture after the settle below.
 $loaded = $false
-for ($i = 0; $i -lt 60; $i++) {
+for ($i = 0; $i -lt 20; $i++) {
     if ($proc.HasExited) { Write-Host 'launcher exited before level load'; break }
-    if ((Test-Path $GameLog) -and (Select-String -Path $GameLog -Pattern "$Level.*loaded" -Quiet -ErrorAction SilentlyContinue)) {
+    if ((Test-Path $GameLog) -and (Select-String -Path $GameLog -Pattern "(?i)(load.*$Level|$Level.*load)" -Quiet -ErrorAction SilentlyContinue)) {
         $loaded = $true; break
     }
     Start-Sleep -Seconds 3
