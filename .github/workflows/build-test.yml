@@ -47,10 +47,11 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Show environment
+        # Print only whether the config is present, not the paths/host, so public
+        # logs on this public repo do not advertise local environment details.
         run: |
-          echo "engine : ${O3DE_ENGINE_PATH:-<unset>}"
-          echo "project: ${DIORAMA_PROJECT:-<unset>}"
-          echo "runner : $(uname -a)"
+          echo "engine : $([ -n "${O3DE_ENGINE_PATH}" ] && echo set || echo '<unset>')"
+          echo "project: $([ -n "${DIORAMA_PROJECT}" ] && echo set || echo '<unset>')"
 
       - name: Build and test
         # O3DE_ENGINE_PATH and DIORAMA_PROJECT are provided by the self-hosted
@@ -77,11 +78,12 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Show environment
+        # Print only whether the config is present, not the paths/host, so public
+        # logs on this public repo do not advertise local environment details.
         shell: pwsh
         run: |
-          Write-Host "engine : $($env:O3DE_ENGINE_PATH ?? '<unset>')"
-          Write-Host "project: $($env:DIORAMA_PROJECT ?? '<unset>')"
-          Write-Host "runner : $([System.Environment]::OSVersion.VersionString)"
+          Write-Host "engine : $(if ($env:O3DE_ENGINE_PATH) {'set'} else {'<unset>'})"
+          Write-Host "project: $(if ($env:DIORAMA_PROJECT) {'set'} else {'<unset>'})"
 
       - name: Build and test
         # Variables can be Windows-specific (e.g. an O3DE_ENGINE_PATH_WINDOWS)
