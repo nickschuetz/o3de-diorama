@@ -15,9 +15,10 @@ namespace Diorama::TiledImport
 {
     namespace
     {
-        //! Tiled stores flip/rotation in the top 3 GID bits; the cell index is the
-        //! remaining 29 bits.
-        constexpr AZ::u32 GidFlagMask = 0x1FFFFFFFu;
+        // Tiled stores flip/rotation in the top GID bits; the cell index is the rest.
+        constexpr AZ::u32 TiledFlipHorizontal = 0x80000000u;
+        constexpr AZ::u32 TiledFlipVertical = 0x40000000u;
+        constexpr AZ::u32 TiledGidIndexMask = 0x1FFFFFFFu; // strips H, V, and diagonal bits
 
         bool ReadInt(const rapidjson::Value& obj, const char* key, int& out)
         {
@@ -29,9 +30,32 @@ namespace Diorama::TiledImport
             out = it->value.GetInt();
             return true;
         }
+
+        //! Read the atlas grid (columns x rows) and image from a tileset object,
+        //! whether embedded in the map or loaded from an external .tsj. The tileset's
+        //! own `columns` and `tilecount` describe the atlas; the image is the atlas
+        //! texture. Returns false (with a reason) if `columns` is missing/invalid.
+        bool ReadTilesetFields(const rapidjson::Value& tileset, DioramaTilemapAsset& outAsset, AZStd::string& outError)
+        {
+            if (!tileset.IsObject() || !ReadInt(tileset, "columns", outAsset.m_atlasColumns) || outAsset.m_atlasColumns < 1)
+            {
+                outError = "tileset is missing a positive 'columns'";
+                return false;
+            }
+            int tileCount = 0;
+            outAsset.m_atlasRows = (ReadInt(tileset, "tilecount", tileCount) && tileCount > 0)
+                ? (tileCount + outAsset.m_atlasColumns - 1) / outAsset.m_atlasColumns
+                : 1;
+            auto imageIt = tileset.FindMember("image");
+            if (imageIt != tileset.MemberEnd() && imageIt->value.IsString())
+            {
+                outAsset.m_atlasTexturePath.assign(imageIt->value.GetString(), imageIt->value.GetStringLength());
+            }
+            return true;
+        }
     } // namespace
 
-    bool Parse(AZStd::string_view json, DioramaTilemapAsset& outAsset, AZStd::string& outError)
+    bool Parse(AZStd::string_view json, DioramaTilemapAsset& outAsset, AZStd::string& outError, const ExternalTilesetResolver& resolver)
     {
         rapidjson::Document doc;
         doc.Parse(json.data(), json.size());
@@ -64,7 +88,8 @@ namespace Diorama::TiledImport
         outAsset.m_tileWidth = 1.0f;
         outAsset.m_tileHeight = 1.0f;
 
-        // First tileset only: read firstgid, the atlas grid (columns x rows), and image.
+        // First tileset only. It may be embedded (full fields) or external (just
+        // {firstgid, source} pointing at a .tsj resolved through the callback).
         auto tilesetsIt = doc.FindMember("tilesets");
         if (tilesetsIt == doc.MemberEnd() || !tilesetsIt->value.IsArray() || tilesetsIt->value.Empty())
         {
@@ -72,32 +97,39 @@ namespace Diorama::TiledImport
             return false;
         }
         const rapidjson::Value& tileset = tilesetsIt->value[0];
-        if (!tileset.IsObject() || tileset.HasMember("source"))
-        {
-            // An external tileset reference (.tsx/.tsj) has only {firstgid, source}.
-            outError = "external tilesets (.tsx/.tsj) are not supported yet; embed the tileset in the map";
-            return false;
-        }
         int firstGid = 1;
         ReadInt(tileset, "firstgid", firstGid);
-        if (!ReadInt(tileset, "columns", outAsset.m_atlasColumns) || outAsset.m_atlasColumns < 1)
+
+        auto sourceIt = tileset.IsObject() ? tileset.FindMember("source") : tileset.MemberEnd();
+        rapidjson::Document externalDoc; // kept alive while its fields are read
+        if (sourceIt != tileset.MemberEnd() && sourceIt->value.IsString())
         {
-            outError = "tileset is missing a positive 'columns'";
+            const AZStd::string_view source(sourceIt->value.GetString(), sourceIt->value.GetStringLength());
+            if (source.ends_with(".tsx"))
+            {
+                outError = "XML external tilesets (.tsx) are not supported; export the tileset as .tsj";
+                return false;
+            }
+            AZStd::string tilesetJson;
+            if (!resolver || !resolver(source, tilesetJson))
+            {
+                outError = "could not resolve external tileset; embed it or provide a .tsj next to the map";
+                return false;
+            }
+            externalDoc.Parse(tilesetJson.data(), tilesetJson.size());
+            if (externalDoc.HasParseError() || !externalDoc.IsObject())
+            {
+                outError = "external tileset is not a valid JSON object";
+                return false;
+            }
+            if (!ReadTilesetFields(externalDoc, outAsset, outError))
+            {
+                return false;
+            }
+        }
+        else if (!ReadTilesetFields(tileset, outAsset, outError))
+        {
             return false;
-        }
-        int tileCount = 0;
-        if (ReadInt(tileset, "tilecount", tileCount) && tileCount > 0)
-        {
-            outAsset.m_atlasRows = (tileCount + outAsset.m_atlasColumns - 1) / outAsset.m_atlasColumns;
-        }
-        else
-        {
-            outAsset.m_atlasRows = 1;
-        }
-        auto imageIt = tileset.FindMember("image");
-        if (imageIt != tileset.MemberEnd() && imageIt->value.IsString())
-        {
-            outAsset.m_atlasTexturePath.assign(imageIt->value.GetString(), imageIt->value.GetStringLength());
         }
 
         const AZ::s64 expectedCells = static_cast<AZ::s64>(outAsset.m_columns) * outAsset.m_rows;
@@ -157,13 +189,26 @@ namespace Diorama::TiledImport
                     outError = "a layer's 'data' contains a non-integer entry";
                     return false;
                 }
-                const AZ::u32 gid = data[c].GetUint() & GidFlagMask;
-                // GID 0 is empty; otherwise it indexes the tileset from firstgid.
+                const AZ::u32 rawGid = data[c].GetUint();
+                const AZ::u32 gid = rawGid & TiledGidIndexMask; // cell part, flags removed
                 AZ::s32 cell = TilemapComponentConfig::EmptyTile;
                 if (gid != 0)
                 {
                     const AZ::s32 candidate = static_cast<AZ::s32>(gid) - firstGid;
-                    cell = (candidate >= 0 && candidate < atlasCells) ? candidate : TilemapComponentConfig::EmptyTile;
+                    if (candidate >= 0 && candidate < atlasCells)
+                    {
+                        cell = candidate;
+                        // Carry horizontal/vertical mirroring; the diagonal flag is a
+                        // rotation the sprite path cannot express yet, so it is dropped.
+                        if (rawGid & TiledFlipHorizontal)
+                        {
+                            cell |= TilemapTile::FlipHorizontal;
+                        }
+                        if (rawGid & TiledFlipVertical)
+                        {
+                            cell |= TilemapTile::FlipVertical;
+                        }
+                    }
                 }
                 layer.m_tiles.push_back(cell);
             }

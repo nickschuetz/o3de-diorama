@@ -1676,15 +1676,44 @@ namespace Diorama
         EXPECT_TRUE(m_asset.IsValid());
     }
 
-    TEST_F(TiledImportTest, FlipFlagsAreMaskedOff)
+    TEST_F(TiledImportTest, FlipFlagsAreApplied)
     {
-        // GID 1 with the horizontal-flip bit (0x80000000) still resolves to cell 0.
+        // GID 1 with the horizontal-flip bit (0x80000000) resolves to cell 0 with the
+        // packed horizontal flip preserved (and no vertical flip).
         const AZStd::string json = AZStd::string::format(
             R"({ "width": 1, "height": 1, "tilesets": [ { "firstgid": 1, "columns": 1, "tilecount": 1, "image": "t.png" } ],
                  "layers": [ { "type": "tilelayer", "data": [%u] } ] })",
             0x80000001u);
         ASSERT_TRUE(Parse(json.c_str())) << m_error.c_str();
-        EXPECT_EQ(m_asset.m_layers[0].m_tiles[0], 0);
+        const AZ::s32 tile = m_asset.m_layers[0].m_tiles[0];
+        EXPECT_EQ(TilemapTile::CellIndex(tile), 0);
+        EXPECT_TRUE(TilemapTile::FlipH(tile));
+        EXPECT_FALSE(TilemapTile::FlipV(tile));
+        EXPECT_TRUE(m_asset.IsValid()); // flip bits are accepted by validation
+    }
+
+    TEST_F(TiledImportTest, ExternalTileset_ResolvedViaCallback)
+    {
+        // A {firstgid, source} tileset is fetched through the resolver (the builder
+        // reads the .tsj from disk; here a stub returns it).
+        const char* map = R"({ "width": 1, "height": 1,
+            "tilesets": [ { "firstgid": 1, "source": "shared.tsj" } ],
+            "layers": [ { "type": "tilelayer", "data": [2] } ] })";
+        const auto resolver = [](AZStd::string_view source, AZStd::string& outJson) -> bool
+        {
+            if (source != "shared.tsj")
+            {
+                return false;
+            }
+            outJson = R"({ "columns": 2, "tilecount": 4, "image": "shared.png" })";
+            return true;
+        };
+        m_error.clear();
+        ASSERT_TRUE(TiledImport::Parse(map, m_asset, m_error, resolver)) << m_error.c_str();
+        EXPECT_EQ(m_asset.m_atlasColumns, 2);
+        EXPECT_EQ(m_asset.m_atlasRows, 2);
+        EXPECT_EQ(m_asset.m_atlasTexturePath, "shared.png");
+        EXPECT_EQ(m_asset.m_layers[0].m_tiles[0], 1); // gid 2 -> cell 1
     }
 
     TEST_F(TiledImportTest, MultipleTileLayers_BecomeMultipleLayers)

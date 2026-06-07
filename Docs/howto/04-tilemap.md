@@ -203,11 +203,14 @@ batched layer at its own sort offset (layer 0 is the one the request bus edits).
 
 If you author maps in [Tiled](https://www.mapeditor.org/), export them as JSON
 (`.tmj`) and the same builder imports them into the same `DioramaTilemapAsset`. It
-supports finite **orthogonal** maps with an **embedded** tileset and integer tile
-layers; Tiled GIDs map to atlas cells (`0` is empty), and flip/rotation flags are
-masked off for now. Object/image layers and external tilesets (`.tsx`/`.tsj`) are
-skipped. The world tile size defaults to 1.0 (Tiled's pixel sizes describe the
-atlas, not world units); set it on the component if you need a different scale.
+supports finite **orthogonal** maps with integer tile layers; Tiled GIDs map to
+atlas cells (`0` is empty), and **horizontal/vertical flip** flags are carried
+through (the diagonal/rotation flag is dropped for now, as it needs a 90-degree
+sprite rotation). The tileset may be **embedded** in the map or an **external
+`.tsj`** referenced by `source` (resolved relative to the map; `.tsx` XML tilesets
+are not supported, export as `.tsj`). Object/image layers are skipped. The world
+tile size defaults to 1.0 (Tiled's pixel sizes describe the atlas, not world
+units); set it on the component if you need a different scale.
 
 ### Swapping the map from a script
 

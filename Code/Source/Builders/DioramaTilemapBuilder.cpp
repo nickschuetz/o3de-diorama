@@ -92,8 +92,28 @@ namespace Diorama
 
         DioramaTilemapAsset asset;
         AZStd::string parseError;
-        const bool parsed = (extension == ".tmj") ? TiledImport::Parse(fileResult.GetValue(), asset, parseError)
-                                                  : TilemapSource::Parse(fileResult.GetValue(), asset, parseError);
+        bool parsed = false;
+        if (extension == ".tmj")
+        {
+            // Resolve an external tileset (.tsj) relative to the map file on disk.
+            const AZ::IO::Path mapDir = sourcePath.ParentPath();
+            const auto resolver = [&mapDir](AZStd::string_view source, AZStd::string& outJson) -> bool
+            {
+                const AZ::IO::Path tilesetPath = mapDir / AZ::IO::Path(source);
+                const auto read = AZ::Utils::ReadFile<AZStd::string>(tilesetPath.c_str());
+                if (!read.IsSuccess())
+                {
+                    return false;
+                }
+                outJson = read.GetValue();
+                return true;
+            };
+            parsed = TiledImport::Parse(fileResult.GetValue(), asset, parseError, resolver);
+        }
+        else
+        {
+            parsed = TilemapSource::Parse(fileResult.GetValue(), asset, parseError);
+        }
         if (!parsed)
         {
             AZ_Error("DioramaTilemapBuilder", false, "%s: %s", request.m_fullPath.c_str(), parseError.c_str());

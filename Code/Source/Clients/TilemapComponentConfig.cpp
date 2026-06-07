@@ -122,14 +122,21 @@ namespace Diorama
         const int atlasRows = GetAtlasRows();
         const int cellCount = atlasColumns * atlasRows;
 
+        // A negative index (e.g. EmptyTile) clamps to the first cell; a real tile has
+        // its packed flip flags stripped (only the cell index selects the UV sub-rect,
+        // the flips are applied by the sprite) and is clamped to the atlas.
         AZ::s32 clamped = tileIndex;
         if (clamped < 0)
         {
             clamped = 0;
         }
-        else if (clamped >= cellCount)
+        else
         {
-            clamped = cellCount - 1;
+            clamped &= TilemapTile::IndexMask;
+            if (clamped >= cellCount)
+            {
+                clamped = cellCount - 1;
+            }
         }
 
         const int cellColumn = clamped % atlasColumns;

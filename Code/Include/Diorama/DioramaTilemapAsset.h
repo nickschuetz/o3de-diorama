@@ -32,6 +32,37 @@ namespace Diorama
         static constexpr AZ::s64 MaxCells = static_cast<AZ::s64>(MaxDimension) * MaxDimension;
     } // namespace TilemapAssetLimits
 
+    //! Per-tile orientation flags packed into the high bits of a tile value, so a
+    //! cell can carry "atlas cell N, mirrored" without a parallel array. The low bits
+    //! are the atlas cell index; -1 (EmptyTile) stays the empty sentinel. Tiled GIDs
+    //! use the same idea; this is the gem's own bit layout. Diagonal/rotation is not
+    //! represented yet (it needs a 90-degree UV rotation the sprite path lacks).
+    namespace TilemapTile
+    {
+        static constexpr AZ::s32 FlipHorizontal = 0x40000000; //!< bit 30
+        static constexpr AZ::s32 FlipVertical = 0x20000000; //!< bit 29
+        static constexpr AZ::s32 IndexMask = 0x1FFFFFFF; //!< low 29 bits = atlas cell index
+
+        //! True for the empty sentinel (-1). Check before decoding flags or the index.
+        inline bool IsEmpty(AZ::s32 tile)
+        {
+            return tile < 0;
+        }
+        //! Atlas cell index with flip flags stripped (valid only when not empty).
+        inline AZ::s32 CellIndex(AZ::s32 tile)
+        {
+            return tile & IndexMask;
+        }
+        inline bool FlipH(AZ::s32 tile)
+        {
+            return (tile & FlipHorizontal) != 0;
+        }
+        inline bool FlipV(AZ::s32 tile)
+        {
+            return (tile & FlipVertical) != 0;
+        }
+    } // namespace TilemapTile
+
     //! One layer of a tilemap: a row-major grid of atlas cell indices (length
     //! columns * rows on the owning asset), plus its own draw-order bias and tint.
     //! Multiple layers let a single asset carry background / main / foreground in

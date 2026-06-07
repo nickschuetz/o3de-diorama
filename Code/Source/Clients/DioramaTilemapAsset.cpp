@@ -69,9 +69,16 @@ namespace Diorama
             }
             for (const AZ::s32 tile : layer.m_tiles)
             {
-                // -1 is EmptyTile (draws nothing); any other value must index a real
-                // atlas cell. An out-of-range index would sample garbage UVs.
-                if (tile < -1 || tile >= atlasCells)
+                // -1 is EmptyTile (draws nothing). Otherwise the low bits index a real
+                // atlas cell (the high bits may carry flip flags); an out-of-range
+                // index would sample garbage UVs, and no bit outside the index +
+                // flip masks may be set.
+                if (TilemapTile::IsEmpty(tile))
+                {
+                    continue;
+                }
+                const AZ::s32 allowed = TilemapTile::IndexMask | TilemapTile::FlipHorizontal | TilemapTile::FlipVertical;
+                if ((tile & ~allowed) != 0 || TilemapTile::CellIndex(tile) >= atlasCells)
                 {
                     return false;
                 }

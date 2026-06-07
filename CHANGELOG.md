@@ -53,8 +53,9 @@ before 1.0.
   **multi-layer rendering** (every layer of a `DioramaTilemapAsset` now draws, each
   as its own batched layer at its own sort offset, not just the first), **native
   Tiled `.tmj` import** (the builder also compiles finite orthogonal Tiled maps into
-  the same product, mapping GIDs to atlas cells with flip bits masked; a from-scratch
-  parser, no third-party library), **editor preview from the asset** (the
+  the same product, mapping GIDs to atlas cells, carrying horizontal/vertical tile
+  flips, and resolving embedded or external `.tsj` tilesets; a from-scratch parser,
+  no third-party library), **editor preview from the asset** (the
   EditorTilemapComponent loads and previews the referenced map, all layers, in the
   viewport), and a **`SetTilemapByPath`** verb on `DioramaTilemapRequestBus` so a
   script or agent can swap the whole map at runtime (`GetTilemapInfo` reports
