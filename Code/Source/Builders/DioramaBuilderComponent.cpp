@@ -39,6 +39,7 @@ namespace Diorama
     void DioramaBuilderComponent::Activate()
     {
         m_asepriteBuilder.RegisterBuilder();
+        m_tilemapBuilder.RegisterBuilder();
     }
 
     void DioramaBuilderComponent::Deactivate()

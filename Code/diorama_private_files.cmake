@@ -71,6 +71,9 @@ set(FILES
     Source/Clients/TilemapComponent.cpp
     Source/Clients/TilemapComponent.h
     Source/Clients/TilemapComponentConfig.cpp
+    Source/Clients/DioramaTilemapAsset.cpp
+    Source/Clients/TilemapSource.cpp
+    Source/Clients/TilemapSource.h
     Source/Clients/TilemapBus.cpp
     Source/Clients/TilemapRequestHandler.cpp
     Source/Clients/TilemapRequestHandler.h

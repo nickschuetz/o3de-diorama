@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Dedicated tilemap asset + builder.** A tilemap can now be authored as a
+  `.dtilemap` JSON source that the new `DioramaTilemapBuilder` compiles into a
+  validated, compact `DioramaTilemapAsset` product (`.dtilemapc`); a Tilemap
+  component references it (the **Tilemap Asset** Inspector field) instead of
+  inlining a large tile array into the prefab, so the level stays small and the map
+  loads without re-parsing. The builder treats the source as untrusted input,
+  bounding dimensions, layer count, tile-array length, and tile indices
+  (`TilemapAssetLimits`) and rejecting inconsistent maps, fulfilling the VISION
+  security criterion for asset-sourced tilemap data. The asset is multi-layer from
+  the start (Phase 1 renders the first layer; multi-layer rendering and a Tiled
+  `.tmj` importer emitting the same product are planned follow-ups). The JSON
+  parser (`TilemapSource::Parse`) is a pure, unit-tested core. The source format is
+  Diorama's own open JSON, so it carries no third-party license obligation. See
+  [Docs/howto/04-tilemap.md](Docs/howto/04-tilemap.md).
 - Sprite **Point Filter (pixel art)** option: a per-sprite toggle for
   nearest-neighbor texture filtering so low-resolution pixel art stays crisp
   instead of being bilinearly blurred. Reachable from the Inspector and the

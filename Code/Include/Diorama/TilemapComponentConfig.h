@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <Diorama/DioramaTilemapAsset.h>
 #include <Diorama/DioramaTypeIds.h>
 
 #include <AzCore/Asset/AssetCommon.h>
@@ -45,6 +46,13 @@ namespace Diorama
 
         //! Empty-tile sentinel: a cell with this value draws nothing.
         static constexpr AZ::s32 EmptyTile = -1;
+
+        //! Optional dedicated tilemap asset (a .dtilemapc product compiled from a
+        //! .dtilemap source by the tilemap builder). When set, the component loads it
+        //! and applies its grid, atlas, and first layer, so a large map is referenced
+        //! rather than inlined into the prefab. When unset, the inline fields below
+        //! (atlas, dimensions, m_tiles) are authoritative.
+        AZ::Data::Asset<DioramaTilemapAsset> m_tilemapAsset{ AZ::Data::AssetLoadBehavior::PreLoad };
 
         //! Atlas texture sampled per tile. NoLoad keeps the reference cheap until
         //! the component activates and explicitly requests the load.

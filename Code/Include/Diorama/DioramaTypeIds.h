@@ -42,6 +42,10 @@ namespace Diorama
     inline constexpr const char* DioramaTilemapRequestsTypeId = "{7FA050C4-146C-4837-802B-CE3187BA6B3A}";
     inline constexpr const char* TilemapInfoTypeId = "{B966AD30-B56F-4F1B-B25D-3DB243F1B16C}";
 
+    // Dedicated tilemap asset + builder (.dioramatilemap source -> product asset)
+    inline constexpr const char* DioramaTilemapAssetTypeId = "{1C7E2D90-4A6B-4C8D-9E0F-1A2B3C4D5E60}";
+    inline constexpr const char* DioramaTilemapLayerDataTypeId = "{2D8F3EA1-5B7C-4D9E-8F10-2B3C4D5E6F71}";
+
     // 2D collision TypeIds (gem-native colliders + contact/trigger + queries)
     inline constexpr const char* Collider2DConfigTypeId = "{C10840E6-93A2-4243-BF5B-A4DB135AB7EA}";
     inline constexpr const char* Collider2DComponentTypeId = "{A9037410-345D-43AC-80BE-E3FCD4EE5CDF}";

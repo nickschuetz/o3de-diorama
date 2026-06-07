@@ -37,6 +37,7 @@
 #include <Clients/TilemapAutotile.h>
 #include <Clients/TilemapComponent.h>
 #include <Clients/TilemapPaint.h>
+#include <Clients/TilemapSource.h>
 #include <Diorama/DioramaLightBus.h>
 #include <Diorama/DioramaLightConfig.h>
 #include <Diorama/SpriteBus.h>
@@ -1537,5 +1538,98 @@ namespace Diorama
         EXPECT_EQ(atlas.m_rgba[1], 0); // (0,0) G
         EXPECT_EQ(atlas.m_rgba[4 + 0], 0); // (1,0) R
         EXPECT_EQ(atlas.m_rgba[4 + 1], 255); // (1,0) G
+    }
+
+    // ---- Dedicated tilemap asset: source parsing + untrusted-input validation ----
+
+    class TilemapSourceTest : public ::testing::Test
+    {
+    protected:
+        DioramaTilemapAsset m_asset;
+        AZStd::string m_error;
+
+        // A fresh fixture (and m_asset) is constructed per TEST_F, so no reset is
+        // needed; DioramaTilemapAsset derives from the non-copyable AssetData and
+        // cannot be reassigned anyway.
+        bool Parse(const char* json)
+        {
+            m_error.clear();
+            return TilemapSource::Parse(json, m_asset, m_error);
+        }
+    };
+
+    TEST_F(TilemapSourceTest, ShorthandTiles_ParsesAsSingleLayer)
+    {
+        // A top-level "tiles" array is shorthand for one layer named "main".
+        ASSERT_TRUE(Parse(R"({ "columns": 2, "rows": 2, "atlasColumns": 2, "atlasRows": 2,
+            "atlas": "diorama/textures/tileset.png", "tiles": [0, 1, 2, -1] })"))
+            << m_error.c_str();
+        EXPECT_EQ(m_asset.m_columns, 2);
+        EXPECT_EQ(m_asset.m_rows, 2);
+        EXPECT_EQ(m_asset.m_atlasTexturePath, "diorama/textures/tileset.png");
+        ASSERT_EQ(m_asset.m_layers.size(), 1u);
+        EXPECT_EQ(m_asset.m_layers[0].m_name, "main");
+        ASSERT_EQ(m_asset.m_layers[0].m_tiles.size(), 4u);
+        EXPECT_EQ(m_asset.m_layers[0].m_tiles[3], -1); // EmptyTile preserved
+        EXPECT_TRUE(m_asset.IsValid());
+    }
+
+    TEST_F(TilemapSourceTest, MultipleLayers_ParseInOrder)
+    {
+        ASSERT_TRUE(Parse(R"({ "columns": 1, "rows": 2, "atlasColumns": 4, "atlasRows": 1,
+            "layers": [
+                { "name": "ground", "sortOffset": 0.0, "tiles": [0, 1] },
+                { "name": "decor", "sortOffset": 1.0, "tiles": [2, -1] }
+            ] })"))
+            << m_error.c_str();
+        ASSERT_EQ(m_asset.m_layers.size(), 2u);
+        EXPECT_EQ(m_asset.m_layers[0].m_name, "ground");
+        EXPECT_EQ(m_asset.m_layers[1].m_name, "decor");
+        EXPECT_FLOAT_EQ(m_asset.m_layers[1].m_sortOffset, 1.0f);
+        EXPECT_TRUE(m_asset.IsValid());
+    }
+
+    TEST_F(TilemapSourceTest, TileCountMismatch_IsRejected)
+    {
+        // 3 tiles for a 2x2 grid (expected 4) must fail, not silently pad.
+        EXPECT_FALSE(Parse(R"({ "columns": 2, "rows": 2, "atlasColumns": 1, "atlasRows": 1, "tiles": [0, 0, 0] })"));
+        EXPECT_FALSE(m_error.empty());
+    }
+
+    TEST_F(TilemapSourceTest, TileIndexOutOfAtlasRange_IsRejected)
+    {
+        // atlas has 1 cell (indices 0 or -1); index 5 is out of range.
+        EXPECT_FALSE(Parse(R"({ "columns": 2, "rows": 1, "atlasColumns": 1, "atlasRows": 1, "tiles": [0, 5] })"));
+    }
+
+    TEST_F(TilemapSourceTest, OversizeDimensions_AreRejected)
+    {
+        // columns beyond the bound must be refused before sizing any buffer.
+        const int tooBig = TilemapAssetLimits::MaxDimension + 1;
+        const AZStd::string json =
+            AZStd::string::format(R"({ "columns": %d, "rows": 1, "atlasColumns": 1, "atlasRows": 1, "tiles": [] })", tooBig);
+        EXPECT_FALSE(Parse(json.c_str()));
+    }
+
+    TEST_F(TilemapSourceTest, TooManyLayers_AreRejected)
+    {
+        AZStd::string json = R"({ "columns": 1, "rows": 1, "atlasColumns": 1, "atlasRows": 1, "layers": [)";
+        for (int i = 0; i < TilemapAssetLimits::MaxLayers + 1; ++i)
+        {
+            json += (i == 0 ? R"({"tiles":[0]})" : R"(,{"tiles":[0]})");
+        }
+        json += "] }";
+        EXPECT_FALSE(Parse(json.c_str()));
+    }
+
+    TEST_F(TilemapSourceTest, MalformedJson_IsRejected)
+    {
+        EXPECT_FALSE(Parse("{ not valid json"));
+        EXPECT_FALSE(m_error.empty());
+    }
+
+    TEST_F(TilemapSourceTest, MissingDimensions_AreRejected)
+    {
+        EXPECT_FALSE(Parse(R"({ "atlasColumns": 1, "atlasRows": 1, "tiles": [0] })"));
     }
 } // namespace Diorama

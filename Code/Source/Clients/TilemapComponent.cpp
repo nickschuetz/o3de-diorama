@@ -5,8 +5,11 @@
  * SPDX-License-Identifier: Apache-2.0 OR MIT
  */
 
+#include <Clients/DioramaAssetUtils.h>
 #include <Clients/TilemapComponent.h>
 #include <Diorama/TilemapBus.h>
+
+#include <Atom/RPI.Reflect/Image/StreamingImageAsset.h>
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/EditContextConstants.inl>
@@ -84,11 +87,68 @@ namespace Diorama
             {
                 m_presenter.SetConfig(m_config);
             });
+
+        // Asset-reference mode: when a compiled tilemap asset is assigned, load it
+        // and apply it on ready (over the inline config). With none, the inline
+        // config the presenter already has is authoritative.
+        if (m_config.m_tilemapAsset.GetId().IsValid())
+        {
+            m_config.m_tilemapAsset.QueueLoad();
+            AZ::Data::AssetBus::Handler::BusConnect(m_config.m_tilemapAsset.GetId());
+        }
     }
 
     void TilemapComponent::Deactivate()
     {
+        AZ::Data::AssetBus::Handler::BusDisconnect();
         m_requestHandler.Disconnect();
         m_presenter.Disconnect();
+    }
+
+    void TilemapComponent::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
+    {
+        const auto* tilemap = asset.GetAs<DioramaTilemapAsset>();
+        if (tilemap == nullptr || !tilemap->IsValid())
+        {
+            return;
+        }
+        m_config.m_tilemapAsset = asset; // keep the loaded reference alive
+        ApplyTilemapAsset(*tilemap);
+    }
+
+    void TilemapComponent::OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset)
+    {
+        OnAssetReady(asset);
+    }
+
+    void TilemapComponent::ApplyTilemapAsset(const DioramaTilemapAsset& asset)
+    {
+        m_config.m_columns = asset.m_columns;
+        m_config.m_rows = asset.m_rows;
+        m_config.m_atlasColumns = asset.m_atlasColumns;
+        m_config.m_atlasRows = asset.m_atlasRows;
+        m_config.m_tileSize = AZ::Vector2(asset.m_tileWidth, asset.m_tileHeight);
+
+        // Phase 1 renders the first layer; carrying the rest is the multi-layer
+        // rendering follow-up. IsValid() guarantees at least one layer exists.
+        const DioramaTilemapLayerData& layer = asset.m_layers.front();
+        m_config.m_tiles = layer.m_tiles;
+        m_config.m_tint = layer.m_tint;
+        m_config.m_sortOffset = layer.m_sortOffset;
+
+        // Resolve the atlas product path to a streaming image; SetConfig below
+        // queue-loads it (the presenter detects the changed atlas id).
+        if (!asset.m_atlasTexturePath.empty())
+        {
+            const AZ::Data::AssetId atlasId = ResolveStreamingImageAssetId(asset.m_atlasTexturePath);
+            if (atlasId.IsValid())
+            {
+                m_config.m_atlas =
+                    AZ::Data::Asset<AZ::RPI::StreamingImageAsset>(atlasId, AZ::AzTypeInfo<AZ::RPI::StreamingImageAsset>::Uuid());
+                m_config.m_atlas.SetAutoLoadBehavior(AZ::Data::AssetLoadBehavior::PreLoad);
+            }
+        }
+
+        m_presenter.SetConfig(m_config);
     }
 } // namespace Diorama

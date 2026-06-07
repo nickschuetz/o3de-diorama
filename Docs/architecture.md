@@ -350,6 +350,31 @@ The pure, engine-free cores that back these (`SpriteBatchPlan`, `Collision2D`,
 `AsepriteImport`) are header/`.cpp` pairs unit-tested on their own, the same way the
 config helpers are.
 
+### The asset pipeline (builders and product assets)
+
+Some features import an authoring file at build time into a compact runtime
+product, rather than carrying the data inline in a prefab. These run in the
+AssetProcessor as `AssetBuilderSDK` builders, registered by a single
+`DioramaBuilderComponent` (tagged `AssetBuilder`, so it activates in the builder
+application). Each builder treats its source as **untrusted input** and validates
+it before emitting a product, the security stance VISION calls for:
+
+| Source | Builder | Product asset | Runtime consumer |
+|---|---|---|---|
+| `.aseprite` / `.ase` | `DioramaAsepriteBuilder` | atlas image + `.dioramasheet` (`DioramaAsepriteSheetAsset`) | `DioramaAsepriteComponent` references it and plays it |
+| `.dtilemap` (JSON) | `DioramaTilemapBuilder` | `.dtilemapc` (`DioramaTilemapAsset`, multi-layer) | `TilemapComponent` references it via its **Tilemap Asset** field |
+
+The product assets are loaded at runtime by `AzFramework::GenericAssetHandler`
+instances the `DioramaSystemComponent` registers, so they stream like any other
+asset. A component holds an `Asset<T>` reference, queues the load in `Activate`,
+and applies the data in `OnAssetReady`, keeping the inline config as the fallback
+when no asset is assigned. The parsing/validation cores (`AsepriteImport` /
+`AsepriteBinary`, `TilemapSource`, `DioramaTilemapAsset::IsValid`) are pure and
+unit-tested without the AssetProcessor; bounds (`TilemapAssetLimits`) are enforced
+both in the builder and again at load, so a corrupt product cannot feed an
+unchecked size to the renderer. Source formats are openly documented or Diorama's
+own JSON, so they carry no third-party license obligation.
+
 ### Starting a project from the template
 
 The gem ships an O3DE project template, `Diorama2DGame` (under `Templates/`), built

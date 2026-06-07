@@ -146,6 +146,59 @@ dimensions, the tile size, and `filledTileCount` (how many cells are non-empty).
 An agent paints cells and confirms `filledTileCount` matches its intent, closing
 the loop without eyeballing pixels.
 
+## Dedicated tilemap asset (for larger maps)
+
+Authoring tiles inline on the component (above) is fine for small grids, but a
+large map bloats the prefab/level and is re-parsed at load. For bigger maps,
+author the map as a **`.dtilemap`** source file: the gem's tilemap builder
+compiles it into a compact, validated **`.dtilemapc`** asset that a Tilemap
+component references through its **Tilemap Asset** field. The map loads as data
+instead of inlining a tile array, and the builder validates the map (bounds,
+indices) at build time.
+
+A `.dtilemap` source is JSON. A top-level `tiles` array is shorthand for one layer:
+
+```json
+{
+  "columns": 8,
+  "rows": 6,
+  "atlas": "diorama/textures/tileset.png",
+  "atlasColumns": 4,
+  "atlasRows": 4,
+  "tileWidth": 1.0,
+  "tileHeight": 1.0,
+  "tiles": [ 0, 1, 1, 2, -1, -1, 0, 0 ]
+}
+```
+
+`tiles` is row-major, one atlas-cell index per cell (`-1` is an empty cell). The
+asset is multi-layer-capable; supply a `layers` array (each with its own `name`,
+`sortOffset`, `tint`, and `tiles`) instead of the top-level `tiles` when you want
+several layers in one file:
+
+```json
+{
+  "columns": 8, "rows": 6, "atlas": "diorama/textures/tileset.png",
+  "atlasColumns": 4, "atlasRows": 4,
+  "layers": [
+    { "name": "ground", "sortOffset": 0.0, "tiles": [ 0, 0, 0 ] },
+    { "name": "decor",  "sortOffset": 1.0, "tiles": [ -1, 3, -1 ] }
+  ]
+}
+```
+
+Save it next to your assets (for example `Assets/Diorama/Maps/level1.dtilemap`),
+let the Asset Processor build it, then on a Tilemap component set **Tilemap Asset**
+to the resulting `level1` asset. When an asset is assigned it supplies the grid,
+atlas, and tiles; the inline fields are the fallback when no asset is set.
+
+The source treats your map as untrusted: dimensions, layer count, tile-array
+length, and every tile index are bounded and the map is rejected if inconsistent,
+so a malformed file fails the build instead of feeding bad data to the renderer.
+
+> **Phase 1:** the component renders the first layer; multi-layer rendering and a
+> Tiled (`.tmj`) importer that emits the same asset are planned follow-ups.
+
 ## Next
 
 Rung 5 (Parallax and Layers) stacks tilemaps and sprites at different sort

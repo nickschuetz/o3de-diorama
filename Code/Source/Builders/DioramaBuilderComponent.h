@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Builders/DioramaAsepriteBuilder.h>
+#include <Builders/DioramaTilemapBuilder.h>
 
 #include <AzCore/Component/Component.h>
 
@@ -32,5 +33,6 @@ namespace Diorama
 
     private:
         DioramaAsepriteBuilder m_asepriteBuilder;
+        DioramaTilemapBuilder m_tilemapBuilder;
     };
 } // namespace Diorama

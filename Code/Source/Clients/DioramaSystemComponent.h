@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Clients/DioramaAsepriteSheetAsset.h>
+#include <Diorama/DioramaTilemapAsset.h>
 
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/Entity.h>
@@ -62,6 +63,9 @@ namespace Diorama
 
         //! Loads the .dioramasheet product the .aseprite builder emits.
         AZStd::unique_ptr<AzFramework::GenericAssetHandler<DioramaAsepriteSheetAsset>> m_asepriteSheetHandler;
+
+        //! Loads the .dtilemapc product the tilemap builder emits.
+        AZStd::unique_ptr<AzFramework::GenericAssetHandler<DioramaTilemapAsset>> m_tilemapHandler;
     };
 
 } // namespace Diorama

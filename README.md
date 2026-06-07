@@ -84,7 +84,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Asset pipeline | Runtime asset reference: play a `.dioramasheet` product directly | Working |
 | Audio | One-shot SFX + music via MiniAudio | Working |
 | Project | `Diorama2DGame` "New 2.5D Game" project template | Working |
-| Tilemap | Dedicated tilemap asset + builder | Planned |
+| Asset pipeline | Dedicated tilemap asset + builder (`.dtilemap` JSON source &rarr; validated `.dtilemapc` product) | Working |
 
 A known limitation: the editor preview does not yet live-update to every
 runtime property change. See the roadmap and issues for tracking.

@@ -181,7 +181,8 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<TilemapComponentConfig, AZ::ComponentConfig>()
-                ->Version(1)
+                ->Version(2)
+                ->Field("tilemapAsset", &TilemapComponentConfig::m_tilemapAsset)
                 ->Field("atlas", &TilemapComponentConfig::m_atlas)
                 ->Field("columns", &TilemapComponentConfig::m_columns)
                 ->Field("rows", &TilemapComponentConfig::m_rows)
@@ -197,6 +198,13 @@ namespace Diorama
                 editContext->Class<TilemapComponentConfig>("Diorama Tilemap", "A grid of atlas tiles drawn as one batched layer")
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->ClassElement(AZ::Edit::ClassElements::Group, "Source")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &TilemapComponentConfig::m_tilemapAsset,
+                        "Tilemap Asset",
+                        "Optional compiled tilemap (.dtilemapc). When set, it supplies the grid, atlas, and tiles; "
+                        "the inline fields below are the fallback when no asset is assigned")
                     ->ClassElement(AZ::Edit::ClassElements::Group, "Atlas")
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default, &TilemapComponentConfig::m_atlas, "Atlas", "Texture divided into tile cells")

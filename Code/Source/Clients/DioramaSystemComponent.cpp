@@ -33,6 +33,7 @@ namespace Diorama
         SpriteFeatureProcessor::Reflect(context);
         ReflectAudioBuses(context);
         DioramaAsepriteSheetAsset::Reflect(context);
+        DioramaTilemapAsset::Reflect(context);
 
         if (auto serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
@@ -99,6 +100,11 @@ namespace Diorama
         m_asepriteSheetHandler = AZStd::make_unique<AzFramework::GenericAssetHandler<DioramaAsepriteSheetAsset>>(
             "Diorama Aseprite Sheet", "Diorama", "dioramasheet");
         m_asepriteSheetHandler->Register();
+
+        // Register the loader for the .dtilemapc products the tilemap builder emits.
+        m_tilemapHandler =
+            AZStd::make_unique<AzFramework::GenericAssetHandler<DioramaTilemapAsset>>("Diorama Tilemap", "Diorama", "dtilemapc");
+        m_tilemapHandler->Register();
     }
 
     void DioramaSystemComponent::Deactivate()
@@ -107,6 +113,12 @@ namespace Diorama
         {
             m_asepriteSheetHandler->Unregister();
             m_asepriteSheetHandler.reset();
+        }
+
+        if (m_tilemapHandler)
+        {
+            m_tilemapHandler->Unregister();
+            m_tilemapHandler.reset();
         }
 
         AZ::RPI::FeatureProcessorFactory::Get()->UnregisterFeatureProcessor<SpriteFeatureProcessor>();

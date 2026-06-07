@@ -31,6 +31,8 @@ set(FILES
     Source/Tools/TilemapPaintEditorBus.h
     Source/Builders/DioramaAsepriteBuilder.cpp
     Source/Builders/DioramaAsepriteBuilder.h
+    Source/Builders/DioramaTilemapBuilder.cpp
+    Source/Builders/DioramaTilemapBuilder.h
     Source/Builders/DioramaBuilderComponent.cpp
     Source/Builders/DioramaBuilderComponent.h
 )
