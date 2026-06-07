@@ -21,12 +21,20 @@ public-facing, because a self-hosted runner that executes pull-request code is a
 security risk for fork contributions; bring one online only for trusted runs and
 take it offline afterward.
 
-The workflow has two legs, gated identically: a **Linux** leg
-(`runs-on: [self-hosted, o3de]`, `scripts/ci_build_test.sh`) and a **Windows**
-leg (`runs-on: [self-hosted, o3de, windows]`, `scripts/ci_build_test.ps1`). Each
-leg only runs when a matching runner is online, so you can enable just one, or
-both. Windows is O3DE's primary platform, so the Windows leg is the one that
+The workflow has two legs, each pinned to its OS so a runner that carries the
+`o3de` label on the other platform can never pick up the wrong script: a
+**Linux** leg (`runs-on: [self-hosted, o3de, Linux]`, `scripts/ci_build_test.sh`)
+and a **Windows** leg (`runs-on: [self-hosted, o3de, windows]`,
+`scripts/ci_build_test.ps1`). `Linux` / `Windows` are system labels the runner
+applies automatically, so you only ever add the custom `o3de` label yourself.
+Each leg only runs when a matching runner is online, so you can enable just one,
+or both. Windows is O3DE's primary platform, so the Windows leg is the one that
 confirms the gem builds and tests there, not only on Linux.
+
+A manual run (Actions -> build-test -> **Run workflow**) takes a `leg` input
+(`both` / `linux` / `windows`) so you can exercise a single platform without the
+other leg sitting queued for an offline runner. On a `ci:build`-labelled PR both
+legs run.
 
 ## What the runner needs
 
@@ -45,10 +53,20 @@ confirms the gem builds and tests there, not only on Linux.
 ## One-time setup
 
 1. **Register a self-hosted runner** on the repository (GitHub: Settings →
-   Actions → Runners → New self-hosted runner). For a Linux runner give it the
-   labels `self-hosted` and `o3de` (the Linux leg targets
-   `runs-on: [self-hosted, o3de]`). For a Windows runner add a third label,
-   `windows` (the Windows leg targets `runs-on: [self-hosted, o3de, windows]`).
+   Actions → Runners → New self-hosted runner). Add the custom label `o3de`; the
+   runner adds `self-hosted` and its OS label (`Linux` or `Windows`)
+   automatically. So a Linux runner ends up matching the Linux leg
+   (`[self-hosted, o3de, Linux]`) and a Windows runner the Windows leg
+   (`[self-hosted, o3de, windows]`) with no extra labels. On Windows, configure
+   unattended and install as a service, for example:
+
+   ```powershell
+   ./config.cmd --url https://github.com/<owner>/<repo> --token <TOKEN> `
+     --labels o3de --name win-runner --unattended --runasservice
+   ```
+
+   (`--labels o3de,windows` also works; the explicit `windows` simply dedupes
+   into the built-in `Windows` system label.)
 
 2. **Tell the workflow where the engine and project are.** Set these as
    repository variables (Settings → Secrets and variables → Actions →

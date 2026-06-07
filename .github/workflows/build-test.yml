@@ -20,6 +20,12 @@ name: build-test
 
 on:
   workflow_dispatch:
+    inputs:
+      leg:
+        description: Which OS leg(s) to run on a manual dispatch
+        type: choice
+        options: [both, linux, windows]
+        default: both
   pull_request:
     types: [labeled, synchronize, reopened]
 
@@ -31,11 +37,12 @@ jobs:
     name: build and unit test (Linux)
     # Only attempt on a self-hosted runner that advertises the O3DE SDK. The
     # PR path additionally requires the `ci:build` label so the heavy job runs
-    # only when a maintainer asks for it.
+    # only when a maintainer asks for it. The `Linux` label pins this leg to a
+    # Linux runner so a Windows `o3de` runner can never pick up this bash job.
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.pull_request.labels.*.name, 'ci:build')
-    runs-on: [self-hosted, o3de]
+      (github.event_name == 'workflow_dispatch' && (inputs.leg == 'both' || inputs.leg == 'linux')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:build'))
+    runs-on: [self-hosted, o3de, Linux]
     steps:
       - uses: actions/checkout@v4
 
@@ -63,8 +70,8 @@ jobs:
     # is online this job is simply queued/skipped and never blocks a PR. Windows
     # is O3DE's primary platform, so this confirms the gem builds and tests there.
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.pull_request.labels.*.name, 'ci:build')
+      (github.event_name == 'workflow_dispatch' && (inputs.leg == 'both' || inputs.leg == 'windows')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:build'))
     runs-on: [self-hosted, o3de, windows]
     steps:
       - uses: actions/checkout@v4
