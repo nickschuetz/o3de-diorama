@@ -47,8 +47,13 @@ echo "  build  : $BUILD_DIR"
 
 # Register the gem as an external subdirectory so the project can find it.
 # Idempotent: re-registering an existing path is a no-op.
-echo "== register gem =="
+echo "== register + enable gem =="
+# Register makes the gem discoverable; enable adds it to the project so its
+# targets (Diorama, Diorama.Editor, Diorama.Tests) are generated at configure.
+# Registering alone is not enough on a project that does not already enable the
+# gem (e.g. a fresh host project). Both are idempotent.
 "$O3DE" register --external-subdirectory "$GEM_PATH"
+"$O3DE" enable-gem --gem-path "$GEM_PATH" --project-path "$DIORAMA_PROJECT"
 
 # Configure. Ninja Multi-Config matches the engine's expected generator; tests
 # are gated by PAL_TRAIT_DIORAMA_TEST_SUPPORTED, which is TRUE on Linux.

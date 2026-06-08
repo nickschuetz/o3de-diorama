@@ -73,9 +73,15 @@ Write-Host "  gen    : $Generator"
 
 # Register the gem as an external subdirectory so the project can find it.
 # Idempotent: re-registering an existing path is a no-op.
-Write-Host '== register gem =='
+Write-Host '== register + enable gem =='
+# Register makes the gem discoverable; enable adds it to the project so its
+# targets (Diorama, Diorama.Editor, Diorama.Tests) are generated at configure.
+# Registering alone is not enough on a project that does not already enable the
+# gem (e.g. a fresh host project). Both are idempotent.
 & $O3de register --external-subdirectory $GemPath
 if ($LASTEXITCODE -ne 0) { Fail 'gem registration failed' }
+& $O3de enable-gem --gem-path $GemPath --project-path $env:DIORAMA_PROJECT
+if ($LASTEXITCODE -ne 0) { Fail 'gem enable failed' }
 
 # Configure with the chosen generator. tests are gated by
 # PAL_TRAIT_DIORAMA_TEST_SUPPORTED, now TRUE on Windows.
