@@ -45,6 +45,15 @@ echo "  gem    : $GEM_PATH"
 echo "  config : $BUILD_CONFIG"
 echo "  build  : $BUILD_DIR"
 
+# Ensure the engine's Python is configured. O3DE sets up a venv under
+# ~/.o3de/Python, so a fresh environment (e.g. a container job whose HOME differs
+# from where the image was built) reports "Python has not been configured" even
+# when the image ran get_python at build time. Idempotent: skips if present.
+if [ -x "$O3DE_ENGINE_PATH/python/get_python.sh" ]; then
+    echo "== ensure python =="
+    "$O3DE_ENGINE_PATH/python/get_python.sh"
+fi
+
 # Register this engine first: a fresh environment (e.g. a container job whose
 # HOME differs from where the image was built) has no engine in ~/.o3de, so
 # CMake's EngineFinder would fail. Idempotent where already registered.
