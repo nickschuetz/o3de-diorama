@@ -45,6 +45,12 @@ echo "  gem    : $GEM_PATH"
 echo "  config : $BUILD_CONFIG"
 echo "  build  : $BUILD_DIR"
 
+# Register this engine first: a fresh environment (e.g. a container job whose
+# HOME differs from where the image was built) has no engine in ~/.o3de, so
+# CMake's EngineFinder would fail. Idempotent where already registered.
+echo "== register engine =="
+"$O3DE" register --this-engine
+
 # Register the gem as an external subdirectory so the project can find it.
 # Idempotent: re-registering an existing path is a no-op.
 echo "== register + enable gem =="

@@ -25,11 +25,14 @@ RUN dnf -y install dnf-plugins-core \
         tar gzip findutils which procps-ng \
  && dnf clean all
 
-# A host project to build the gem through. ci_build_test.sh registers the gem as
-# an external subdirectory of the engine, which adds its targets (Diorama,
-# Diorama.Editor, Diorama.Tests) to this project's configure step; enabling the
-# gem at runtime is not required to build and run the test library. Baking the
-# project in keeps the CI step deterministic with no host files.
+# The RPM SDK ships without its Python runtime configured; o3de.sh aborts with
+# "Python has not been downloaded/configured yet" until get_python.sh fetches it.
+RUN /opt/O3DE/26.05.0/python/get_python.sh
+
+# A host project to build the gem through. ci_build_test.sh enables the gem on
+# this project so its targets (Diorama, Diorama.Editor, Diorama.Tests) are
+# generated at configure. Baking the project in keeps the CI step deterministic
+# with no host files.
 RUN /opt/O3DE/26.05.0/scripts/o3de.sh create-project \
         --project-path /opt/diorama-host --project-name DioramaHost \
         --template-name MinimalProject \
