@@ -27,14 +27,24 @@ The workflow has two legs, each pinned to its OS so a runner that carries the
 and a **Windows** leg (`runs-on: [self-hosted, o3de, windows]`,
 `scripts/ci_build_test.ps1`). `Linux` / `Windows` are system labels the runner
 applies automatically, so you only ever add the custom `o3de` label yourself.
-Each leg only runs when a matching runner is online, so you can enable just one,
-or both. Windows is O3DE's primary platform, so the Windows leg is the one that
-confirms the gem builds and tests there, not only on Linux.
+Windows is O3DE's primary platform, so the Windows leg is the one that confirms
+the gem builds and tests there, not only on Linux.
+
+**A leg whose `if` condition is true but whose `runs-on` labels match no online
+runner does NOT skip; it queues until a matching runner appears (or the run is
+cancelled).** So the two legs are gated separately, not identically, to match
+which runners actually exist:
+
+- **Windows leg** runs on the `ci:build` label (or a manual dispatch). A Windows
+  runner is the available target.
+- **Linux leg** runs only on a distinct **`ci:build-linux`** label (or a manual
+  dispatch with `leg=linux`/`both`). It is held behind its own label because no
+  Linux `o3de` runner exists yet; using the common `ci:build` would leave a Linux
+  job queued forever. Add `ci:build-linux` only once a Linux runner is online.
 
 A manual run (Actions -> build-test -> **Run workflow**) takes a `leg` input
-(`both` / `linux` / `windows`) so you can exercise a single platform without the
-other leg sitting queued for an offline runner. On a `ci:build`-labelled PR both
-legs run.
+(`both` / `linux` / `windows`, default `windows`) so you can exercise a single
+platform without the other leg sitting queued for an offline runner.
 
 ## What the runner needs
 
@@ -87,9 +97,12 @@ legs run.
 
 ## Triggering it
 
-- **Manually**: Actions → `build-test` → Run workflow.
-- **On a PR**: add the `ci:build` label. The job runs on label, and again on
-  each push to the PR while the label is present.
+- **Manually**: Actions → `build-test` → Run workflow (the `leg` input defaults
+  to `windows`; choose `linux`/`both` only when a Linux runner is online).
+- **On a PR**: add the `ci:build` label to run the **Windows** leg (it re-runs on
+  each push while the label is present). Add **`ci:build-linux`** as well to run
+  the Linux leg, but only once a Linux runner exists, or that job queues with no
+  runner to pick it up.
 
 ## What it does
 
@@ -177,7 +190,7 @@ debug a failure, run the script directly first:
    `windows`; set the repository variables (including the overrides from step 4,
    and `O3DE_ENGINE_PATH_WINDOWS` / `DIORAMA_PROJECT_WINDOWS` if the paths differ
    from the Linux runner's); then add the `ci:build` label to a PR to trigger
-   both legs.
+   the Windows leg (add `ci:build-linux` too only once a Linux runner is online).
 
 ## Not covered
 

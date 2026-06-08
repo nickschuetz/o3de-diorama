@@ -8,12 +8,15 @@ name: build-test
 # opt-in: triggered manually, or on PRs/pushes that a maintainer has labelled, so
 # ordinary contributors are never blocked by missing hardware.
 #
-# Two legs, gated identically: Linux (`[self-hosted, o3de]`, ci_build_test.sh)
-# and Windows (`[self-hosted, o3de, windows]`, ci_build_test.ps1). The Windows
-# leg is skipped automatically when no matching runner is online, so it is safe
-# to keep enabled before a Windows runner exists; bring one online to activate
-# it. Windows is O3DE's primary platform, so this is the gate that confirms the
-# gem builds and tests there, not just on Linux.
+# Two legs. Windows (`[self-hosted, o3de, windows]`, ci_build_test.ps1) is the
+# active gate: the `ci:build` label (or a manual dispatch, which defaults to
+# `windows`) runs it on the online Windows runner. Linux (`[self-hosted, o3de,
+# Linux]`, ci_build_test.sh) is separately opt-in via the `ci:build-linux` label
+# (or dispatch leg=linux/both) because no Linux `o3de` runner exists yet. A job
+# whose `if` is true but whose `runs-on` labels match no online runner does NOT
+# skip, it queues until one appears; gating Linux behind its own label keeps an
+# ordinary `ci:build` from leaving a Linux job hung with no runner. Windows is
+# O3DE's primary platform, so it is the gate that confirms the gem builds there.
 #
 # The lint workflow (lint.yml) remains the always-on gate on GitHub-hosted
 # runners; this one is the heavier, environment-dependent complement.
@@ -25,7 +28,10 @@ on:
         description: Which OS leg(s) to run on a manual dispatch
         type: choice
         options: [both, linux, windows]
-        default: both
+        # Default to windows only: it has an online runner. Choose linux/both
+        # explicitly once a Linux self-hosted runner exists, else the Linux job
+        # queues with no runner to pick it up.
+        default: windows
   pull_request:
     types: [labeled, synchronize, reopened]
 
@@ -35,13 +41,16 @@ permissions:
 jobs:
   build-test-linux:
     name: build and unit test (Linux)
-    # Only attempt on a self-hosted runner that advertises the O3DE SDK. The
-    # PR path additionally requires the `ci:build` label so the heavy job runs
-    # only when a maintainer asks for it. The `Linux` label pins this leg to a
-    # Linux runner so a Windows `o3de` runner can never pick up this bash job.
+    # Opt-in and pinned to a Linux self-hosted runner. The PR path requires a
+    # DISTINCT `ci:build-linux` label (not the general `ci:build`, which fires
+    # Windows only) because no Linux `o3de` runner exists yet: with the common
+    # label, this job would queue forever waiting for a runner. Add
+    # `ci:build-linux` (or dispatch with leg=linux/both) only once a Linux runner
+    # is online. The `Linux` label keeps a Windows `o3de` runner from grabbing
+    # this bash job.
     if: >
       (github.event_name == 'workflow_dispatch' && (inputs.leg == 'both' || inputs.leg == 'linux')) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:build'))
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:build-linux'))
     runs-on: [self-hosted, o3de, Linux]
     steps:
       - uses: actions/checkout@v6
