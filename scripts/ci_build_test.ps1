@@ -94,10 +94,16 @@ Write-Host "== configure (generator: $Generator) =="
 cmake -B $BuildDir -S $env:DIORAMA_PROJECT -G $Generator -DLY_UNITY_BUILD=ON
 if ($LASTEXITCODE -ne 0) { Fail 'configure failed' }
 
-# Build the gem, editor module, and test library.
+# Build the gem, editor module, and test library. Build one target per
+# `cmake --build` call: with the Visual Studio generator, passing several
+# targets at once makes CMake hand MSBuild the target names as project files at
+# the build root (MSB1009), which fails when a target's .vcxproj lives in a
+# subdirectory (e.g. a gem registered as an external subdirectory).
 Write-Host '== build =='
-cmake --build $BuildDir --config $BuildConfig --target Diorama Diorama.Editor Diorama.Tests
-if ($LASTEXITCODE -ne 0) { Fail 'build failed' }
+foreach ($target in @('Diorama', 'Diorama.Editor', 'Diorama.Tests')) {
+    cmake --build $BuildDir --config $BuildConfig --target $target
+    if ($LASTEXITCODE -ne 0) { Fail "build failed: $target" }
+}
 
 # Run the unit tests directly through AzTestRunner so the result is explicit and
 # does not depend on ctest discovery. The Windows MODULE target builds as a .dll
