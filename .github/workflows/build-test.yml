@@ -88,22 +88,45 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install O3DE 26.05 SDK
-        # The official Windows installer is a WiX bootstrapper, so `/quiet
-        # /norestart` installs unattended. The install path is then discovered
-        # (not hard-coded) and exported for later steps.
+        # The official Windows installer is a small WiX Burn web bootstrapper that
+        # downloads its payload during install. `/install /quiet /norestart` runs
+        # it unattended; `/log` captures a Burn log that is dumped on failure so a
+        # non-zero exit is diagnosable. The install path is then discovered (not
+        # hard-coded) and exported for later steps.
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $url = 'https://o3debinaries.org/main/Latest/Windows/o3de_installer_2605_0.exe'
           $exe = Join-Path $env:RUNNER_TEMP 'o3de_installer.exe'
           Write-Host "Downloading O3DE SDK installer..."
           Invoke-WebRequest -Uri $url -OutFile $exe
+          Write-Host "Bootstrapper size: $((Get-Item $exe).Length) bytes"
+          $log = 'C:\o3de-install.log'
           Write-Host "Installing (silent)..."
-          $p = Start-Process -FilePath $exe -ArgumentList '/quiet','/norestart' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "O3DE installer failed with exit code $($p.ExitCode)" }
-          $engine = Get-ChildItem 'C:\O3DE' -Directory -ErrorAction SilentlyContinue |
-            Where-Object { Test-Path (Join-Path $_.FullName 'scripts\o3de.bat') } |
-            Select-Object -First 1 -ExpandProperty FullName
-          if (-not $engine) { throw "could not locate an O3DE engine with scripts\o3de.bat under C:\O3DE" }
+          $p = Start-Process -FilePath $exe -ArgumentList '/install','/quiet','/norestart','/log',$log -Wait -PassThru
+          Write-Host "installer exit code: $($p.ExitCode)"
+          if (Test-Path $log) {
+            Write-Host "----- bootstrap log (tail) -----"
+            Get-Content $log -Tail 100
+          }
+          Get-ChildItem 'C:\' -Filter 'o3de-install_*.log' -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "----- $($_.Name) (tail) -----"
+            Get-Content $_.FullName -Tail 50
+          }
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
+            throw "O3DE installer failed with exit code $($p.ExitCode)"
+          }
+          $roots = @('C:\O3DE', "$env:ProgramFiles\O3DE", "${env:ProgramFiles(x86)}\O3DE")
+          $engine = $null
+          foreach ($r in $roots) {
+            if (Test-Path $r) {
+              $engine = Get-ChildItem $r -Directory -ErrorAction SilentlyContinue |
+                Where-Object { Test-Path (Join-Path $_.FullName 'scripts\o3de.bat') } |
+                Select-Object -First 1 -ExpandProperty FullName
+              if ($engine) { break }
+            }
+          }
+          if (-not $engine) { throw "could not locate an O3DE engine (scripts\o3de.bat) under: $($roots -join ', ')" }
           Write-Host "engine: $engine"
           "O3DE_ENGINE_PATH=$engine" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
