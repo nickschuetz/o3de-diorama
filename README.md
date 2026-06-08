@@ -243,15 +243,15 @@ Two workflows run in CI:
   check** (`sbom.spdx.json` must match `scripts/gen_sbom.py` output). This is the
   gate every push and pull request must pass. Format C++ with clang-format
   **18.1.8** to match it (a newer local version may format differently).
-- **build-test** (on-demand, self-hosted): compiles the gem through a host O3DE
-  project and runs the unit tests. Building needs the full O3DE SDK, which does
-  not fit on a hosted runner, so there is no always-on build runner. In practice
-  the build and test gate is run **on demand** before merging a code change, by
-  running `scripts/ci_build_test.sh` locally (it does the same configure, build,
-  and `AzTestRunner` steps as the workflow). The `build-test` workflow stays
-  available for a runner brought online on demand: trigger it manually or add the
-  `ci:build` label to a pull request. See
-  [Docs/ci-self-hosted-runner.md](Docs/ci-self-hosted-runner.md).
+- **build-test** (opt-in, GitHub-hosted): compiles the gem through a host O3DE
+  project and runs the unit tests. Both legs run on free GitHub-hosted runners,
+  so untrusted PR code never touches local hardware. The **Linux** leg runs in a
+  Fedora container with the SDK baked in (built by the `ci-image` workflow); the
+  **Windows** leg installs the O3DE SDK on `windows-latest` at runtime. It is
+  opt-in: add the `ci:build` label (Windows) or `ci:build-linux` label (Linux) to
+  a pull request, or trigger it manually. You can run the same checks locally
+  with `scripts/ci_build_test.sh` (Linux) or `scripts/ci_build_test.ps1`
+  (Windows). See [Docs/ci-build-test.md](Docs/ci-build-test.md).
 
 ## Security
 
