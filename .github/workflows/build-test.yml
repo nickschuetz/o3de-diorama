@@ -135,6 +135,12 @@ jobs:
           }
           if (-not $engine) { throw "could not locate an O3DE engine (scripts\o3de.bat) under: $($roots -join ', ')" }
           Write-Host "engine: $engine"
+          # A fresh runner profile has no engine registered in ~/.o3de, and a /qn
+          # msiexec install does not self-register, so CMake's EngineFinder cannot
+          # locate the engine. Register it before any configure.
+          Write-Host "Registering engine..."
+          & "$engine\scripts\o3de.bat" register --this-engine
+          if ($LASTEXITCODE -ne 0) { throw "engine registration failed ($LASTEXITCODE)" }
           "O3DE_ENGINE_PATH=$engine" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Create host project
