@@ -88,33 +88,40 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install O3DE 26.05 SDK
-        # The official Windows installer is a small WiX Burn web bootstrapper that
-        # downloads its payload during install. `/install /quiet /norestart` runs
-        # it unattended; `/log` captures a Burn log that is dumped on failure so a
-        # non-zero exit is diagnosable. The install path is then discovered (not
-        # hard-coded) and exported for later steps.
+        # The official "Latest" Windows installer is a WiX Burn web bootstrapper,
+        # but upstream republished the MSI without updating the bootstrapper's
+        # embedded hash, so Burn aborts with 0x80091007 (hash mismatch) before it
+        # can install. We therefore bypass the bootstrapper: download the MSI and
+        # its external CABs from the same pinned build and install with msiexec,
+        # which has no such hash gate. The pinned build also makes CI reproducible.
+        # NOTE: if this build is ever pruned from o3debinaries.org, refresh BUILD
+        # to a current stabilization-26050 snapshot.
         shell: pwsh
+        env:
+          O3DE_BASE_URL: https://www.o3debinaries.org/stabilization-26050/2026-05-23-8e750500f/Windows
         run: |
           $ErrorActionPreference = 'Stop'
-          $url = 'https://o3debinaries.org/main/Latest/Windows/o3de_installer_2605_0.exe'
-          $exe = Join-Path $env:RUNNER_TEMP 'o3de_installer.exe'
-          Write-Host "Downloading O3DE SDK installer..."
-          Invoke-WebRequest -Uri $url -OutFile $exe
-          Write-Host "Bootstrapper size: $((Get-Item $exe).Length) bytes"
-          $log = 'C:\o3de-install.log'
-          Write-Host "Installing (silent)..."
-          $p = Start-Process -FilePath $exe -ArgumentList '/install','/quiet','/norestart','/log',$log -Wait -PassThru
-          Write-Host "installer exit code: $($p.ExitCode)"
-          if (Test-Path $log) {
-            Write-Host "----- bootstrap log (tail) -----"
-            Get-Content $log -Tail 100
+          $ProgressPreference = 'SilentlyContinue'   # IWR is glacial with the progress bar on
+          $base = $env:O3DE_BASE_URL
+          $dir  = 'C:\o3de-pkg'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $files = @('o3de_26.05.msi') + (1..29 | ForEach-Object { "cab$_.cab" })
+          Write-Host "Downloading $($files.Count) package files (~2.4 GB)..."
+          $files | ForEach-Object -ThrottleLimit 8 -Parallel {
+            $ProgressPreference = 'SilentlyContinue'
+            Invoke-WebRequest -Uri "$using:base/$_" -OutFile (Join-Path $using:dir $_)
           }
-          Get-ChildItem 'C:\' -Filter 'o3de-install_*.log' -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "----- $($_.Name) (tail) -----"
-            Get-Content $_.FullName -Tail 50
-          }
-          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
-            throw "O3DE installer failed with exit code $($p.ExitCode)"
+          $sum = (Get-ChildItem $dir | Measure-Object -Property Length -Sum).Sum
+          Write-Host ("Downloaded {0:N2} GB" -f ($sum / 1GB))
+
+          $msi  = Join-Path $dir 'o3de_26.05.msi'
+          $mlog = 'C:\o3de-msi.log'
+          Write-Host "Installing via msiexec..."
+          $m = Start-Process msiexec -ArgumentList '/i',"`"$msi`"",'/qn','/norestart','/l*v',$mlog -Wait -PassThru
+          Write-Host "msiexec exit code: $($m.ExitCode)"
+          if ($m.ExitCode -ne 0 -and $m.ExitCode -ne 3010) {
+            if (Test-Path $mlog) { Write-Host "----- msiexec log (tail) -----"; Get-Content $mlog -Tail 120 }
+            throw "msiexec failed with exit code $($m.ExitCode)"
           }
           $roots = @('C:\O3DE', "$env:ProgramFiles\O3DE", "${env:ProgramFiles(x86)}\O3DE")
           $engine = $null
