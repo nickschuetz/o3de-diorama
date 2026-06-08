@@ -94,14 +94,24 @@ Write-Host "== configure (generator: $Generator) =="
 cmake -B $BuildDir -S $env:DIORAMA_PROJECT -G $Generator -DLY_UNITY_BUILD=ON
 if ($LASTEXITCODE -ne 0) { Fail 'configure failed' }
 
-# Build the gem, editor module, and test library. Build one target per
-# `cmake --build` call: with the Visual Studio generator, passing several
-# targets at once makes CMake hand MSBuild the target names as project files at
-# the build root (MSB1009), which fails when a target's .vcxproj lives in a
-# subdirectory (e.g. a gem registered as an external subdirectory).
+# Build the gem, editor module, and test library. With the Visual Studio
+# generator, `cmake --build --target <t>` assumes <t>.vcxproj sits at the build
+# root, which is false for a gem registered as an external subdirectory: its
+# source is outside the host project, so CMake generates the .vcxproj in a nested
+# binary directory and the build aborts with MSB1009 ("project file does not
+# exist"). Locate each target's .vcxproj in the build tree and build it directly
+# with MSBuild instead.
 Write-Host '== build =='
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+$MSBuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' 2>$null | Select-Object -First 1
+if (-not $MSBuild) { Fail 'MSBuild not found via vswhere' }
+Write-Host "  msbuild: $MSBuild"
 foreach ($target in @('Diorama', 'Diorama.Editor', 'Diorama.Tests')) {
-    cmake --build $BuildDir --config $BuildConfig --target $target
+    $proj = Get-ChildItem -Path $BuildDir -Recurse -Filter "$target.vcxproj" -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $proj) { Fail "could not find $target.vcxproj under $BuildDir" }
+    Write-Host "building $($proj.FullName)"
+    & $MSBuild $proj.FullName /nologo /m /p:Configuration=$BuildConfig /p:Platform=x64
     if ($LASTEXITCODE -ne 0) { Fail "build failed: $target" }
 }
 

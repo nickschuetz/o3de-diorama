@@ -39,6 +39,12 @@ on:
 permissions:
   contents: read
 
+# Supersede in-progress runs of the same ref: a new push or label re-run cancels
+# the previous one instead of leaving both to finish.
+concurrency:
+  group: build-test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test-linux:
     name: build and unit test (Linux)
@@ -87,6 +93,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Cache O3DE SDK and 3rdParty
+        id: o3de-cache
+        uses: actions/cache@v4
+        with:
+          # windows-latest runs as 'runneradmin'. Cache the installed SDK plus the
+          # engine's downloaded 3rdParty packages and Python venv, so reruns skip
+          # both the ~2.4 GB SDK install and the multi-GB 3rdParty download that
+          # configure does otherwise. Bump the key suffix to invalidate.
+          path: |
+            C:\O3DE\26.05
+            C:\Users\runneradmin\.o3de\3rdParty
+            C:\Users\runneradmin\.o3de\Python
+          key: o3de-win-2026-05-23-8e750500f-v1
+
       - name: Install O3DE 26.05 SDK
         # The official "Latest" Windows installer is a WiX Burn web bootstrapper,
         # but upstream republished the MSI without updating the bootstrapper's
@@ -99,34 +119,39 @@ jobs:
         shell: pwsh
         env:
           O3DE_BASE_URL: https://www.o3debinaries.org/stabilization-26050/2026-05-23-8e750500f/Windows
+          CACHE_HIT: ${{ steps.o3de-cache.outputs.cache-hit }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $ProgressPreference = 'SilentlyContinue'   # IWR is glacial with the progress bar on
-          $base = $env:O3DE_BASE_URL
-          $dir  = 'C:\o3de-pkg'
-          New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          $files = @('o3de_26.05.msi') + (1..29 | ForEach-Object { "cab$_.cab" })
-          Write-Host "Downloading $($files.Count) package files (~2.4 GB)..."
-          $files | ForEach-Object -ThrottleLimit 8 -Parallel {
-            $ProgressPreference = 'SilentlyContinue'
-            Invoke-WebRequest -Uri "$using:base/$_" -OutFile (Join-Path $using:dir $_)
-          }
-          $sum = (Get-ChildItem $dir | Measure-Object -Property Length -Sum).Sum
-          Write-Host ("Downloaded {0:N2} GB" -f ($sum / 1GB))
+          if ($env:CACHE_HIT -eq 'true') {
+            Write-Host "SDK restored from cache; skipping download and install."
+          } else {
+            $ProgressPreference = 'SilentlyContinue'   # IWR is glacial with the progress bar on
+            $base = $env:O3DE_BASE_URL
+            $dir  = 'C:\o3de-pkg'
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            $files = @('o3de_26.05.msi') + (1..29 | ForEach-Object { "cab$_.cab" })
+            Write-Host "Downloading $($files.Count) package files (~2.4 GB)..."
+            $files | ForEach-Object -ThrottleLimit 8 -Parallel {
+              $ProgressPreference = 'SilentlyContinue'
+              Invoke-WebRequest -Uri "$using:base/$_" -OutFile (Join-Path $using:dir $_)
+            }
+            $sum = (Get-ChildItem $dir | Measure-Object -Property Length -Sum).Sum
+            Write-Host ("Downloaded {0:N2} GB" -f ($sum / 1GB))
 
-          $msi  = Join-Path $dir 'o3de_26.05.msi'
-          $mlog = 'C:\o3de-msi.log'
-          # Install to a SPACE-FREE path. The MSI default is C:\Program Files\O3DE,
-          # but O3DE's LYPython.cmake builds the pip command with an unquoted
-          # interpreter path, so a space in the engine path breaks configure
-          # ("'C:/Program' is not recognized"). INSTALL_ROOT (a public MSI
-          # property) overrides the location.
-          Write-Host "Installing via msiexec..."
-          $m = Start-Process msiexec -ArgumentList '/i',"`"$msi`"",'INSTALL_ROOT=C:\O3DE\26.05','/qn','/norestart','/l*v',$mlog -Wait -PassThru
-          Write-Host "msiexec exit code: $($m.ExitCode)"
-          if ($m.ExitCode -ne 0 -and $m.ExitCode -ne 3010) {
-            if (Test-Path $mlog) { Write-Host "----- msiexec log (tail) -----"; Get-Content $mlog -Tail 120 }
-            throw "msiexec failed with exit code $($m.ExitCode)"
+            $msi  = Join-Path $dir 'o3de_26.05.msi'
+            $mlog = 'C:\o3de-msi.log'
+            # Install to a SPACE-FREE path. The MSI default is C:\Program Files\O3DE,
+            # but O3DE's LYPython.cmake builds the pip command with an unquoted
+            # interpreter path, so a space in the engine path breaks configure
+            # ("'C:/Program' is not recognized"). INSTALL_ROOT (a public MSI
+            # property) overrides the location.
+            Write-Host "Installing via msiexec..."
+            $m = Start-Process msiexec -ArgumentList '/i',"`"$msi`"",'INSTALL_ROOT=C:\O3DE\26.05','/qn','/norestart','/l*v',$mlog -Wait -PassThru
+            Write-Host "msiexec exit code: $($m.ExitCode)"
+            if ($m.ExitCode -ne 0 -and $m.ExitCode -ne 3010) {
+              if (Test-Path $mlog) { Write-Host "----- msiexec log (tail) -----"; Get-Content $mlog -Tail 120 }
+              throw "msiexec failed with exit code $($m.ExitCode)"
+            }
           }
           $roots = @('C:\O3DE', "$env:ProgramFiles\O3DE", "${env:ProgramFiles(x86)}\O3DE")
           $engine = $null
