@@ -61,7 +61,9 @@ jobs:
           O3DE_ENGINE_PATH: ${{ vars.O3DE_ENGINE_PATH }}
           DIORAMA_PROJECT: ${{ vars.DIORAMA_PROJECT }}
           BUILD_CONFIG: profile
-          TEST_FILTER: "SpriteUVTest.*:SpriteAnimationTest.*:SpriteBatchPlanTest.*"
+          # Run the whole suite: the tests are sub-second (the build is the cost),
+          # so the gate exercises every Diorama test, not a subset.
+          TEST_FILTER: "*"
         run: ./scripts/ci_build_test.sh
 
   build-test-windows:
@@ -94,5 +96,7 @@ jobs:
           O3DE_ENGINE_PATH: ${{ vars.O3DE_ENGINE_PATH_WINDOWS || vars.O3DE_ENGINE_PATH }}
           DIORAMA_PROJECT: ${{ vars.DIORAMA_PROJECT_WINDOWS || vars.DIORAMA_PROJECT }}
           BUILD_CONFIG: profile
-          TEST_FILTER: "SpriteUVTest.*:SpriteAnimationTest.*:SpriteBatchPlanTest.*"
+          # Run the whole suite: the tests are sub-second (the build is the cost),
+          # so the gate exercises every Diorama test, not a subset.
+          TEST_FILTER: "*"
         run: .\scripts\ci_build_test.ps1
