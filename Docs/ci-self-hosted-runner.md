@@ -1,74 +1,82 @@
-# Build/Test CI on a Self-Hosted Runner
+# Build/Test CI
 
 The `build-test` workflow compiles the Diorama gem through a host O3DE project
 and runs its unit tests. Unlike the `lint` workflow (which runs on free
 GitHub-hosted runners), this one needs the full O3DE 26.05 SDK, a host project,
-and the engine's 3rdParty packages, none of which fit on a hosted runner. It
-therefore runs only on a **self-hosted runner** that already has the engine.
+and the engine's 3rdParty packages. Its two legs solve that two different ways:
+
+- **Linux** runs on a free **GitHub-hosted** runner inside a `container:` whose
+  image (`ci/Containerfile`: Fedora 44 + the O3DE SDK from COPR) already carries
+  the SDK and a host project. Untrusted PR code runs on GitHub's throwaway VMs,
+  not on local hardware, so there is no fork-PR security risk and nothing to
+  bring online.
+- **Windows** runs on a **self-hosted** runner that has the SDK installed.
+  Windows is O3DE's primary platform and headless GPU work needs the real
+  hardware, so this leg is the active gate.
 
 This is opt-in by design: the always-on gate is lint. Build/test runs when a
-maintainer triggers it manually or labels a PR, so contributors without the
-hardware are never blocked.
+maintainer triggers it manually or labels a PR, so contributors are never
+blocked.
 
-**Current posture (on-demand).** No always-on self-hosted runner is registered.
-The practical pre-merge gate for a code change is running
-`scripts/ci_build_test.sh` locally (see [Running the script locally](#running-the-script-locally)),
-which performs the same build and tests as the workflow. The `ci:build` label
-and the `O3DE_ENGINE_PATH` / `DIORAMA_PROJECT` repository variables are already
-configured, so the workflow can run as soon as a runner is brought online on
-demand. A persistent runner is intentionally avoided while the repository is
-public-facing, because a self-hosted runner that executes pull-request code is a
-security risk for fork contributions; bring one online only for trusted runs and
-take it offline afterward.
+## The two legs
 
-The workflow has two legs, each pinned to its OS so a runner that carries the
-`o3de` label on the other platform can never pick up the wrong script: a
-**Linux** leg (`runs-on: [self-hosted, o3de, Linux]`, `scripts/ci_build_test.sh`)
-and a **Windows** leg (`runs-on: [self-hosted, o3de, windows]`,
-`scripts/ci_build_test.ps1`). `Linux` / `Windows` are system labels the runner
-applies automatically, so you only ever add the custom `o3de` label yourself.
-Windows is O3DE's primary platform, so the Windows leg is the one that confirms
-the gem builds and tests there, not only on Linux.
+| Leg     | Home                          | Trigger label    | Script                     |
+| ------- | ----------------------------- | ---------------- | -------------------------- |
+| Linux   | GitHub-hosted + `ci-fedora` container | `ci:build-linux` | `scripts/ci_build_test.sh` |
+| Windows | self-hosted (`o3de`+`windows`) | `ci:build`       | `scripts/ci_build_test.ps1` |
 
-**A leg whose `if` condition is true but whose `runs-on` labels match no online
-runner does NOT skip; it queues until a matching runner appears (or the run is
-cancelled).** So the two legs are gated separately, not identically, to match
-which runners actually exist:
+The labels are distinct on purpose. **A leg whose `if` condition is true but
+whose `runs-on` labels match no online runner does NOT skip; it queues until a
+matching runner appears (or the run is cancelled).** Keeping `ci:build` for
+Windows and `ci:build-linux` for Linux means an ordinary `ci:build` never leaves
+a job hung waiting for a runner that is not online.
 
-- **Windows leg** runs on the `ci:build` label (or a manual dispatch). A Windows
-  runner is the available target.
-- **Linux leg** runs only on a distinct **`ci:build-linux`** label (or a manual
-  dispatch with `leg=linux`/`both`). It is held behind its own label because no
-  Linux `o3de` runner exists yet; using the common `ci:build` would leave a Linux
-  job queued forever. Add `ci:build-linux` only once a Linux runner is online.
+### Linux leg (GitHub-hosted container)
+
+The image is built and pushed to this repo's GitHub Container Registry by the
+`ci-image` workflow (`.github/workflows/ci-image.yml`), entirely on GitHub. It
+runs on a manual dispatch or automatically when `ci/Containerfile` changes on
+`main`, publishing `ghcr.io/<owner>/<repo>/ci-fedora:latest`. The build-test
+Linux leg then pulls that image and runs `scripts/ci_build_test.sh` in it, with
+`O3DE_ENGINE_PATH=/opt/O3DE/26.05.0` and `DIORAMA_PROJECT=/opt/diorama-host`
+(both baked into the image). No repository variables and no self-hosted runner
+are needed.
+
+While the package is private the leg authenticates the pull with the built-in
+`GITHUB_TOKEN`. Making the `ci-fedora` package public (ghcr package settings)
+removes that need and lets fork PRs pull it too.
+
+To bring the image up the first time: Actions -> `ci-image` -> **Run workflow**
+(or merge a change to `ci/Containerfile`). Once it has published, add the
+`ci:build-linux` label to a PR (or dispatch `build-test` with `leg=linux`).
 
 A manual run (Actions -> build-test -> **Run workflow**) takes a `leg` input
 (`both` / `linux` / `windows`, default `windows`) so you can exercise a single
-platform without the other leg sitting queued for an offline runner.
+platform. The Windows leg still needs its self-hosted runner online; the Linux
+leg runs on a GitHub-hosted container and is always available.
 
-## What the runner needs
+The rest of this document covers the **self-hosted Windows** runner. The Linux
+leg needs no host setup (see [Linux leg](#linux-leg-github-hosted-container)
+above); to change what it builds in, edit `ci/Containerfile`.
 
-- A machine with O3DE **26.05** installed (the SDK). On Linux that means
-  `scripts/o3de.sh` and `bin/Linux/<config>/Default/AzTestRunner`; on Windows,
-  `scripts\o3de.bat` and `bin\Windows\<config>\Default\AzTestRunner.exe`.
+## What the Windows runner needs
+
+- A machine with O3DE **26.05** installed (the SDK): `scripts\o3de.bat` and
+  `bin\Windows\<config>\Default\AzTestRunner.exe`.
 - The engine 3rdParty packages (default `~/.o3de/3rdParty`).
 - A host O3DE project to build the gem through (any project with the standard
   layout; this repo is developed against a `DioramaSandbox` project).
-- Build tooling matching the engine: CMake plus, on Linux, Ninja
-  (`ninja-build`) and a clang toolchain; on Windows, Visual Studio 2022 or 2026
-  (the C++ workload) and its CMake. The Windows host build has been verified
-  (VS2026 / MSVC); `scripts/ci_build_test.ps1` auto-detects the newest installed
-  Visual Studio generator.
+- Visual Studio 2022 or 2026 (the C++ workload) and its CMake. The Windows host
+  build has been verified (VS2026 / MSVC); `scripts/ci_build_test.ps1`
+  auto-detects the newest installed Visual Studio generator.
 
-## One-time setup
+## One-time setup (Windows runner)
 
 1. **Register a self-hosted runner** on the repository (GitHub: Settings →
    Actions → Runners → New self-hosted runner). Add the custom label `o3de`; the
-   runner adds `self-hosted` and its OS label (`Linux` or `Windows`)
-   automatically. So a Linux runner ends up matching the Linux leg
-   (`[self-hosted, o3de, Linux]`) and a Windows runner the Windows leg
-   (`[self-hosted, o3de, windows]`) with no extra labels. On Windows, configure
-   unattended and install as a service, for example:
+   runner adds `self-hosted` and the `Windows` OS label automatically, so it
+   matches the Windows leg (`[self-hosted, o3de, windows]`) with no extra labels.
+   Configure unattended and install as a service, for example:
 
    ```powershell
    ./config.cmd --url https://github.com/<owner>/<repo> --token <TOKEN> `
@@ -82,27 +90,23 @@ platform without the other leg sitting queued for an offline runner.
    repository variables (Settings → Secrets and variables → Actions →
    Variables), or export them in the runner's service environment:
 
-   | Variable           | Example                              |
-   | ------------------ | ------------------------------------ |
-   | `O3DE_ENGINE_PATH` | `/opt/O3DE/26.05.0`                  |
-   | `DIORAMA_PROJECT`  | `/home/runner/projects/DioramaSandbox` |
+   | Variable           | Example                                |
+   | ------------------ | -------------------------------------- |
+   | `O3DE_ENGINE_PATH` | `C:\O3DE\26.05.0`                      |
+   | `DIORAMA_PROJECT`  | `C:\projects\DioramaSandbox`           |
 
-   The build script reads both. `GEM_PATH` defaults to the checked-out repo.
-
-   If one runner is Linux and another is Windows and their paths differ, set the
-   Windows-specific variables `O3DE_ENGINE_PATH_WINDOWS` and
-   `DIORAMA_PROJECT_WINDOWS` (e.g. `C:\O3DE\26.05.0` and
-   `C:\projects\DioramaSandbox`); the Windows leg prefers those and falls back to
-   the common variables when they are unset.
+   The build script reads both. `GEM_PATH` defaults to the checked-out repo. The
+   Windows leg also accepts `O3DE_ENGINE_PATH_WINDOWS` /
+   `DIORAMA_PROJECT_WINDOWS` and prefers those when set, falling back to the
+   common variables otherwise.
 
 ## Triggering it
 
-- **Manually**: Actions → `build-test` → Run workflow (the `leg` input defaults
-  to `windows`; choose `linux`/`both` only when a Linux runner is online).
-- **On a PR**: add the `ci:build` label to run the **Windows** leg (it re-runs on
-  each push while the label is present). Add **`ci:build-linux`** as well to run
-  the Linux leg, but only once a Linux runner exists, or that job queues with no
-  runner to pick it up.
+- **Manually**: Actions → `build-test` → Run workflow. The `leg` input defaults
+  to `windows`; choose `linux`/`both` to include the Linux container leg.
+- **On a PR**: add the `ci:build` label to run the **Windows** leg, or
+  **`ci:build-linux`** to run the **Linux** leg (each re-runs on every push while
+  its label is present). Both can be applied together.
 
 ## What it does
 
@@ -188,9 +192,9 @@ debug a failure, run the script directly first:
 
 5. **Wire up CI**: register the runner with labels `self-hosted`, `o3de`,
    `windows`; set the repository variables (including the overrides from step 4,
-   and `O3DE_ENGINE_PATH_WINDOWS` / `DIORAMA_PROJECT_WINDOWS` if the paths differ
-   from the Linux runner's); then add the `ci:build` label to a PR to trigger
-   the Windows leg (add `ci:build-linux` too only once a Linux runner is online).
+   via `O3DE_ENGINE_PATH_WINDOWS` / `DIORAMA_PROJECT_WINDOWS`); then add the
+   `ci:build` label to a PR to trigger the Windows leg. (The Linux leg is
+   independent and always available via `ci:build-linux`.)
 
 ## Not covered
 

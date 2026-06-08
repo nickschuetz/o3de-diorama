@@ -1,0 +1,37 @@
+# Diorama Linux CI image: Fedora 44 + the O3DE 26.05 SDK, for use as a
+# `container:` in the build-test workflow on GitHub-hosted runners.
+#
+# Why Fedora 44 and not a stock Ubuntu runner: the O3DE 26.05 SDK is a Fedora 44
+# RPM (o3de2605.fc44). It needs glibc 2.43 and links Fedora system 3rdParty
+# libs, so an Ubuntu/UBI base (glibc 2.35/2.34) cannot even load AzTestRunner.
+# We install the SDK and all of its deps from the same COPRs the SDK was built
+# against, so versions match exactly.
+#
+# This image is built and pushed to ghcr.io by .github/workflows/ci-image.yml
+# (entirely on GitHub's infrastructure). The Linux build-test leg then runs its
+# steps inside it. GitHub injects the Actions runner and a node binary at
+# runtime, so this image only needs git (for checkout) plus the build toolchain.
+FROM registry.fedoraproject.org/fedora:44
+
+# O3DE 26.05 SDK + its exact fc44 deps, plus the gem build toolchain.
+# git/git-lfs are needed by actions/checkout running inside the container.
+RUN dnf -y install dnf-plugins-core \
+ && dnf -y copr enable hellaenergy/o3de \
+ && dnf -y copr enable hellaenergy/o3de-dependencies \
+ && dnf -y install o3de2605 \
+        gcc gcc-c++ clang lld cmake ninja-build git git-lfs \
+        python3 python3-pip \
+        krb5-libs zlib libicu openssl-libs lttng-ust \
+        tar gzip findutils which procps-ng \
+ && dnf clean all
+
+# A host project to build the gem through. ci_build_test.sh registers the gem as
+# an external subdirectory of the engine, which adds its targets (Diorama,
+# Diorama.Editor, Diorama.Tests) to this project's configure step; enabling the
+# gem at runtime is not required to build and run the test library. Baking the
+# project in keeps the CI step deterministic with no host files.
+RUN /opt/O3DE/26.05.0/scripts/o3de.sh create-project \
+        --project-path /opt/diorama-host --project-name DioramaHost \
+        --template-name MinimalProject \
+ || /opt/O3DE/26.05.0/scripts/o3de.sh create-project \
+        --project-path /opt/diorama-host --project-name DioramaHost

@@ -1,0 +1,49 @@
+name: ci-image
+
+# Builds the Linux CI container image (ci/Containerfile: Fedora 44 + O3DE SDK)
+# and pushes it to this repo's GitHub Container Registry. Runs entirely on
+# GitHub-hosted runners, so no local hardware is involved. The build-test Linux
+# leg consumes the published image as a `container:`.
+#
+# Triggers: a manual dispatch, or a push to main that touches the image
+# definition. It does NOT run on pull_request, so a fork cannot push an image.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ci/Containerfile
+      - .github/workflows/ci-image.yml
+
+permissions:
+  contents: read
+  packages: write   # push to ghcr.io for this repo
+
+env:
+  # ghcr.io/<owner>/<repo>/ci-fedora. github.repository is already lowercase here.
+  IMAGE: ghcr.io/${{ github.repository }}/ci-fedora
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ci
+          file: ci/Containerfile
+          push: true
+          # `latest` for the leg to consume; the commit SHA for traceability.
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
