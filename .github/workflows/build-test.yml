@@ -116,8 +116,13 @@ jobs:
 
           $msi  = Join-Path $dir 'o3de_26.05.msi'
           $mlog = 'C:\o3de-msi.log'
+          # Install to a SPACE-FREE path. The MSI default is C:\Program Files\O3DE,
+          # but O3DE's LYPython.cmake builds the pip command with an unquoted
+          # interpreter path, so a space in the engine path breaks configure
+          # ("'C:/Program' is not recognized"). INSTALL_ROOT (a public MSI
+          # property) overrides the location.
           Write-Host "Installing via msiexec..."
-          $m = Start-Process msiexec -ArgumentList '/i',"`"$msi`"",'/qn','/norestart','/l*v',$mlog -Wait -PassThru
+          $m = Start-Process msiexec -ArgumentList '/i',"`"$msi`"",'INSTALL_ROOT=C:\O3DE\26.05','/qn','/norestart','/l*v',$mlog -Wait -PassThru
           Write-Host "msiexec exit code: $($m.ExitCode)"
           if ($m.ExitCode -ne 0 -and $m.ExitCode -ne 3010) {
             if (Test-Path $mlog) { Write-Host "----- msiexec log (tail) -----"; Get-Content $mlog -Tail 120 }
