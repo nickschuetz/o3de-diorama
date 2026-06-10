@@ -211,14 +211,47 @@ namespace Diorama
         }
     }
 
+    void TilemapAnimatedTileData::Reflect(AZ::ReflectContext* context)
+    {
+        if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serializeContext->Class<TilemapAnimatedTileData>()
+                ->Version(1)
+                ->Field("tileIndex", &TilemapAnimatedTileData::m_tileIndex)
+                ->Field("frames", &TilemapAnimatedTileData::m_frames)
+                ->Field("fps", &TilemapAnimatedTileData::m_fps)
+                ->Field("loop", &TilemapAnimatedTileData::m_loop);
+
+            if (auto* editContext = serializeContext->GetEditContext())
+            {
+                editContext->Class<TilemapAnimatedTileData>("Animated Tile", "Cycle a painted tile through a sequence of atlas frames")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &TilemapAnimatedTileData::m_tileIndex,
+                        "Tile Index",
+                        "Painted atlas index whose cells animate")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default, &TilemapAnimatedTileData::m_frames, "Frames", "Atlas cell indices played in order")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default, &TilemapAnimatedTileData::m_fps, "FPS", "Playback rate (frames per second)")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TilemapAnimatedTileData::m_loop, "Loop", "Wrap, or hold the last frame");
+            }
+        }
+    }
+
     void TilemapComponentConfig::Reflect(AZ::ReflectContext* context)
     {
         TilemapAutotileRuleData::Reflect(context);
+        TilemapAnimatedTileData::Reflect(context);
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<TilemapComponentConfig, AZ::ComponentConfig>()
-                ->Version(4)
+                ->Version(5)
                 ->Field("tilemapAsset", &TilemapComponentConfig::m_tilemapAsset)
                 ->Field("atlas", &TilemapComponentConfig::m_atlas)
                 ->Field("columns", &TilemapComponentConfig::m_columns)
@@ -230,6 +263,7 @@ namespace Diorama
                 ->Field("tint", &TilemapComponentConfig::m_tint)
                 ->Field("sortOffset", &TilemapComponentConfig::m_sortOffset)
                 ->Field("autotileRules", &TilemapComponentConfig::m_autotileRules)
+                ->Field("animatedTiles", &TilemapComponentConfig::m_animatedTiles)
                 ->Field("solidTiles", &TilemapComponentConfig::m_solidTiles)
                 ->Field("collisionLayer", &TilemapComponentConfig::m_collisionLayer);
 
@@ -272,6 +306,12 @@ namespace Diorama
                         &TilemapComponentConfig::m_autotileRules,
                         "Autotile Rules",
                         "Custom neighbor-mask -> offset rules consumed by AutotileRules (empty = canonical blob)")
+                    ->ClassElement(AZ::Edit::ClassElements::Group, "Animation")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &TilemapComponentConfig::m_animatedTiles,
+                        "Animated Tiles",
+                        "Painted tile index -> a cycling sequence of atlas frames (empty = the map is static)")
                     ->ClassElement(AZ::Edit::ClassElements::Group, "Collision")
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,

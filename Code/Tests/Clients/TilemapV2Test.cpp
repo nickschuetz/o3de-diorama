@@ -11,6 +11,7 @@
 #include <AzCore/std/containers/span.h>
 #include <AzCore/std/containers/vector.h>
 
+#include <Clients/TilemapAnimation.h>
 #include <Clients/TilemapAutotile.h>
 #include <Clients/TilemapCollision.h>
 #include <Clients/TilemapComponent.h>
@@ -181,5 +182,44 @@ namespace Diorama
 
         config.m_solidTiles.clear();
         EXPECT_TRUE(BuildTilemapColliders(config, 0.0f, 0.0f, 1u).empty());
+    }
+
+    // ---- Animated tiles: frame selection over time ------------------------------
+
+    TEST(TilemapAnimationTest, StaticInputsHoldFrameZero)
+    {
+        // Single/empty frame list, non-positive fps, or t<=0 all hold the first frame.
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(5.0f, 8.0f, 1, true), 0); // one frame
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(5.0f, 8.0f, 0, true), 0); // no frames
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(5.0f, 0.0f, 4, true), 0); // fps 0
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(5.0f, -8.0f, 4, true), 0); // fps negative
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.0f, 8.0f, 4, true), 0); // t == 0
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(-1.0f, 8.0f, 4, true), 0); // t < 0
+    }
+
+    TEST(TilemapAnimationTest, AdvancesOneFramePerInterval)
+    {
+        // At 10 fps each frame lasts 0.1s; sample mid-interval to avoid boundary ties.
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.05f, 10.0f, 4, true), 0);
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.15f, 10.0f, 4, true), 1);
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.25f, 10.0f, 4, true), 2);
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.35f, 10.0f, 4, true), 3);
+    }
+
+    TEST(TilemapAnimationTest, LoopWrapsModuloFrameCount)
+    {
+        // After the 4th frame a looping sequence wraps back to frame 0.
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.45f, 10.0f, 4, true), 0);
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.55f, 10.0f, 4, true), 1);
+        // A whole extra cycle later lands on the same phase.
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.85f, 10.0f, 4, true), 0);
+    }
+
+    TEST(TilemapAnimationTest, NonLoopHoldsLastFrame)
+    {
+        // A one-shot sequence clamps to the final frame and stays there.
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.35f, 10.0f, 4, false), 3);
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(0.45f, 10.0f, 4, false), 3);
+        EXPECT_EQ(TilemapAnimation::FrameAtTime(100.0f, 10.0f, 4, false), 3);
     }
 } // namespace Diorama

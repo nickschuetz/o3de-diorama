@@ -29,7 +29,8 @@ namespace Diorama
                 ->Field("tileHeight", &TilemapInfo::m_tileHeight)
                 ->Field("filledTileCount", &TilemapInfo::m_filledTileCount)
                 ->Field("sortOffset", &TilemapInfo::m_sortOffset)
-                ->Field("hasSourceAsset", &TilemapInfo::m_hasSourceAsset);
+                ->Field("hasSourceAsset", &TilemapInfo::m_hasSourceAsset)
+                ->Field("animatedTileCount", &TilemapInfo::m_animatedTileCount);
         }
 
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
@@ -51,7 +52,8 @@ namespace Diorama
                 ->Property("tileHeight", BehaviorValueGetter(&TilemapInfo::m_tileHeight), nullptr)
                 ->Property("filledTileCount", BehaviorValueGetter(&TilemapInfo::m_filledTileCount), nullptr)
                 ->Property("sortOffset", BehaviorValueGetter(&TilemapInfo::m_sortOffset), nullptr)
-                ->Property("hasSourceAsset", BehaviorValueGetter(&TilemapInfo::m_hasSourceAsset), nullptr);
+                ->Property("hasSourceAsset", BehaviorValueGetter(&TilemapInfo::m_hasSourceAsset), nullptr)
+                ->Property("animatedTileCount", BehaviorValueGetter(&TilemapInfo::m_animatedTileCount), nullptr);
         }
     }
 
@@ -122,6 +124,14 @@ namespace Diorama
                 { { { "baseTileIndex",
                       "Group base tile; each non-empty cell becomes baseTileIndex + the matching custom rule's offset (or the blob "
                       "index)." } } })
+            ->Event(
+                "DefineAnimatedTile",
+                &DioramaTilemapRequestBus::Events::DefineAnimatedTile,
+                { { { "tileIndex", "Painted atlas index whose cells animate." },
+                    { "frames", "Atlas cell indices played in order; an empty list removes the definition." },
+                    { "fps", "Playback rate in frames per second; non-positive holds the first frame." },
+                    { "loop", "True wraps the sequence; false holds the last frame after one pass." } } })
+            ->Event("ClearAnimatedTiles", &DioramaTilemapRequestBus::Events::ClearAnimatedTiles)
             ->Event(
                 "SetTint",
                 &DioramaTilemapRequestBus::Events::SetTint,

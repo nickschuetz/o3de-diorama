@@ -37,6 +37,28 @@ namespace Diorama
         int m_offset = 0;
     };
 
+    //! One animated-tile definition: when a cell holds m_tileIndex, the renderer draws
+    //! the cells in m_frames in turn at m_fps instead of the static tile. Every cell
+    //! that shares a definition runs off one map-wide clock, so all instances (e.g.
+    //! every water tile) stay in sync; the presenter re-pushes an animated cell only on
+    //! the frames where its atlas index actually changes. The frame timing itself lives
+    //! in the pure, unit-tested Diorama::TilemapAnimation::FrameAtTime.
+    struct TilemapAnimatedTileData final
+    {
+        AZ_TYPE_INFO(Diorama::TilemapAnimatedTileData, TilemapAnimatedTileDataTypeId);
+        static void Reflect(AZ::ReflectContext* context);
+
+        //! Painted tile index (atlas cell) this animation replaces. A cell holding this
+        //! index animates; cells holding any other index are unaffected.
+        int m_tileIndex = 0;
+        //! Atlas cell indices played in order. Empty or single-entry = no animation.
+        AZStd::vector<int> m_frames;
+        //! Playback rate in frames per second. Non-positive = hold the first frame.
+        float m_fps = 8.0f;
+        //! True wraps the sequence; false holds the last frame after it plays once.
+        bool m_loop = true;
+    };
+
     //! Shared configuration for a world-space tilemap: a grid of cells, each
     //! drawing one cell of a shared atlas texture as a quad. The same struct is
     //! used by the runtime TilemapComponent and the EditorTilemapComponent so the
@@ -98,6 +120,11 @@ namespace Diorama
         //! art is not laid out in the gem's canonical blob order). Empty = the verb falls
         //! back to the canonical blob index for every cell.
         AZStd::vector<TilemapAutotileRuleData> m_autotileRules;
+
+        //! Animated-tile definitions. A cell whose painted index matches a definition's
+        //! m_tileIndex cycles through that definition's frames at runtime instead of
+        //! drawing the static tile. Empty = the whole map is static.
+        AZStd::vector<TilemapAnimatedTileData> m_animatedTiles;
 
         //! Atlas tile indices that count as SOLID for per-tile collision. At runtime
         //! the tilemap merges its solid cells into a few static collider boxes (greedy

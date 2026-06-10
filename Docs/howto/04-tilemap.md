@@ -47,9 +47,11 @@ The `DioramaTilemapRequestBus` mirrors the inspector with typed, forgiving verbs
 | `SetTile(column, row, tileIndex)` | Set one cell (`-1` clears it) |
 | `Fill(tileIndex)` | Set every cell |
 | `Clear()` | Empty every cell |
+| `DefineAnimatedTile(tileIndex, frames, fps, loop)` | Cycle a painted tile through atlas frames |
+| `ClearAnimatedTiles()` | Drop every animation (static again) |
 | `SetTint(r, g, b, a)` | Tint the whole layer |
 | `SetSortOffset(sortOffset)` | Transparent draw-order bias |
-| `GetTilemapInfo()` | Resolved state (loaded, visible, filled count) |
+| `GetTilemapInfo()` | Resolved state (loaded, visible, filled count, animated count) |
 
 Every value is validated and clamped (dimensions to at least 1, tile size to at
 least 0), so a bad argument is corrected rather than crashing.
@@ -181,13 +183,38 @@ etc.). Notes: the tile boxes do not fire `OnContactBegin`-style events (they are
 query-only); and per-tile collision assumes the tilemap is axis-aligned in the X,Z
 collision plane (its default, un-rotated orientation).
 
+## Animated tiles (water, torches, coins)
+
+Some tiles should cycle through frames. Define an **animated tile**: a painted tile
+index plays a sequence of atlas frames at a chosen rate. Every cell painted with that
+index animates, and they all run off one map-wide clock so they stay in sync (all the
+water ripples together). In the component's **Animation** group, add an **Animated
+Tiles** entry with a **Tile Index** (the painted index that animates), the **Frames**
+(atlas cell indices played in order), an **FPS**, and a **Loop** flag (wrap, or hold
+the last frame after one pass).
+
+From a script, author the same thing through the bus:
+
+```lua
+-- Tile index 4 (water) cycles through atlas cells 4,5,6,7 at 8 fps, looping:
+DioramaTilemapRequestBus.Event.DefineAnimatedTile(self.entityId, 4, {4, 5, 6, 7}, 8.0, true)
+-- Calling it again with the same tile index replaces the definition; an empty
+-- frame list removes it. ClearAnimatedTiles() drops every animation (static again).
+DioramaTilemapRequestBus.Event.ClearAnimatedTiles(self.entityId)
+```
+
+Painted orientation flags (flip/rotate from Tiled) are preserved on each frame, and a
+static map (no animated tiles) does not tick at all, so there is no idle cost. The
+frame timing itself is the pure, unit-tested `TilemapAnimation::FrameAtTime`.
+
 ## Verifying without a screenshot
 
 `GetTilemapInfo` returns the resolved state: the resolved atlas path, whether the
 atlas has loaded, whether the layer is drawing (`visible`), the grid and atlas
-dimensions, the tile size, and `filledTileCount` (how many cells are non-empty).
-An agent paints cells and confirms `filledTileCount` matches its intent, closing
-the loop without eyeballing pixels.
+dimensions, the tile size, `filledTileCount` (how many cells are non-empty), and
+`animatedTileCount` (how many animated-tile definitions are active). An agent paints
+cells, defines animations, and confirms those counts match its intent, closing the
+loop without eyeballing pixels.
 
 ## Dedicated tilemap asset (for larger maps)
 

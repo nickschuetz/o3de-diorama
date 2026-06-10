@@ -10,6 +10,7 @@
 #include <Clients/TilemapPresenter.h>
 #include <Clients/TilemapRequestHandler.h>
 
+#include <AzCore/std/algorithm.h>
 #include <AzCore/std/containers/vector.h>
 
 #include <AzCore/Math/MathUtils.h>
@@ -267,6 +268,48 @@ namespace Diorama
         NotifyChanged();
     }
 
+    void TilemapRequestHandler::DefineAnimatedTile(int tileIndex, const AZStd::vector<int>& frames, float fps, bool loop)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+
+        // Replace any existing definition for this painted index (one definition per
+        // tile). An empty frame list removes it instead of defining an empty cycle.
+        auto& defs = m_config->m_animatedTiles;
+        defs.erase(
+            AZStd::remove_if(
+                defs.begin(),
+                defs.end(),
+                [tileIndex](const TilemapAnimatedTileData& def)
+                {
+                    return def.m_tileIndex == tileIndex;
+                }),
+            defs.end());
+
+        if (!frames.empty())
+        {
+            TilemapAnimatedTileData def;
+            def.m_tileIndex = tileIndex;
+            def.m_frames = frames;
+            def.m_fps = fps;
+            def.m_loop = loop;
+            defs.push_back(AZStd::move(def));
+        }
+        NotifyChanged();
+    }
+
+    void TilemapRequestHandler::ClearAnimatedTiles()
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_animatedTiles.clear();
+        NotifyChanged();
+    }
+
     void TilemapRequestHandler::SetTint(float r, float g, float b, float a)
     {
         if (m_config == nullptr)
@@ -313,6 +356,7 @@ namespace Diorama
         info.m_filledTileCount = m_config->CountFilledTiles();
         info.m_sortOffset = m_config->m_sortOffset;
         info.m_hasSourceAsset = m_config->m_tilemapAsset.GetId().IsValid();
+        info.m_animatedTileCount = static_cast<int>(m_config->m_animatedTiles.size());
 
         if (m_presenter != nullptr)
         {

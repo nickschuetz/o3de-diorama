@@ -117,8 +117,13 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   (`TilemapCollision.h`) into static box colliders registered with the 2D collision
   world (`SetStaticColliders`), so a moving collider blocks against the map via the
   overlap / raycast / push-out queries ([howto/04-tilemap.md](howto/04-tilemap.md)).
-  Remaining: animated tiles (render-path), opt-in tile contact events, and an
-  oriented-plane mode for rotated maps.
+  **Shipped (animated tiles)**: an **Animated Tiles** config list (painted tile index
+  -> a cycling sequence of atlas frames at an fps, with a loop flag) on the pure tested
+  `TilemapAnimation::FrameAtTime` core, driven in the presenter off one map-wide clock
+  (animated cells re-push only when their frame changes; a static map never ticks) and
+  authored by the `DefineAnimatedTile` / `ClearAnimatedTiles` bus verbs
+  ([design/2d-tilemap-v2.md](design/2d-tilemap-v2.md)). All three tilemap-v2 items are
+  in. Remaining: opt-in tile contact events and an oriented-plane mode for rotated maps.
 - **Skeletal 2D animation** (L). Bone deformation (Spine / DragonBones style), the
   AAA-2D animation standard. **Design done**
   ([design/2d-skeletal-animation.md](design/2d-skeletal-animation.md)): phased

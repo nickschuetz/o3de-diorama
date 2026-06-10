@@ -45,6 +45,9 @@ namespace Diorama
     // Custom autotile rule entry (mask -> display offset)
     inline constexpr const char* TilemapAutotileRuleDataTypeId = "{E5576879-8A9B-44C5-D6D7-E8F90A1B2C19}";
 
+    // Animated tile entry (a painted tile index -> a cycling sequence of atlas frames)
+    inline constexpr const char* TilemapAnimatedTileDataTypeId = "{F6687980-9BAC-4D6E-E7E8-F9A10B2C3D2A}";
+
     // Dedicated tilemap asset + builder (.dioramatilemap source -> product asset)
     inline constexpr const char* DioramaTilemapAssetTypeId = "{1C7E2D90-4A6B-4C8D-9E0F-1A2B3C4D5E60}";
     inline constexpr const char* DioramaTilemapLayerDataTypeId = "{2D8F3EA1-5B7C-4D9E-8F10-2B3C4D5E6F71}";

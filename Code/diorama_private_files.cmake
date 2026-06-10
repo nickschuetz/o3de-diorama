@@ -72,6 +72,7 @@ set(FILES
     Source/Clients/DioramaAsepriteSheetAsset.h
     Source/Clients/AsepriteBus.cpp
     Source/Clients/TilemapPaint.h
+    Source/Clients/TilemapAnimation.h
     Source/Clients/TilemapAutotile.h
     Source/Clients/TilemapCollision.h
     Source/Clients/DioramaParallaxComponent.cpp

@@ -12,6 +12,7 @@
 #include <AzCore/Component/ComponentBus.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/RTTI/RTTI.h>
+#include <AzCore/std/containers/vector.h>
 #include <AzCore/std/string/string.h>
 
 namespace AZ
@@ -43,6 +44,7 @@ namespace Diorama
         int m_filledTileCount = 0; //!< Number of non-empty cells.
         float m_sortOffset = 0.0f;
         bool m_hasSourceAsset = false; //!< True when a compiled tilemap asset drives this map.
+        int m_animatedTileCount = 0; //!< Number of animated-tile definitions.
     };
 
     //! Stable, typed, agent-facing API for driving a single tilemap, addressed by
@@ -92,6 +94,13 @@ namespace Diorama
         //! matches. Use this for a tileset whose art is not laid out in the gem's
         //! blob order. baseTileIndex is clamped to >= 0.
         virtual void AutotileRules(int baseTileIndex) = 0;
+        //! Define (or replace) an animated tile: every cell painted with tileIndex
+        //! cycles through the given atlas frames at fps. An existing definition for
+        //! the same tileIndex is replaced. An empty frame list removes the definition.
+        //! All cells sharing a definition share one clock, so they stay in sync.
+        virtual void DefineAnimatedTile(int tileIndex, const AZStd::vector<int>& frames, float fps, bool loop) = 0;
+        //! Remove every animated-tile definition (the whole map draws static again).
+        virtual void ClearAnimatedTiles() = 0;
         //! Tint multiplied into every tile; channels clamped to 0..1.
         virtual void SetTint(float r, float g, float b, float a) = 0;
         //! Transparent draw-order bias for the layer; larger draws on top.

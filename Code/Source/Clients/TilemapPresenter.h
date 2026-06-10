@@ -80,11 +80,28 @@ namespace Diorama
         //! Build the per-cell sprite draw spec for a given atlas cell index.
         SpriteComponentConfig BuildTileConfig(AZ::s32 tileIndex) const;
 
+        //! True when the config has at least one animated-tile definition.
+        bool HasAnimatedTiles() const;
+        //! Animation definition whose painted index matches (masked), or null.
+        const TilemapAnimatedTileData* FindAnimatedTile(AZ::s32 paintedIndex) const;
+        //! Resolve a stored grid value to the atlas tile to draw now: an animated
+        //! painted index becomes its current frame (orientation flags preserved); any
+        //! other value is returned unchanged.
+        AZ::s32 DisplayTileIndex(AZ::s32 storedTile) const;
+        //! World transform of a cell (world TM * the cell's local position).
+        AZ::Transform CellTransform(int column, int row) const;
+        //! Advance the animation clock and re-push only the animated cells whose
+        //! current frame changed this tick.
+        void AdvanceAnimation(float deltaTime);
+
         struct Cell
         {
             AZ::u32 m_handle = 0;
             int m_column = 0;
             int m_row = 0;
+            //! Atlas tile last pushed to the feature processor for this cell, so an
+            //! animated cell re-pushes only when its frame actually changes.
+            AZ::s32 m_displayIndex = -1;
         };
 
         AZ::EntityId m_entityId;
@@ -92,6 +109,12 @@ namespace Diorama
         AZ::Transform m_worldTransform = AZ::Transform::CreateIdentity();
         SpriteFeatureProcessor* m_featureProcessor = nullptr;
         AZStd::vector<Cell> m_cells;
+        //! Indices into m_cells that hold an animated painted tile (subset advanced
+        //! each tick); rebuilt with the cell set.
+        AZStd::vector<AZ::u32> m_animatedCells;
+        //! Map-wide animation clock in seconds; all animated cells share it so every
+        //! instance stays in phase.
+        float m_animTime = 0.0f;
         bool m_connected = false;
     };
 } // namespace Diorama

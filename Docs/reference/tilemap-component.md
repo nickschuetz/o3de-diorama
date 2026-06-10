@@ -244,6 +244,63 @@ different depths for a 2.5D look (see the parallax guide). It
 applies uniformly to every cell in the layer, which is part of why the layer
 stays a single batch.
 
+### Autotile Rules
+
+- Inspector label: **Autotile Rules** ("Custom neighbor-mask -> offset rules
+  consumed by AutotileRules"), group Autotiling.
+- Config field: `m_autotileRules` (`AZStd::vector<TilemapAutotileRuleData>`, each
+  entry a `{mask, offset}`).
+- Bus verb: `void AutotileRules(int baseTileIndex)` (consumes these rules).
+
+The built-in `Autotile` / `AutotileBlob` verbs assume the art block is laid out in
+the gem's canonical order (16 cells in edge-mask order, or 47 in blob order). When
+an imported tileset is laid out differently, list **Autotile Rules** mapping each
+normalized neighbor **Mask** (0..255) to a display **Offset**, then call
+`AutotileRules(baseTileIndex)`: each non-empty cell becomes `baseTileIndex` + the
+first matching rule's offset, or the canonical blob index when no rule matches. The
+rewrite is pure integer-grid math (no render change), so it is fully verifiable
+through the tile getters.
+
+### Solid Tiles and Collision Layer
+
+- Inspector labels: **Solid Tiles** ("Atlas tile indices treated as solid") and
+  **Collision Layer** ("Collision category bit the solid-tile boxes belong to"),
+  group Collision.
+- Config fields: `m_solidTiles` (`AZStd::vector<AZ::s32>`, default empty) and
+  `m_collisionLayer` (`AZ::u32`, default `1`).
+- No bus setter: authored in the Inspector (or a build script); the runtime
+  registers the colliders.
+
+Mark which atlas indices are **solid** to give a tile world collision without
+hand-placing colliders. At activate (and whenever the tiles change) the runtime
+greedy-meshes the solid cells into a few large boxes and registers them with the 2D
+collision world on the chosen **Collision Layer**. They are query-only static
+geometry: a moving collider resolves against them through `OverlapBox` /
+`Raycast2D` / `ComputeBoxPushOut`, but they do not fire contact events. Per-tile
+collision assumes the tilemap is axis-aligned in the X,Z collision plane (its
+default, un-rotated orientation); a rotated collidable tilemap warns once. Empty
+`Solid Tiles` = no collision.
+
+### Animated Tiles
+
+- Inspector label: **Animated Tiles** ("Painted tile index -> a cycling sequence of
+  atlas frames"), group Animation.
+- Config field: `m_animatedTiles` (`AZStd::vector<TilemapAnimatedTileData>`, each a
+  `{tileIndex, frames, fps, loop}`).
+- Bus verbs: `void DefineAnimatedTile(int tileIndex, const AZStd::vector<int>& frames, float fps, bool loop)`
+  and `void ClearAnimatedTiles()`.
+
+Define an **Animated Tile** to make every cell painted with a given **Tile Index**
+cycle through a sequence of atlas **Frames** at a chosen **FPS** (with a **Loop**
+flag: wrap, or hold the last frame after one pass). All cells sharing a definition
+advance off one map-wide clock, so every instance stays in sync, and an animated
+cell is re-pushed only on the ticks where its frame actually changes; a map with no
+animated tiles does not tick at all. Painted orientation flags (flip/rotate) are
+preserved onto each frame. The frame-selection timing is the pure, unit-tested
+`Diorama::TilemapAnimation::FrameAtTime`. An agent authors animations with
+`DefineAnimatedTile` (re-defining the same tile index replaces it; an empty frame
+list removes it) and confirms them through `animatedTileCount` on `GetTilemapInfo`.
+
 ## Performance notes
 
 A tilemap is one component that owns the whole grid and renders the layer in a
@@ -279,6 +336,7 @@ required.
 | `tileWidth` | `float` | 1.0 | Resolved tile width along local X. |
 | `tileHeight` | `float` | 1.0 | Resolved tile height along local Z. |
 | `filledTileCount` | `int` | 0 | Number of non-empty cells (`CountFilledTiles()`). |
+| `animatedTileCount` | `int` | 0 | Number of animated-tile definitions active. |
 | `sortOffset` | `float` | 0.0 | Resolved layer draw-order bias. |
 
 The distinction between requested and actual matters in two places.

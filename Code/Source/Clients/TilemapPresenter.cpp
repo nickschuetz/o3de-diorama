@@ -6,6 +6,7 @@
  */
 
 #include <Clients/SpriteFeatureProcessor.h>
+#include <Clients/TilemapAnimation.h>
 #include <Clients/TilemapPresenter.h>
 
 #include <Atom/RPI.Public/Scene.h>
@@ -27,6 +28,7 @@ namespace Diorama
 
         m_entityId = entityId;
         m_config = config;
+        m_animTime = 0.0f;
 
         m_worldTransform = AZ::Transform::CreateIdentity();
         AZ::TransformBus::EventResult(m_worldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
@@ -127,10 +129,11 @@ namespace Diorama
         }
     }
 
-    void TilemapPresenter::OnTick(float /*deltaTime*/, AZ::ScriptTimePoint /*time*/)
+    void TilemapPresenter::OnTick(float deltaTime, AZ::ScriptTimePoint /*time*/)
     {
-        // The only reason a tilemap ticks is to retry the scene lookup when the
-        // feature processor was not ready at Connect (level load / editor order).
+        // A tilemap ticks for two reasons: to retry the scene lookup when the feature
+        // processor was not ready at Connect (level load / editor order), and to drive
+        // animated tiles once it is.
         if (m_featureProcessor == nullptr)
         {
             if (TryAcquireFeatureProcessor())
@@ -138,12 +141,17 @@ namespace Diorama
                 Rebuild();
                 RefreshTickConnection();
             }
+            return;
         }
+
+        AdvanceAnimation(deltaTime);
     }
 
     void TilemapPresenter::RefreshTickConnection()
     {
-        const bool shouldTick = m_connected && m_featureProcessor == nullptr;
+        // Tick while the feature processor is still pending (to retry the lookup) or
+        // whenever there are animated tiles to drive.
+        const bool shouldTick = m_connected && (m_featureProcessor == nullptr || HasAnimatedTiles());
         const bool isTicking = AZ::TickBus::Handler::BusIsConnected();
         if (shouldTick && !isTicking)
         {
@@ -168,6 +176,7 @@ namespace Diorama
             }
         }
         m_cells.clear();
+        m_animatedCells.clear();
 
         if (!m_connected || m_featureProcessor == nullptr)
         {
@@ -180,13 +189,18 @@ namespace Diorama
         {
             for (int column = 0; column < columns; ++column)
             {
-                if (m_config.GetTile(column, row) == TilemapComponentConfig::EmptyTile)
+                const AZ::s32 stored = m_config.GetTile(column, row);
+                if (stored == TilemapComponentConfig::EmptyTile)
                 {
                     continue;
                 }
                 const AZ::u32 handle = m_featureProcessor->AcquireSprite();
                 if (handle != 0)
                 {
+                    if (FindAnimatedTile(stored & TilemapTile::IndexMask) != nullptr)
+                    {
+                        m_animatedCells.push_back(aznumeric_cast<AZ::u32>(m_cells.size()));
+                    }
                     m_cells.push_back(Cell{ handle, column, row });
                 }
             }
@@ -202,13 +216,68 @@ namespace Diorama
             return;
         }
 
-        for (const Cell& cell : m_cells)
+        for (Cell& cell : m_cells)
         {
-            const AZ::s32 tileIndex = m_config.GetTile(cell.m_column, cell.m_row);
-            const AZ::Transform tileTransform =
-                m_worldTransform * AZ::Transform::CreateTranslation(m_config.GetTileLocalPosition(cell.m_column, cell.m_row));
-            m_featureProcessor->UpdateSprite(cell.m_handle, tileTransform, BuildTileConfig(tileIndex));
+            const AZ::s32 resolved = DisplayTileIndex(m_config.GetTile(cell.m_column, cell.m_row));
+            cell.m_displayIndex = resolved;
+            m_featureProcessor->UpdateSprite(cell.m_handle, CellTransform(cell.m_column, cell.m_row), BuildTileConfig(resolved));
         }
+    }
+
+    void TilemapPresenter::AdvanceAnimation(float deltaTime)
+    {
+        if (m_animatedCells.empty())
+        {
+            return;
+        }
+
+        m_animTime += deltaTime;
+        for (const AZ::u32 cellIndex : m_animatedCells)
+        {
+            Cell& cell = m_cells[cellIndex];
+            const AZ::s32 resolved = DisplayTileIndex(m_config.GetTile(cell.m_column, cell.m_row));
+            if (resolved == cell.m_displayIndex)
+            {
+                continue; // same frame still showing: skip the redundant push
+            }
+            cell.m_displayIndex = resolved;
+            m_featureProcessor->UpdateSprite(cell.m_handle, CellTransform(cell.m_column, cell.m_row), BuildTileConfig(resolved));
+        }
+    }
+
+    bool TilemapPresenter::HasAnimatedTiles() const
+    {
+        return !m_config.m_animatedTiles.empty();
+    }
+
+    const TilemapAnimatedTileData* TilemapPresenter::FindAnimatedTile(AZ::s32 paintedIndex) const
+    {
+        for (const TilemapAnimatedTileData& def : m_config.m_animatedTiles)
+        {
+            if (def.m_tileIndex == paintedIndex && !def.m_frames.empty())
+            {
+                return &def;
+            }
+        }
+        return nullptr;
+    }
+
+    AZ::s32 TilemapPresenter::DisplayTileIndex(AZ::s32 storedTile) const
+    {
+        const TilemapAnimatedTileData* def = FindAnimatedTile(storedTile & TilemapTile::IndexMask);
+        if (def == nullptr)
+        {
+            return storedTile;
+        }
+        const int frame = TilemapAnimation::FrameAtTime(m_animTime, def->m_fps, aznumeric_cast<int>(def->m_frames.size()), def->m_loop);
+        const AZ::s32 frameIndex = def->m_frames[frame] & TilemapTile::IndexMask;
+        // Keep the painted cell's orientation flag bits (H/V/diagonal) on the frame.
+        return (storedTile & ~TilemapTile::IndexMask) | frameIndex;
+    }
+
+    AZ::Transform TilemapPresenter::CellTransform(int column, int row) const
+    {
+        return m_worldTransform * AZ::Transform::CreateTranslation(m_config.GetTileLocalPosition(column, row));
     }
 
     SpriteComponentConfig TilemapPresenter::BuildTileConfig(AZ::s32 tileIndex) const

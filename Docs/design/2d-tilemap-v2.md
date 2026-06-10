@@ -1,7 +1,8 @@
 # Tilemap v2: rule tiles, animated tiles, per-tile collision
 
 Status: rule tiles **shipped**; per-tile collision **shipped** (greedy-mesh core +
-runtime collider registration); animated tiles **designed**.
+runtime collider registration); animated tiles **shipped** (pure frame-selection
+core + presenter wiring + bus verbs). All three v2 items are in.
 
 The base tilemap (atlas grid, multi-layer asset + builder, Tiled import, paint
 tool, 4-bit and 47-blob autotiling, per-tile flip/rotate) is in. v2 closes the
@@ -51,23 +52,39 @@ solid cells into a few large boxes.
   axis-aligned in the X,Z collision plane (its default orientation). A future option:
   opt-in contact events, and an oriented-plane mode for rotated maps.
 
-## 3. Animated tiles (designed)
+## 3. Animated tiles (shipped)
 
-Some cells should cycle through frames (water, torches, coins). The plan:
+Some cells should cycle through frames (water, torches, coins). The design and
+what shipped:
 
-- A config list of animated-tile definitions: a key atlas index -> a sequence of
-  atlas indices + an fps (and optional per-frame durations), plus a loop flag.
-- A pure frame-selection core (given elapsed time and the sequence, pick the cell),
-  unit testable like the rest.
-- The presenter, each tick, overrides the UV of any cell whose value is an animated
-  key with the current frame's atlas cell. This is a render-path change, so it lands
-  with the on-screen verification pass.
+- A config list of animated-tile definitions (`m_animatedTiles`, authored in the
+  Inspector under "Animation"): each `TilemapAnimatedTileData` maps a painted
+  `m_tileIndex` to a sequence of atlas `m_frames` played at `m_fps`, with a `m_loop`
+  flag (wrap, or hold the last frame after one pass).
+- A pure frame-selection core in
+  [`TilemapAnimation.h`](../../Code/Source/Clients/TilemapAnimation.h):
+  `FrameAtTime(elapsedSeconds, fps, frameCount, loop)` returns the frame index now
+  (frame 0 for a static/single-frame/non-positive-fps input; modulo when looping;
+  clamped to the last frame otherwise). Pure and unit tested.
+- The presenter ([`TilemapPresenter`](../../Code/Source/Clients/TilemapPresenter.cpp))
+  resolves each cell's painted index to its current frame's atlas cell through
+  `DisplayTileIndex` (orientation flags preserved), and ticks while any animated tile
+  exists: it advances one map-wide clock so every instance of a tile stays in phase,
+  and re-pushes an animated cell only on the ticks where its frame actually changes.
+  Non-animated cells and static maps cost nothing (no tick when the definition list
+  is empty).
+- AI parity: `DefineAnimatedTile(tileIndex, frames, fps, loop)` and
+  `ClearAnimatedTiles()` on `DioramaTilemapRequestBus`, and `animatedTileCount` on
+  `GetTilemapInfo` for read-back, so an agent authors and confirms animations without
+  the Inspector.
 
 ## Why split this way
 
 Rule tiles are pure grid math, so they ship and verify headlessly today, exactly
 like the existing autotile verbs. Per-tile collision's geometry is equally pure and
 shipped/tested; only the collider *spawning* is a runtime behaviour. Animated tiles
-are inherently a render-path feature. The pure cores land now (green, tested); the
-runtime/visual wiring lands with a monitor, consistent with how every visual
-Diorama feature reaches "fully done."
+keep the same shape: the frame-selection math is a pure, unit-tested core, and the
+presenter wiring on top is the thin render-path layer (its visible result is what the
+on-screen pass confirms). The pure cores stay green and tested headlessly; the visual
+wiring is verified with a monitor, consistent with how every visual Diorama feature
+reaches "fully done."

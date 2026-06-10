@@ -47,6 +47,8 @@ namespace Diorama
         void Autotile(int baseTileIndex) override;
         void AutotileBlob(int baseTileIndex) override;
         void AutotileRules(int baseTileIndex) override;
+        void DefineAnimatedTile(int tileIndex, const AZStd::vector<int>& frames, float fps, bool loop) override;
+        void ClearAnimatedTiles() override;
         void SetTint(float r, float g, float b, float a) override;
         void SetSortOffset(float sortOffset) override;
         TilemapInfo GetTilemapInfo() override;
