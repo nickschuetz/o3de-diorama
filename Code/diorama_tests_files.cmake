@@ -10,6 +10,8 @@ set(FILES
     Tests/Clients/AsepriteBinaryTest.cpp
     Tests/Clients/TilemapV2Test.cpp
     Tests/Clients/InputActionMapTest.cpp
+    Tests/Clients/MotionInputTest.cpp
+    Tests/Clients/HitboxFramesTest.cpp
     Tests/Clients/AnimStateMachineTest.cpp
     Tests/Clients/DioramaTestMain.cpp
 )
