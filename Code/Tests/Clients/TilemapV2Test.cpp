@@ -222,4 +222,88 @@ namespace Diorama
         EXPECT_EQ(TilemapAnimation::FrameAtTime(0.45f, 10.0f, 4, false), 3);
         EXPECT_EQ(TilemapAnimation::FrameAtTime(100.0f, 10.0f, 4, false), 3);
     }
+
+    // ---- ResolveAnimatedTileIndex: the render-time resolution (pure) -------------
+    //
+    // This is the exact logic the presenter runs per cell each tick (def lookup +
+    // frame selection + orientation-flag preservation), extracted so it is proven
+    // headlessly on every build instead of only through a live scene.
+
+    namespace
+    {
+        // tile index 4 -> cycle 10,11,12,13 at 10 fps (0.1s per frame), looping.
+        AZStd::vector<TilemapAnimatedTileData> WaterDef()
+        {
+            TilemapAnimatedTileData def;
+            def.m_tileIndex = 4;
+            def.m_frames = { 10, 11, 12, 13 };
+            def.m_fps = 10.0f;
+            def.m_loop = true;
+            return { def };
+        }
+    } // namespace
+
+    TEST(TilemapResolveTest, NonAnimatedTileIsReturnedUnchanged)
+    {
+        const auto defs = WaterDef();
+        // A painted index with no definition (7) is untouched at any time.
+        EXPECT_EQ(ResolveAnimatedTileIndex(7, defs, 0.0f), 7);
+        EXPECT_EQ(ResolveAnimatedTileIndex(7, defs, 5.0f), 7);
+        // No definitions at all: identity.
+        EXPECT_EQ(ResolveAnimatedTileIndex(4, {}, 5.0f), 4);
+    }
+
+    TEST(TilemapResolveTest, AnimatedTileResolvesToCurrentFrame)
+    {
+        const auto defs = WaterDef();
+        EXPECT_EQ(ResolveAnimatedTileIndex(4, defs, 0.05f), 10); // frame 0
+        EXPECT_EQ(ResolveAnimatedTileIndex(4, defs, 0.15f), 11); // frame 1
+        EXPECT_EQ(ResolveAnimatedTileIndex(4, defs, 0.25f), 12); // frame 2
+        EXPECT_EQ(ResolveAnimatedTileIndex(4, defs, 0.45f), 10); // wrapped
+    }
+
+    TEST(TilemapResolveTest, OrientationFlagsArePreservedOntoTheFrame)
+    {
+        const auto defs = WaterDef();
+        // The painted cell carries flip/transpose flags above the atlas index; the
+        // resolved frame must keep them (so a mirrored water tile stays mirrored).
+        const AZ::s32 painted = 4 | TilemapTile::FlipHorizontal | TilemapTile::FlipDiagonal;
+        const AZ::s32 resolved = ResolveAnimatedTileIndex(painted, defs, 0.15f);
+        EXPECT_EQ(resolved & TilemapTile::IndexMask, 11); // current frame's atlas cell
+        EXPECT_TRUE((resolved & TilemapTile::FlipHorizontal) != 0);
+        EXPECT_TRUE((resolved & TilemapTile::FlipDiagonal) != 0);
+        EXPECT_TRUE((resolved & TilemapTile::FlipVertical) == 0);
+    }
+
+    TEST(TilemapResolveTest, EmptyFrameDefinitionIsIgnored)
+    {
+        // A definition with no frames does not animate its tile (treated as static),
+        // and FindAnimatedTile reports no match.
+        TilemapAnimatedTileData empty;
+        empty.m_tileIndex = 4;
+        empty.m_fps = 10.0f;
+        const AZStd::vector<TilemapAnimatedTileData> defs = { empty };
+        EXPECT_EQ(ResolveAnimatedTileIndex(4, defs, 5.0f), 4);
+        EXPECT_EQ(FindAnimatedTile(defs, 4), nullptr);
+    }
+
+    TEST(TilemapResolveTest, FirstMatchingDefinitionWinsAndOthersAreFound)
+    {
+        TilemapAnimatedTileData a;
+        a.m_tileIndex = 4;
+        a.m_frames = { 10, 11 };
+        a.m_fps = 10.0f;
+        a.m_loop = true;
+        TilemapAnimatedTileData b;
+        b.m_tileIndex = 9;
+        b.m_frames = { 20, 21, 22 };
+        b.m_fps = 10.0f;
+        b.m_loop = true;
+        const AZStd::vector<TilemapAnimatedTileData> defs = { a, b };
+
+        EXPECT_EQ(ResolveAnimatedTileIndex(4, defs, 0.05f), 10);
+        EXPECT_EQ(ResolveAnimatedTileIndex(9, defs, 0.15f), 21);
+        EXPECT_EQ(FindAnimatedTile(defs, 9), &defs[1]);
+        EXPECT_EQ(FindAnimatedTile(defs, 0), nullptr);
+    }
 } // namespace Diorama

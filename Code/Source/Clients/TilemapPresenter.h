@@ -82,12 +82,6 @@ namespace Diorama
 
         //! True when the config has at least one animated-tile definition.
         bool HasAnimatedTiles() const;
-        //! Animation definition whose painted index matches (masked), or null.
-        const TilemapAnimatedTileData* FindAnimatedTile(AZ::s32 paintedIndex) const;
-        //! Resolve a stored grid value to the atlas tile to draw now: an animated
-        //! painted index becomes its current frame (orientation flags preserved); any
-        //! other value is returned unchanged.
-        AZ::s32 DisplayTileIndex(AZ::s32 storedTile) const;
         //! World transform of a cell (world TM * the cell's local position).
         AZ::Transform CellTransform(int column, int row) const;
         //! Advance the animation clock and re-push only the animated cells whose

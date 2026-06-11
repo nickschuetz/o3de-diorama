@@ -207,6 +207,18 @@ Painted orientation flags (flip/rotate from Tiled) are preserved on each frame, 
 static map (no animated tiles) does not tick at all, so there is no idle cost. The
 frame timing itself is the pure, unit-tested `TilemapAnimation::FrameAtTime`.
 
+[`../examples/tilemap_animated.py`](../examples/tilemap_animated.py) is a runnable
+demo: it fills a grid from the 4-cell sample atlas and defines an animation that
+cycles every cell red -> green -> blue -> yellow together (one cycle every 2 seconds),
+then confirms it with `animatedTileCount`. The viewport animates live in edit mode (no
+game mode needed):
+
+```bash
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/tilemap_animated.py
+```
+
 ## Verifying without a screenshot
 
 `GetTilemapInfo` returns the resolved state: the resolved atlas path, whether the

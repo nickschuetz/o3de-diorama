@@ -6,7 +6,6 @@
  */
 
 #include <Clients/SpriteFeatureProcessor.h>
-#include <Clients/TilemapAnimation.h>
 #include <Clients/TilemapPresenter.h>
 
 #include <Atom/RPI.Public/Scene.h>
@@ -197,7 +196,7 @@ namespace Diorama
                 const AZ::u32 handle = m_featureProcessor->AcquireSprite();
                 if (handle != 0)
                 {
-                    if (FindAnimatedTile(stored & TilemapTile::IndexMask) != nullptr)
+                    if (FindAnimatedTile(m_config.m_animatedTiles, stored & TilemapTile::IndexMask) != nullptr)
                     {
                         m_animatedCells.push_back(aznumeric_cast<AZ::u32>(m_cells.size()));
                     }
@@ -218,7 +217,8 @@ namespace Diorama
 
         for (Cell& cell : m_cells)
         {
-            const AZ::s32 resolved = DisplayTileIndex(m_config.GetTile(cell.m_column, cell.m_row));
+            const AZ::s32 resolved =
+                ResolveAnimatedTileIndex(m_config.GetTile(cell.m_column, cell.m_row), m_config.m_animatedTiles, m_animTime);
             cell.m_displayIndex = resolved;
             m_featureProcessor->UpdateSprite(cell.m_handle, CellTransform(cell.m_column, cell.m_row), BuildTileConfig(resolved));
         }
@@ -235,7 +235,8 @@ namespace Diorama
         for (const AZ::u32 cellIndex : m_animatedCells)
         {
             Cell& cell = m_cells[cellIndex];
-            const AZ::s32 resolved = DisplayTileIndex(m_config.GetTile(cell.m_column, cell.m_row));
+            const AZ::s32 resolved =
+                ResolveAnimatedTileIndex(m_config.GetTile(cell.m_column, cell.m_row), m_config.m_animatedTiles, m_animTime);
             if (resolved == cell.m_displayIndex)
             {
                 continue; // same frame still showing: skip the redundant push
@@ -248,31 +249,6 @@ namespace Diorama
     bool TilemapPresenter::HasAnimatedTiles() const
     {
         return !m_config.m_animatedTiles.empty();
-    }
-
-    const TilemapAnimatedTileData* TilemapPresenter::FindAnimatedTile(AZ::s32 paintedIndex) const
-    {
-        for (const TilemapAnimatedTileData& def : m_config.m_animatedTiles)
-        {
-            if (def.m_tileIndex == paintedIndex && !def.m_frames.empty())
-            {
-                return &def;
-            }
-        }
-        return nullptr;
-    }
-
-    AZ::s32 TilemapPresenter::DisplayTileIndex(AZ::s32 storedTile) const
-    {
-        const TilemapAnimatedTileData* def = FindAnimatedTile(storedTile & TilemapTile::IndexMask);
-        if (def == nullptr)
-        {
-            return storedTile;
-        }
-        const int frame = TilemapAnimation::FrameAtTime(m_animTime, def->m_fps, aznumeric_cast<int>(def->m_frames.size()), def->m_loop);
-        const AZ::s32 frameIndex = def->m_frames[frame] & TilemapTile::IndexMask;
-        // Keep the painted cell's orientation flag bits (H/V/diagonal) on the frame.
-        return (storedTile & ~TilemapTile::IndexMask) | frameIndex;
     }
 
     AZ::Transform TilemapPresenter::CellTransform(int column, int row) const

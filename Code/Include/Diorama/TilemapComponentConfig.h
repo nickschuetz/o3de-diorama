@@ -59,6 +59,20 @@ namespace Diorama
         bool m_loop = true;
     };
 
+    //! The animated-tile definition whose painted index equals paintedIndex (which
+    //! must already be masked to the atlas index, flip bits stripped) and that has at
+    //! least one frame, or null when none animates it. The first match wins. Pure;
+    //! shared by the renderer (which cell animates) and unit tested directly.
+    const TilemapAnimatedTileData* FindAnimatedTile(const AZStd::vector<TilemapAnimatedTileData>& animatedTiles, AZ::s32 paintedIndex);
+
+    //! Resolve a stored grid value to the atlas tile to draw at elapsedSeconds: a value
+    //! whose atlas index matches an animated-tile definition becomes that definition's
+    //! current frame (its orientation flip/rotate bits preserved); any other value is
+    //! returned unchanged. Pure: composes FindAnimatedTile with
+    //! TilemapAnimation::FrameAtTime, so the whole render-time resolution is unit tested
+    //! headlessly rather than only through a running scene.
+    AZ::s32 ResolveAnimatedTileIndex(AZ::s32 storedTile, const AZStd::vector<TilemapAnimatedTileData>& animatedTiles, float elapsedSeconds);
+
     //! Shared configuration for a world-space tilemap: a grid of cells, each
     //! drawing one cell of a shared atlas texture as a quad. The same struct is
     //! used by the runtime TilemapComponent and the EditorTilemapComponent so the

@@ -7,6 +7,8 @@
 
 #include <Diorama/TilemapComponentConfig.h>
 
+#include <Clients/TilemapAnimation.h>
+
 #include <AzCore/Asset/AssetSerializer.h>
 #include <AzCore/Math/MathUtils.h>
 #include <AzCore/Serialization/EditContext.h>
@@ -181,6 +183,31 @@ namespace Diorama
         outCol = static_cast<int>(std::floor(colF));
         outRow = static_cast<int>(std::floor(rowF));
         return InBounds(outCol, outRow);
+    }
+
+    const TilemapAnimatedTileData* FindAnimatedTile(const AZStd::vector<TilemapAnimatedTileData>& animatedTiles, AZ::s32 paintedIndex)
+    {
+        for (const TilemapAnimatedTileData& def : animatedTiles)
+        {
+            if (def.m_tileIndex == paintedIndex && !def.m_frames.empty())
+            {
+                return &def;
+            }
+        }
+        return nullptr;
+    }
+
+    AZ::s32 ResolveAnimatedTileIndex(AZ::s32 storedTile, const AZStd::vector<TilemapAnimatedTileData>& animatedTiles, float elapsedSeconds)
+    {
+        const TilemapAnimatedTileData* def = FindAnimatedTile(animatedTiles, storedTile & TilemapTile::IndexMask);
+        if (def == nullptr)
+        {
+            return storedTile;
+        }
+        const int frame = TilemapAnimation::FrameAtTime(elapsedSeconds, def->m_fps, static_cast<int>(def->m_frames.size()), def->m_loop);
+        const AZ::s32 frameIndex = def->m_frames[frame] & TilemapTile::IndexMask;
+        // Keep the painted cell's orientation flag bits (H/V/diagonal) on the frame.
+        return (storedTile & ~TilemapTile::IndexMask) | frameIndex;
     }
 
     void TilemapAutotileRuleData::Reflect(AZ::ReflectContext* context)
