@@ -68,6 +68,11 @@ namespace Diorama::Collision2D
         AZ::u32 m_collidesWith = 0xFFFFFFFFu;
         bool m_isTrigger = false; //!< The core ignores this; the component routes on it.
         bool m_enabled = true;
+        //! One-way platform: solid only from above. A moving box lands on its top but
+        //! passes through from below or the sides. Push-out uses OneWayPushOut for it
+        //! instead of MinimumTranslation. The core never auto-applies this; the
+        //! component opts in (see ComputeBoxPushOut).
+        bool m_oneWay = false;
     };
 
     //! Box2D-style mutual opt-in: two colliders interact only if each one's mask
@@ -191,6 +196,31 @@ namespace Diorama::Collision2D
             pushCircle = (ox < oy) ? AZ::Vector2(dx < 0.0f ? -ox : ox, 0.0f) : AZ::Vector2(0.0f, dy < 0.0f ? -oy : oy);
         }
         return aIsCircle ? pushCircle : -pushCircle;
+    }
+
+    //! Push a moving collider 'mover' up out of a one-way platform 'platform' only when
+    //! it is landing on the top: 'mover' overlaps 'platform' and its center is above the
+    //! platform's center (so it came from above, not jumping up through it). Returns the
+    //! upward-only minimum translation (0, depth), or a zero vector when 'mover' is below
+    //! / level / not overlapping, so it passes through from underneath and the sides.
+    //!
+    //! This is a history-free approximation gated on the mover being above the platform
+    //! center; for pixel-exact "land only if last frame's feet cleared the top", combine
+    //! with SlopeCollision::ResolveOneWayLanding in the movement script. The platform's
+    //! one-way normal is +Y (up); rotate the world if a different up is needed.
+    inline AZ::Vector2 OneWayPushOut(const Collider& mover, const Collider& platform)
+    {
+        if (!Overlaps(mover, platform))
+        {
+            return AZ::Vector2(0.0f, 0.0f);
+        }
+        const float dy = mover.m_center.GetY() - platform.m_center.GetY();
+        if (dy <= 0.0f)
+        {
+            return AZ::Vector2(0.0f, 0.0f); // below or level with the platform: pass through
+        }
+        const float oy = (mover.m_shape.ExtentY() + platform.m_shape.ExtentY()) - dy;
+        return oy > 0.0f ? AZ::Vector2(0.0f, oy) : AZ::Vector2(0.0f, 0.0f);
     }
 
     //! Result of a ray cast: the hit collider's id, the parametric distance t

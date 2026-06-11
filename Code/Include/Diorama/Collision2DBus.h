@@ -56,6 +56,17 @@ namespace Diorama
         float m_pointZ = 0.0f;
     };
 
+    //! Result of a ground probe (ProbeGroundY): whether a walkable surface (flat tile
+    //! top or ramp) was found at the queried column within reach, and its height.
+    struct GroundProbe2DResult
+    {
+        AZ_TYPE_INFO(Diorama::GroundProbe2DResult, GroundProbe2DResultTypeId);
+        static void Reflect(AZ::ReflectContext* context);
+
+        bool m_onGround = false; //!< A surface was within step-up / max-drop reach.
+        float m_groundY = 0.0f; //!< Surface height to place the feet at (valid if m_onGround).
+    };
+
     //! Per-collider control, addressed by the collider entity's id. Scalar,
     //! clamped, agent-friendly verbs in the same style as DioramaSpriteRequestBus.
     class Diorama2DColliderRequests : public AZ::ComponentBus
@@ -78,6 +89,9 @@ namespace Diorama
         virtual void SetTrigger(bool isTrigger) = 0;
         //! Disable to keep the collider registered but excluded from detection.
         virtual void SetEnabled(bool enabled) = 0;
+        //! One-way platform: a box lands on the top but passes through from below and
+        //! the sides (push-out resolves it upward only).
+        virtual void SetOneWay(bool oneWay) = 0;
         //! Resolved collider state. Safe to poll.
         virtual Collider2DInfo GetColliderInfo() = 0;
     };
@@ -183,6 +197,20 @@ namespace Diorama
         //! Returns (0, 0) when nothing overlaps.
         virtual AZ::Vector2 ComputeBoxPushOut(
             float x, float z, float halfWidth, float halfHeight, AZ::u32 layerMask, AZ::EntityId exclude) = 0;
+        //! Ground-follow probe for a side-scroller: at horizontal column `x`, find the
+        //! highest walkable surface (flat tile top or ramp) whose height is within
+        //! `stepUp` above and `maxDrop` below the feet at `footY`. Surfaces are supplied
+        //! by SetGroundSegments (the tilemap projects its solid/slope tile tops). Returns
+        //! whether a surface was found and its height, so the body snaps to ground and
+        //! ramps and falls off ledges. Slopes are ground-probe geometry, not solid boxes.
+        virtual GroundProbe2DResult ProbeGroundY(float x, float footY, float maxDrop, float stepUp) = 0;
+        //! Append a walkable ground segment for ProbeGroundY: a span on world X in
+        //! [x0, x1] with surface height y0 at x0 and y1 at x1 (linear between). A flat
+        //! ledge has y0 == y1; a ramp has them differ. The script/agent authoring path
+        //! for floors and ramps (the C++/tilemap path is SetGroundSegments).
+        virtual void AddGroundSegment(float x0, float x1, float y0, float y1) = 0;
+        //! Clear all script-authored ground segments (added via AddGroundSegment).
+        virtual void ClearScriptGroundSegments() = 0;
     };
 
     using Diorama2DCollisionRequestBus = AZ::EBus<Diorama2DCollisionRequests>;

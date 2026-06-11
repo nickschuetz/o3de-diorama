@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Clients/Collision2D.h>
+#include <Clients/SlopeCollision.h>
 #include <Diorama/Collision2DBus.h>
 
 #include <AzCore/Component/Component.h>
@@ -46,6 +47,14 @@ namespace Diorama
         virtual void SetStaticColliders(AZ::EntityId owner, const AZStd::vector<Collision2D::Collider>& colliders) = 0;
         //! Remove an owner's static collider set.
         virtual void ClearStaticColliders(AZ::EntityId owner) = 0;
+
+        //! Register a set of walkable GROUND SEGMENTS owned by one entity (a tilemap's
+        //! solid-tile tops and slope tiles). These are consulted only by ProbeGroundY
+        //! for ground-following / ramps; they are not solid boxes and do not participate
+        //! in overlap / contact / push-out. An empty set clears the owner's segments.
+        virtual void SetGroundSegments(AZ::EntityId owner, const AZStd::vector<SlopeCollision::FloorSegment>& segments) = 0;
+        //! Remove an owner's ground-segment set.
+        virtual void ClearGroundSegments(AZ::EntityId owner) = 0;
     };
 
     using Collision2DWorld = AZ::Interface<Collision2DWorldRequests>;
@@ -92,6 +101,8 @@ namespace Diorama
         void RemoveCollider(AZ::EntityId entityId) override;
         void SetStaticColliders(AZ::EntityId owner, const AZStd::vector<Collision2D::Collider>& colliders) override;
         void ClearStaticColliders(AZ::EntityId owner) override;
+        void SetGroundSegments(AZ::EntityId owner, const AZStd::vector<SlopeCollision::FloorSegment>& segments) override;
+        void ClearGroundSegments(AZ::EntityId owner) override;
 
         // Diorama2DCollisionRequestBus
         AZStd::vector<AZ::EntityId> OverlapCircle(float x, float z, float radius, AZ::u32 layerMask) override;
@@ -99,6 +110,9 @@ namespace Diorama
         Raycast2DResult Raycast2D(float x, float z, float dirX, float dirZ, float maxDistance, AZ::u32 layerMask) override;
         AZ::Vector2 ComputeBoxPushOut(
             float x, float z, float halfWidth, float halfHeight, AZ::u32 layerMask, AZ::EntityId exclude) override;
+        GroundProbe2DResult ProbeGroundY(float x, float footY, float maxDrop, float stepUp) override;
+        void AddGroundSegment(float x0, float x1, float y0, float y1) override;
+        void ClearScriptGroundSegments() override;
 
         // AZ::TickBus
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
@@ -122,6 +136,10 @@ namespace Diorama
         //! Static, query-only collider sets keyed by owning entity (tilemap solid
         //! tiles). Included in overlap/raycast/push-out but not in contact dispatch.
         AZStd::unordered_map<AZ::EntityId, AZStd::vector<Collision2D::Collider>> m_staticSets;
+
+        //! Walkable ground segments keyed by owning entity (tilemap solid-tile tops and
+        //! slope tiles). Consulted only by ProbeGroundY, never by overlap / push-out.
+        AZStd::unordered_map<AZ::EntityId, AZStd::vector<SlopeCollision::FloorSegment>> m_groundSets;
 
         Collision2D::ContactTracker m_tracker;
 

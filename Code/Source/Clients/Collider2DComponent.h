@@ -57,6 +57,9 @@ namespace Diorama
         bool m_isTrigger = false;
         //! Registered but excluded from detection when false.
         bool m_enabled = true;
+        //! One-way platform: solid only from above. A box lands on its top but passes
+        //! through from below and the sides (ComputeBoxPushOut resolves it upward only).
+        bool m_oneWay = false;
     };
 
     //! Runtime 2D collider. Publishes itself to the collision world (the
@@ -95,6 +98,7 @@ namespace Diorama
         void SetCollidesWith(AZ::u32 mask) override;
         void SetTrigger(bool isTrigger) override;
         void SetEnabled(bool enabled) override;
+        void SetOneWay(bool oneWay) override;
         Collider2DInfo GetColliderInfo() override;
 
         // AZ::TransformNotificationBus

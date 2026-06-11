@@ -20,6 +20,7 @@ namespace Diorama
     {
         Collider2DInfo::Reflect(context);
         Raycast2DResult::Reflect(context);
+        GroundProbe2DResult::Reflect(context);
         ReflectCollision2DBuses(context);
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
@@ -76,6 +77,7 @@ namespace Diorama
         }
         m_colliders.clear();
         m_staticSets.clear();
+        m_groundSets.clear();
         m_tracker.Clear();
     }
 
@@ -112,6 +114,69 @@ namespace Diorama
     void Collision2DSystemComponent::ClearStaticColliders(AZ::EntityId owner)
     {
         m_staticSets.erase(owner);
+    }
+
+    void Collision2DSystemComponent::SetGroundSegments(AZ::EntityId owner, const AZStd::vector<SlopeCollision::FloorSegment>& segments)
+    {
+        if (segments.empty())
+        {
+            m_groundSets.erase(owner);
+            return;
+        }
+        m_groundSets[owner] = segments;
+    }
+
+    void Collision2DSystemComponent::ClearGroundSegments(AZ::EntityId owner)
+    {
+        m_groundSets.erase(owner);
+    }
+
+    GroundProbe2DResult Collision2DSystemComponent::ProbeGroundY(float x, float footY, float maxDrop, float stepUp)
+    {
+        GroundProbe2DResult result;
+        float best = 0.0f;
+        for (const auto& set : m_groundSets)
+        {
+            const AZStd::span<const SlopeCollision::FloorSegment> segments(set.second.data(), set.second.size());
+            float groundY = 0.0f;
+            if (SlopeCollision::ProbeGround(segments, x, footY, maxDrop, stepUp, groundY))
+            {
+                if (!result.m_onGround || groundY > best)
+                {
+                    best = groundY;
+                    result.m_onGround = true;
+                }
+            }
+        }
+        result.m_groundY = best;
+        return result;
+    }
+
+    namespace
+    {
+        // Reserved owner key for ground segments authored from script/agent via
+        // AddGroundSegment, distinct from any real entity that owns a tilemap's set.
+        const AZ::EntityId ScriptGroundOwner{ 0xD10A5C9DE9D0ull };
+    } // namespace
+
+    void Collision2DSystemComponent::AddGroundSegment(float x0, float x1, float y0, float y1)
+    {
+        // Normalize so x0 <= x1 (the probe assumes an increasing span).
+        SlopeCollision::FloorSegment seg;
+        if (x0 <= x1)
+        {
+            seg = SlopeCollision::FloorSegment{ x0, x1, y0, y1 };
+        }
+        else
+        {
+            seg = SlopeCollision::FloorSegment{ x1, x0, y1, y0 };
+        }
+        m_groundSets[ScriptGroundOwner].push_back(seg);
+    }
+
+    void Collision2DSystemComponent::ClearScriptGroundSegments()
+    {
+        m_groundSets.erase(ScriptGroundOwner);
     }
 
     void Collision2DSystemComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
@@ -293,7 +358,7 @@ namespace Diorama
             {
                 continue;
             }
-            total += Collision2D::MinimumTranslation(query, c);
+            total += c.m_oneWay ? Collision2D::OneWayPushOut(query, c) : Collision2D::MinimumTranslation(query, c);
         }
         // Push out of static tilemap geometry too.
         for (const auto& set : m_staticSets)
@@ -308,7 +373,7 @@ namespace Diorama
                 {
                     continue;
                 }
-                total += Collision2D::MinimumTranslation(query, c);
+                total += c.m_oneWay ? Collision2D::OneWayPushOut(query, c) : Collision2D::MinimumTranslation(query, c);
             }
         }
         return total;

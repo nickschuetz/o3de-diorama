@@ -72,6 +72,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Gameplay | 2D collision: colliders, triggers, and queries reachable from scripts | Working |
 | Gameplay | Pushbox resolution (`ComputeBoxPushOut` minimum-translation) | Working |
 | Gameplay | Frame-data hitboxes/hurtboxes (`OnHit`/`OnHurt` over the 2D collision world) | Working |
+| Gameplay | One-way platforms + ramp ground-follow (`ProbeGroundY`, side-scroller) | Working |
 | Input | Rebindable input action mapping (Button / Axis1D / Axis2D actions) | Working |
 | Input | Motion inputs (numpad sequences: quarter-circle, dragon-punch) | Working |
 | 2.5D | Parallax background layers | Working |

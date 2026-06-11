@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Side-scroller platforming** (one-way platforms + ramps). The 2D collision world
+  gains the platformer primitives, on the pure tested `SlopeCollision` core. **One-way
+  platforms**: a `m_oneWay` flag on the 2D Collider (Inspector **One Way** + `SetOneWay`
+  bus verb) that `ComputeBoxPushOut` resolves with an upward-only push (`OneWayPushOut`),
+  so a body lands on top but drops through from below / the sides. **Ground-follow over
+  flat ground and ramps**: `ProbeGroundY(x, footY, maxDrop, stepUp)` returns the highest
+  walkable surface within step-up / max-drop reach, fed by ground segments authored via
+  `AddGroundSegment(x0, x1, y0, y1)` (flat when `y0==y1`, a ramp otherwise) or the
+  C++/tilemap `SetGroundSegments`. Reproducible sample under
+  `Assets/Diorama/Examples/SideScroller/` (`platformer_body.lua` + `platformer_ground.lua`)
+  ([Docs/howto/25-platformer.md](Docs/howto/25-platformer.md)). Driving slope tiles
+  straight from a tilemap is a noted follow-up (needs tilemap XY-plane collision).
 - **Bullet-pattern emitter** (danmaku / shmup). A new **2D Bullet Emitter** component
   (`DioramaBulletEmitterComponent`) fires shots of a **Ring / Fan / Spiral** pattern at
   a configurable rate (geometry from the pure tested `BulletPattern` core: `Ring` /

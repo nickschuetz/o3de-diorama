@@ -265,6 +265,7 @@ notification bus.
 | `SetCollidesWith` | `mask: u32` | void | Layer mask it collides against. |
 | `SetTrigger` | `isTrigger: bool` | void | Trigger (overlap-only) vs solid. |
 | `SetEnabled` | `enabled: bool` | void | Enable/disable the collider. |
+| `SetOneWay` | `oneWay: bool` | void | One-way platform: a box lands on the top but passes through from below / the sides (push-out resolves it upward only). |
 | `GetColliderInfo` | (none) | `Collider2DInfo` | Read-only. Safe to poll. |
 
 **`Diorama2DCollisionRequestBus`** — global world queries (Broadcast, no entity id):
@@ -275,6 +276,9 @@ notification bus.
 | `OverlapBox` | `x, z, halfWidth, halfHeight: float, layerMask: u32` | `EntityId[]` | Entities overlapping the box. |
 | `ComputeBoxPushOut` | `x, z, halfWidth, halfHeight: float, layerMask: u32, exclude: EntityId` | `Vector2` | Summed minimum-translation vector to push a box out of every overlapping collider on `layerMask`, excluding `exclude` (pass the caller's own id). Add it to the entity's position to resolve pushbox overlap; `(0, 0)` when nothing overlaps. |
 | `Raycast2D` | `x, z, dirX, dirZ, maxDistance: float, layerMask: u32` | `Raycast2DResult` | First hit along the ray. |
+| `ProbeGroundY` | `x, footY, maxDrop, stepUp: float` | `GroundProbe2DResult` | Side-scroller ground-follow: highest walkable surface (flat or ramp) at column `x` within `stepUp` above / `maxDrop` below the feet. |
+| `AddGroundSegment` | `x0, x1, y0, y1: float` | void | Append a walkable ground segment for `ProbeGroundY` (flat when `y0==y1`, a ramp otherwise). |
+| `ClearScriptGroundSegments` | (none) | void | Clear all script-authored ground segments. |
 
 `Diorama2DCollisionNotificationBus` delivers enter/exit events (see [Notifications](#notifications-event-driven)).
 

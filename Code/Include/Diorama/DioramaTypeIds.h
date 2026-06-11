@@ -157,6 +157,7 @@ namespace Diorama
     inline constexpr const char* Diorama2DCollisionRequestsTypeId = "{3CB7F919-1FE3-4718-B20F-5FDDF34F9B7A}";
     inline constexpr const char* Collider2DInfoTypeId = "{49F6D44E-02A1-4703-AEBB-51E14C72BD33}";
     inline constexpr const char* Raycast2DResultTypeId = "{4FCCC3DC-E65B-499C-9E85-F6014F4571AC}";
+    inline constexpr const char* GroundProbe2DResultTypeId = "{5A1D7E2B-3C4F-4D60-9E81-2B3C4D5E6F71}";
 
     // Frame-data hitbox/hurtbox TypeIds (animation-frame-gated boxes over Collision2D)
     inline constexpr const char* DioramaHitboxConfigTypeId = "{1A2B3C4D-5E6F-4071-8293-A4B5C6D7E8F1}";

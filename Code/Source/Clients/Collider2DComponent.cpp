@@ -27,7 +27,7 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<Collider2DConfig>()
-                ->Version(2)
+                ->Version(3)
                 ->Field("plane", &Collider2DConfig::m_plane)
                 ->Field("isCircle", &Collider2DConfig::m_isCircle)
                 ->Field("radius", &Collider2DConfig::m_radius)
@@ -36,7 +36,8 @@ namespace Diorama
                 ->Field("layer", &Collider2DConfig::m_layer)
                 ->Field("collidesWith", &Collider2DConfig::m_collidesWith)
                 ->Field("isTrigger", &Collider2DConfig::m_isTrigger)
-                ->Field("enabled", &Collider2DConfig::m_enabled);
+                ->Field("enabled", &Collider2DConfig::m_enabled)
+                ->Field("oneWay", &Collider2DConfig::m_oneWay);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -81,7 +82,12 @@ namespace Diorama
                         "Trigger",
                         "Reports overlaps (OnTrigger*) but is never a solid contact")
                     ->DataElement(
-                        AZ::Edit::UIHandlers::Default, &Collider2DConfig::m_enabled, "Enabled", "Excluded from detection when off");
+                        AZ::Edit::UIHandlers::Default, &Collider2DConfig::m_enabled, "Enabled", "Excluded from detection when off")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &Collider2DConfig::m_oneWay,
+                        "One Way",
+                        "One-way platform: a box lands on the top but passes through from below and the sides (push-out only)");
             }
         }
     }
@@ -178,6 +184,7 @@ namespace Diorama
         c.m_collidesWith = m_config.m_collidesWith;
         c.m_isTrigger = m_config.m_isTrigger;
         c.m_enabled = m_config.m_enabled;
+        c.m_oneWay = m_config.m_oneWay;
         return c;
     }
 
@@ -236,6 +243,12 @@ namespace Diorama
     void Collider2DComponent::SetEnabled(bool enabled)
     {
         m_config.m_enabled = enabled;
+        PushToWorld();
+    }
+
+    void Collider2DComponent::SetOneWay(bool oneWay)
+    {
+        m_config.m_oneWay = oneWay;
         PushToWorld();
     }
 

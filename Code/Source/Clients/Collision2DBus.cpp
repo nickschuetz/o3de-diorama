@@ -72,6 +72,26 @@ namespace Diorama
         }
     }
 
+    void GroundProbe2DResult::Reflect(AZ::ReflectContext* context)
+    {
+        if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serializeContext->Class<GroundProbe2DResult>()
+                ->Version(1)
+                ->Field("onGround", &GroundProbe2DResult::m_onGround)
+                ->Field("groundY", &GroundProbe2DResult::m_groundY);
+        }
+
+        if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
+        {
+            behaviorContext->Class<GroundProbe2DResult>("DioramaGroundProbe2DResult")
+                ->Attribute(AZ::Script::Attributes::Category, "Diorama/Collision")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
+                ->Property("onGround", BehaviorValueGetter(&GroundProbe2DResult::m_onGround), nullptr)
+                ->Property("groundY", BehaviorValueGetter(&GroundProbe2DResult::m_groundY), nullptr);
+        }
+    }
+
     void ReflectCollision2DBuses(AZ::ReflectContext* context)
     {
         auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context);
@@ -114,6 +134,10 @@ namespace Diorama
                 "SetEnabled",
                 &Diorama2DColliderRequestBus::Events::SetEnabled,
                 { { { "enabled", "When false the collider is kept registered but excluded from detection." } } })
+            ->Event(
+                "SetOneWay",
+                &Diorama2DColliderRequestBus::Events::SetOneWay,
+                { { { "oneWay", "One-way platform: a box lands on the top but passes through from below and the sides." } } })
             ->Event("GetColliderInfo", &Diorama2DColliderRequestBus::Events::GetColliderInfo);
 
         behaviorContext->EBus<Diorama2DCollisionRequestBus>("Diorama2DCollisionRequestBus")
@@ -152,7 +176,22 @@ namespace Diorama
                     { "halfWidth", "Box half-width (plane X)." },
                     { "halfHeight", "Box half-height (plane Z)." },
                     { "layerMask", "Category mask of colliders to push out of; 0 means any layer." },
-                    { "exclude", "Entity to ignore (pass the caller's own id so it never pushes out of itself)." } } });
+                    { "exclude", "Entity to ignore (pass the caller's own id so it never pushes out of itself)." } } })
+            ->Event(
+                "ProbeGroundY",
+                &Diorama2DCollisionRequestBus::Events::ProbeGroundY,
+                { { { "x", "Horizontal column to probe (plane X)." },
+                    { "footY", "Current feet height (plane Y)." },
+                    { "maxDrop", "How far below the feet a surface may be and still snap (falls off ledges past this)." },
+                    { "stepUp", "How far above the feet a surface may be and still step onto (ramps, small lips)." } } })
+            ->Event(
+                "AddGroundSegment",
+                &Diorama2DCollisionRequestBus::Events::AddGroundSegment,
+                { { { "x0", "Left end, world X." },
+                    { "x1", "Right end, world X." },
+                    { "y0", "Surface height at x0 (plane Y up)." },
+                    { "y1", "Surface height at x1 (equal to y0 for a flat ledge; differ for a ramp)." } } })
+            ->Event("ClearScriptGroundSegments", &Diorama2DCollisionRequestBus::Events::ClearScriptGroundSegments);
 
         behaviorContext->EBus<Diorama2DCollisionNotificationBus>("Diorama2DCollisionNotificationBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)

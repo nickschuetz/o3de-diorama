@@ -305,6 +305,15 @@ Missing table-stakes (no design doc yet):
   hit-tests each live bullet against a target collision layer (`OnBulletHit` + consume).
   Driven by `DioramaBulletRequestBus`; fixed-capacity pool. Reproducible sample
   `Assets/Diorama/Examples/Shmup/enemy_danmaku.lua`. Damage/scoring stay game-side.
+- **Side-scroller platforming (one-way platforms + ramps).** **Shipped**
+  ([howto/25-platformer.md](howto/25-platformer.md)): the 2D collision world gains the
+  platformer primitives on the pure tested `SlopeCollision` core. A `m_oneWay` flag on
+  the 2D Collider (Inspector + `SetOneWay`) that `ComputeBoxPushOut` resolves with an
+  upward-only push (`OneWayPushOut`); and `ProbeGroundY` ground-follow over flat ground
+  and ramps, fed by `AddGroundSegment` (script/agent) or `SetGroundSegments` (C++). A
+  side-scroller sample ships under `Assets/Diorama/Examples/SideScroller/`. Driving
+  slope tiles straight from a tilemap is a follow-up (needs the tilemap per-tile
+  collision to support the XY screen plane; today it projects to the XZ ground plane).
 - **Off-screen culling.** **Shipped**: the sprite feature processor builds the view
   frustum each frame and skips any sprite whose bounding sphere is fully outside the
   side planes, on the pure tested `SpriteCull.h` core (conservative and

@@ -20,6 +20,7 @@ set(FILES
     Source/Clients/AsepriteBinary.h
     Source/Clients/AsepriteBinary.cpp
     Source/Clients/Collision2D.h
+    Source/Clients/SlopeCollision.h
     Source/Clients/Collision2DBus.cpp
     Source/Clients/Collision2DSystemComponent.cpp
     Source/Clients/Collision2DSystemComponent.h

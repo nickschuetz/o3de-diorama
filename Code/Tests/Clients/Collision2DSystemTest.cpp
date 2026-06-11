@@ -343,4 +343,61 @@ namespace Diorama
         Diorama2DCollisionRequestBus::BroadcastResult(hits, &Diorama2DCollisionRequests::OverlapBox, 10.0f, 0.0f, 0.5f, 0.5f, 1u);
         EXPECT_TRUE(hits.empty());
     }
+
+    // One-way platform push-out: a box landing from above is pushed up onto the
+    // platform top; a box rising from below passes through (zero push).
+    TEST_F(Collision2DSystemTest, OneWayPlatform_PushesUpFromAboveOnly)
+    {
+        Collision2D::Collider platform;
+        platform.m_center = AZ::Vector2(0.0f, 0.0f);
+        platform.m_shape.m_type = Collision2D::ShapeType::Box;
+        platform.m_shape.m_halfExtents = AZ::Vector2(2.0f, 0.25f); // a thin wide ledge
+        platform.m_layer = 1;
+        platform.m_oneWay = true;
+        Collision2DWorld::Get()->SetStaticColliders(AZ::EntityId(0x1111u), { platform });
+
+        // A box whose center is above the platform center and overlaps: pushed straight up.
+        AZ::Vector2 push(0.0f, 0.0f);
+        Diorama2DCollisionRequestBus::BroadcastResult(
+            push, &Diorama2DCollisionRequests::ComputeBoxPushOut, 0.0f, 0.3f, 0.5f, 0.5f, 1u, AZ::EntityId());
+        EXPECT_GT(push.GetY(), 0.0f);
+        EXPECT_NEAR(push.GetX(), 0.0f, 1e-4f); // one-way only resolves vertically
+
+        // A box whose center is below the platform center (jumping up through it): no push.
+        Diorama2DCollisionRequestBus::BroadcastResult(
+            push, &Diorama2DCollisionRequests::ComputeBoxPushOut, 0.0f, -0.3f, 0.5f, 0.5f, 1u, AZ::EntityId());
+        EXPECT_NEAR(push.GetLength(), 0.0f, 1e-4f);
+    }
+
+    // Ground segments + ProbeGroundY: flat ground and a ramp, with step-up / max-drop.
+    TEST_F(Collision2DSystemTest, GroundProbe_FollowsFlatAndRampWithinReach)
+    {
+        // A flat floor at y=0 over x[0,10] and a ramp rising 0->2 over x[10,14].
+        AZStd::vector<SlopeCollision::FloorSegment> segments = {
+            { 0.0f, 10.0f, 0.0f, 0.0f },
+            { 10.0f, 14.0f, 0.0f, 2.0f },
+        };
+        const AZ::EntityId owner(0x2222u);
+        Collision2DWorld::Get()->SetGroundSegments(owner, segments);
+
+        // On the flat: ground at 0.
+        GroundProbe2DResult r;
+        Diorama2DCollisionRequestBus::BroadcastResult(r, &Diorama2DCollisionRequests::ProbeGroundY, 5.0f, 0.1f, 4.0f, 0.5f);
+        EXPECT_TRUE(r.m_onGround);
+        EXPECT_NEAR(r.m_groundY, 0.0f, 1e-4f);
+
+        // Halfway up the ramp (x=12): surface at 1.0, reachable from footY 0.6 within step-up.
+        Diorama2DCollisionRequestBus::BroadcastResult(r, &Diorama2DCollisionRequests::ProbeGroundY, 12.0f, 0.6f, 4.0f, 0.5f);
+        EXPECT_TRUE(r.m_onGround);
+        EXPECT_NEAR(r.m_groundY, 1.0f, 1e-4f);
+
+        // Off the end of all segments (x=20): no ground -> the body falls.
+        Diorama2DCollisionRequestBus::BroadcastResult(r, &Diorama2DCollisionRequests::ProbeGroundY, 20.0f, 0.1f, 4.0f, 0.5f);
+        EXPECT_FALSE(r.m_onGround);
+
+        // Clearing removes the segments.
+        Collision2DWorld::Get()->ClearGroundSegments(owner);
+        Diorama2DCollisionRequestBus::BroadcastResult(r, &Diorama2DCollisionRequests::ProbeGroundY, 5.0f, 0.1f, 4.0f, 0.5f);
+        EXPECT_FALSE(r.m_onGround);
+    }
 } // namespace Diorama
