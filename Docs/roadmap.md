@@ -278,7 +278,20 @@ Missing table-stakes (no design doc yet):
   over input channels, on the pure tested `InputActionMap.h` core, read through
   `DioramaInputRequestBus` (values + per-frame pressed/released edges) with
   `OnActionPressed`/`OnActionReleased` notifications. Replaces the twin-stick's raw
-  input wiring.
+  input wiring. **Extended (motion inputs)**: a direction action quantized to numpad
+  notation feeds the pure tested `MotionInput` core, so authored motions (`236`
+  quarter-circle, `623` dragon-punch) are recognized within a per-motion window via
+  `WasMotionPerformed` (buffered poll) + `OnMotionPerformed`.
+- **Fighting building blocks v2.** **Shipped**
+  ([howto/21-fighting.md](howto/21-fighting.md)): a first-class **2D Frame-Data
+  Hitboxes** component (`DioramaHitboxComponent`) authors a rig of hitboxes/hurtboxes,
+  each live on an animation-frame window (pure tested `HitboxFrames` core). Each frame
+  it registers live hurtboxes as collision geometry and tests live hitboxes against a
+  target layer, firing `OnHit`/`OnHurt` once per opponent per active window, with
+  `SetFacing` mirroring and a read-only `GetHitboxInfo`. Plus motion inputs (above) and
+  an impact-effects sample (`hit_response.lua`: hit-spark particle preset + material
+  flash + camera trauma). Builds on the existing frame events, versus camera, hit-stop,
+  and pushbox pieces. Charge-motion hold timing and rollback stay game-side.
 - **Off-screen culling.** **Shipped**: the sprite feature processor builds the view
   frustum each frame and skips any sprite whose bounding sphere is fully outside the
   side planes, on the pure tested `SpriteCull.h` core (conservative and

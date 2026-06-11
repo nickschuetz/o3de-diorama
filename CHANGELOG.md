@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Fighting building blocks v2** (motions, frame-data hitboxes, impact juice). The
+  **2D Input Actions** component gains a motion-input layer: point it at an `Axis2D`
+  direction action and author motions in numpad notation (`236` = quarter-circle, `623`
+  = dragon-punch); `WasMotionPerformed(name)` (buffered poll) and the `OnMotionPerformed`
+  notification recognize them order-sensitively within a per-motion window, on the pure
+  tested `MotionInput` core (`Matches` + `DirectionFromAxes`). A new **2D Frame-Data
+  Hitboxes** component (`DioramaHitboxComponent`) authors a rig of hitboxes/hurtboxes,
+  each live on an animation-frame window (`HitboxFrames` core); each frame it registers
+  live hurtboxes as collision geometry and tests live hitboxes against a target layer,
+  firing `OnHit`/`OnHurt` once per opponent per active window, with `SetFacing` mirroring
+  and a read-only `GetHitboxInfo`. Reusable samples ship under
+  `Assets/Diorama/Examples/Fighting/` (`motion_special.lua`, `hit_response.lua` with a
+  hit-spark particle preset + flash + screen-shake pulse)
+  ([Docs/howto/21-fighting.md](Docs/howto/21-fighting.md)). Both reuse existing systems
+  (input map, 2D collision, particles, material flash, camera trauma); the renderer
+  provides the primitives, applying damage stays a gameplay decision.
 - **Skeletal cross-fade** (animation depth v2). The cutout skeletal player gains a
   named-clip library and `CrossFadeTo(clipName, durationSeconds)`, which blends the
   current and target clips per bone over a transition (then promotes the target),

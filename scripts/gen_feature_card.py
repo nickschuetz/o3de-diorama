@@ -44,7 +44,7 @@ TILES = [
     ("EFFECTS", (255, 96, 150), "2D particles; per-sprite flash, outline, emissive; hit-stop / slow-motion time-scale."),
     ("POST", (180, 130, 255), "Bloom + vignette via a 2D Look component, plus a retro CRT scanline pass."),
     ("CAMERA", (90, 200, 255), "Follow, deadzone, bounds, shake; versus framing + auto-zoom; ortho / pixel-perfect."),
-    ("GAMEPLAY", (140, 230, 130), "2D collision (colliders, triggers, queries, pushbox) plus rebindable input action mapping, from game scripts."),
+    ("GAMEPLAY", (140, 230, 130), "2D collision (colliders, triggers, queries, pushbox), frame-data hitboxes, and rebindable input with motion sequences, from game scripts."),
     ("SCRIPTING", (255, 210, 90), "Typed per-feature request buses, usable from Lua, Python, and Script Canvas."),
 ]
 cols, rows = 4, 3

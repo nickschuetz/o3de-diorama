@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Clients/InputActionMap.h>
+#include <Clients/MotionInput.h>
 #include <Diorama/DioramaInputBus.h>
 
 #include <AzCore/Component/Component.h>
@@ -52,7 +53,23 @@ namespace Diorama
         AZStd::vector<DioramaInputBindingData> m_bindings;
     };
 
-    //! Configuration for the input action-mapping surface: the list of named actions.
+    //! One authored motion (e.g. quarter-circle-forward) recognized from the recent
+    //! direction history. The sequence is numpad notation (the fighting-game standard:
+    //! "236" is down, down-forward, forward); the window is how recently every step
+    //! must have been entered, in seconds.
+    struct DioramaMotionData final
+    {
+        AZ_TYPE_INFO(Diorama::DioramaMotionData, DioramaMotionDataTypeId);
+        static void Reflect(AZ::ReflectContext* context);
+
+        AZStd::string m_name;
+        AZStd::string m_sequence = "236";
+        float m_windowSeconds = 0.4f;
+    };
+
+    //! Configuration for the input action-mapping surface: the list of named actions,
+    //! plus the optional motion-input layer (a directional action to quantize and the
+    //! motions to recognize from its history).
     class DioramaInputConfig final : public AZ::ComponentConfig
     {
     public:
@@ -63,6 +80,14 @@ namespace Diorama
         ~DioramaInputConfig() override = default;
 
         AZStd::vector<DioramaInputActionData> m_actions;
+
+        //! Name of the Axis2D action whose value is quantized into a numpad direction
+        //! each frame (empty disables motion recognition). Up must be +Y, forward +X.
+        AZStd::string m_directionAction;
+        //! Stick magnitude below which the direction reads as centered (neutral).
+        float m_directionDeadZone = 0.4f;
+        //! Motions recognized from the direction history.
+        AZStd::vector<DioramaMotionData> m_motions;
     };
 
     //! Resolve the authored, channel-name-based config into the pure InputMap actions
@@ -113,14 +138,26 @@ namespace Diorama
         bool WasReleasedThisFrame(const AZStd::string& action) override;
         float GetValue(const AZStd::string& action) override;
         float GetValueY(const AZStd::string& action) override;
+        bool WasMotionPerformed(const AZStd::string& motion) override;
 
     private:
         //! Index of an action by name, or -1.
         int FindAction(const AZStd::string& name) const;
+        //! Index of a motion by name, or -1.
+        int FindMotion(const AZStd::string& name) const;
+        //! Quantize the direction action, append a sample on change, and re-evaluate
+        //! every motion, firing OnMotionPerformed on a fresh match. Called each tick.
+        void UpdateMotions(float nowSeconds);
 
         DioramaInputConfig m_config;
         InputActionMapDefinition m_definition;
         AZStd::vector<float> m_sources; //!< Live value per source channel (aligned to m_definition.m_sourceChannels).
         AZStd::vector<InputMap::ActionValue> m_values; //!< Evaluated state per action (aligned to m_config.m_actions).
+
+        //! Parsed numpad sequences (aligned to m_config.m_motions); built on Activate.
+        AZStd::vector<AZStd::vector<MotionInput::Direction>> m_motionSequences;
+        AZStd::vector<MotionInput::Sample> m_directionHistory; //!< Recent directions, oldest first.
+        AZStd::vector<bool> m_motionMatched; //!< Per-motion match state last tick (edge detection).
+        int m_directionActionIndex = -1; //!< Cached index of m_config.m_directionAction, or -1.
     };
 } // namespace Diorama

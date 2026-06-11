@@ -61,6 +61,9 @@ set(FILES
     Source/Clients/DioramaInputComponent.cpp
     Source/Clients/DioramaInputComponent.h
     Source/Clients/InputBus.cpp
+    Source/Clients/DioramaHitboxComponent.cpp
+    Source/Clients/DioramaHitboxComponent.h
+    Source/Clients/HitboxBus.cpp
     Source/Clients/AnimStateMachine.h
     Source/Clients/DioramaAnimStateMachineComponent.cpp
     Source/Clients/DioramaAnimStateMachineComponent.h

@@ -43,6 +43,11 @@ namespace Diorama
         virtual float GetValue(const AZStd::string& action) = 0;
         //! The Y component of an Axis2D action (0 otherwise).
         virtual float GetValueY(const AZStd::string& action) = 0;
+        //! True while a named motion (quarter-circle, dragon-punch) is recognized in the
+        //! recent direction history. Stays true through the motion's buffer window, so
+        //! gameplay gates it with a button edge, e.g. WasMotionPerformed("qcf") &&
+        //! WasPressedThisFrame("punch"). Unknown motion names read false.
+        virtual bool WasMotionPerformed(const AZStd::string& motion) = 0;
     };
 
     using DioramaInputRequestBus = AZ::EBus<DioramaInputRequests>;
@@ -66,6 +71,12 @@ namespace Diorama
         {
             AZ_UNUSED(action);
         }
+        //! A named motion was just recognized (fired once on the frame the motion
+        //! completes, not every frame it stays buffered).
+        virtual void OnMotionPerformed(const AZStd::string& motion)
+        {
+            AZ_UNUSED(motion);
+        }
     };
 
     using DioramaInputNotificationBus = AZ::EBus<DioramaInputNotifications>;
@@ -82,7 +93,8 @@ namespace Diorama
             "{6E7F8091-DAEB-46F7-8091-2A3B4C5D6E1D}",
             AZ::SystemAllocator,
             OnActionPressed,
-            OnActionReleased);
+            OnActionReleased,
+            OnMotionPerformed);
 
         void OnActionPressed(const AZStd::string& action) override
         {
@@ -91,6 +103,10 @@ namespace Diorama
         void OnActionReleased(const AZStd::string& action) override
         {
             Call(FN_OnActionReleased, action);
+        }
+        void OnMotionPerformed(const AZStd::string& motion) override
+        {
+            Call(FN_OnMotionPerformed, motion);
         }
     };
 

@@ -361,9 +361,29 @@ pressed.
 | `WasReleasedThisFrame` | `action: string` | `bool` | True only on the release edge. |
 | `GetValue` | `action: string` | `float` | Button 0..1, Axis1D [-1,1], or Axis2D X. |
 | `GetValueY` | `action: string` | `float` | Axis2D Y (0 otherwise). |
+| `WasMotionPerformed` | `motion: string` | `bool` | True while a named directional motion (quarter-circle, dragon-punch) is recognized in the recent direction history; gate it on a button edge. |
 
 `DioramaInputNotificationBus` fires `OnActionPressed(action)` /
-`OnActionReleased(action)` on the edges, for event-driven input.
+`OnActionReleased(action)` on the edges, plus `OnMotionPerformed(motion)` once the
+instant a motion completes, for event-driven input.
+
+## DioramaHitboxRequestBus
+
+Drives the **2D Frame-Data Hitboxes** component: a rig of hitboxes/hurtboxes, each
+live only on an animation-frame window, over the 2D collision world (how-to
+[21-fighting](../howto/21-fighting.md)).
+
+| Verb | Signature (after entity id) | Returns | Effect |
+| ---- | --------------------------- | ------- | ------ |
+| `SetFacing` | `facing: int` | void | +1 faces +X, -1 mirrors every box's X offset. |
+| `GetFacing` | | `int` | Current facing (+1 or -1). |
+| `SetFrame` | `frame: int` | void | Override the activation frame (for rigs not driven by the sprite player). |
+| `GetHitboxInfo` | | `DioramaHitboxInfo` | Read-only: current frame, facing, active hitbox/hurtbox counts. |
+
+`DioramaHitboxNotificationBus` fires `OnHit(target)` on the attacker and
+`OnHurt(attacker)` on the target when a live hitbox overlaps a live hurtbox, once per
+opponent per active window.
+
 ## DioramaAnimStateMachineRequestBus
 
 Drives the **2D Animation State Machine** component: a parameter-driven graph that

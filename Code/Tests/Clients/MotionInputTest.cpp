@@ -57,4 +57,33 @@ namespace Diorama
         const AZStd::vector<MotionInput::Direction> qcf = { 2, 3, 6 };
         EXPECT_FALSE(MotionInput::Matches(Hist(history), Mot(qcf), 0.3f, 0.42f));
     }
+
+    TEST(MotionInputTest, DirectionFromAxesMapsTheNumpadGrid)
+    {
+        const float dz = 0.3f;
+        EXPECT_EQ(MotionInput::DirectionFromAxes(0.0f, 0.0f, dz), 5); // neutral
+        EXPECT_EQ(MotionInput::DirectionFromAxes(1.0f, 0.0f, dz), 6); // forward
+        EXPECT_EQ(MotionInput::DirectionFromAxes(-1.0f, 0.0f, dz), 4); // back
+        EXPECT_EQ(MotionInput::DirectionFromAxes(0.0f, 1.0f, dz), 8); // up
+        EXPECT_EQ(MotionInput::DirectionFromAxes(0.0f, -1.0f, dz), 2); // down
+        EXPECT_EQ(MotionInput::DirectionFromAxes(1.0f, -1.0f, dz), 3); // down-forward
+        EXPECT_EQ(MotionInput::DirectionFromAxes(-1.0f, 1.0f, dz), 7); // up-back
+        EXPECT_EQ(MotionInput::DirectionFromAxes(1.0f, 1.0f, dz), 9); // up-forward
+        EXPECT_EQ(MotionInput::DirectionFromAxes(-1.0f, -1.0f, dz), 1); // down-back
+    }
+
+    TEST(MotionInputTest, DirectionFromAxesRespectsTheDeadZone)
+    {
+        // A small drift below the dead zone reads as centered on that axis.
+        EXPECT_EQ(MotionInput::DirectionFromAxes(0.2f, 0.0f, 0.3f), 5);
+        EXPECT_EQ(MotionInput::DirectionFromAxes(0.2f, 0.9f, 0.3f), 8); // x centered, y up
+    }
+
+    TEST(MotionInputTest, DragonPunchMatchesForwardDownDownForward)
+    {
+        // 6 (forward), 2 (down), 3 (down-forward): the classic dragon-punch motion.
+        const AZStd::vector<MotionInput::Sample> history = { { 6, 0.10f }, { 2, 0.16f }, { 3, 0.22f } };
+        const AZStd::vector<MotionInput::Direction> dp = { 6, 2, 3 };
+        EXPECT_TRUE(MotionInput::Matches(Hist(history), Mot(dp), 0.3f, 0.22f));
+    }
 } // namespace Diorama

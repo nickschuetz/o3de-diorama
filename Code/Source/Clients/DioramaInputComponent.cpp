@@ -87,20 +87,73 @@ namespace Diorama
         }
     }
 
+    void DioramaMotionData::Reflect(AZ::ReflectContext* context)
+    {
+        if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serializeContext->Class<DioramaMotionData>()
+                ->Version(1)
+                ->Field("name", &DioramaMotionData::m_name)
+                ->Field("sequence", &DioramaMotionData::m_sequence)
+                ->Field("windowSeconds", &DioramaMotionData::m_windowSeconds);
+
+            if (auto* editContext = serializeContext->GetEditContext())
+            {
+                editContext->Class<DioramaMotionData>("Motion", "A recognized directional motion")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaMotionData::m_name, "Name", "Motion name (read by scripts)")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaMotionData::m_sequence,
+                        "Sequence",
+                        "Numpad notation, e.g. 236 (QCF), 623 (DP), 41236 (HCF)")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaMotionData::m_windowSeconds,
+                        "Window",
+                        "Seconds within which every step must have been entered")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.05f)
+                    ->Attribute(AZ::Edit::Attributes::Max, 2.0f);
+            }
+        }
+    }
+
     void DioramaInputConfig::Reflect(AZ::ReflectContext* context)
     {
         DioramaInputActionData::Reflect(context);
+        DioramaMotionData::Reflect(context);
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
-            serializeContext->Class<DioramaInputConfig>()->Version(1)->Field("actions", &DioramaInputConfig::m_actions);
+            // Version 2 adds the motion-input layer (direction action + motions); the
+            // new fields default to empty so a v1 config keeps its exact behavior.
+            serializeContext->Class<DioramaInputConfig>()
+                ->Version(2)
+                ->Field("actions", &DioramaInputConfig::m_actions)
+                ->Field("directionAction", &DioramaInputConfig::m_directionAction)
+                ->Field("directionDeadZone", &DioramaInputConfig::m_directionDeadZone)
+                ->Field("motions", &DioramaInputConfig::m_motions);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
                 editContext->Class<DioramaInputConfig>("Input Config", "Named, rebindable input actions")
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
-                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaInputConfig::m_actions, "Actions", "The action list");
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaInputConfig::m_actions, "Actions", "The action list")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaInputConfig::m_directionAction,
+                        "Direction action",
+                        "Axis2D action quantized into a numpad direction (empty disables motions)")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Slider,
+                        &DioramaInputConfig::m_directionDeadZone,
+                        "Direction dead zone",
+                        "Stick magnitude below which the direction reads as centered")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->Attribute(AZ::Edit::Attributes::Max, 0.99f)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaInputConfig::m_motions, "Motions", "Recognized motions");
             }
         }
     }
@@ -178,6 +231,26 @@ namespace Diorama
         m_sources.assign(m_definition.m_sourceChannels.size(), 0.0f);
         m_values.assign(m_config.m_actions.size(), InputMap::ActionValue());
 
+        // Parse each motion's numpad string into a direction sequence once, here, so the
+        // per-tick path only compares pre-parsed data. Non-digit characters are ignored.
+        m_motionSequences.clear();
+        m_motionSequences.reserve(m_config.m_motions.size());
+        for (const DioramaMotionData& motion : m_config.m_motions)
+        {
+            AZStd::vector<MotionInput::Direction> sequence;
+            for (const char c : motion.m_sequence)
+            {
+                if (c >= '1' && c <= '9')
+                {
+                    sequence.push_back(static_cast<MotionInput::Direction>(c - '0'));
+                }
+            }
+            m_motionSequences.push_back(AZStd::move(sequence));
+        }
+        m_motionMatched.assign(m_config.m_motions.size(), false);
+        m_directionHistory.clear();
+        m_directionActionIndex = m_config.m_directionAction.empty() ? -1 : FindAction(m_config.m_directionAction);
+
         DioramaInputRequestBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
         AzFramework::InputChannelEventListener::Connect();
@@ -206,7 +279,7 @@ namespace Diorama
         return false; // never consume: gameplay and other listeners still see the input
     }
 
-    void DioramaInputComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    void DioramaInputComponent::OnTick([[maybe_unused]] float deltaTime, AZ::ScriptTimePoint time)
     {
         const AZStd::span<const float> sources(m_sources.data(), m_sources.size());
         for (size_t i = 0; i < m_definition.m_actions.size() && i < m_values.size(); ++i)
@@ -224,6 +297,43 @@ namespace Diorama
                 DioramaInputNotificationBus::Event(
                     GetEntityId(), &DioramaInputNotifications::OnActionReleased, m_config.m_actions[i].m_name);
             }
+        }
+
+        if (m_directionActionIndex >= 0)
+        {
+            UpdateMotions(static_cast<float>(time.GetSeconds()));
+        }
+    }
+
+    void DioramaInputComponent::UpdateMotions(float nowSeconds)
+    {
+        // Quantize the current directional input and record a sample only when the
+        // direction changes, so the history holds the sequence of held directions (not
+        // one entry per frame). Cap the history so a long session never grows it without
+        // bound; the window check in MotionInput::Matches ignores anything older anyway.
+        const InputMap::ActionValue& dir = m_values[m_directionActionIndex];
+        const MotionInput::Direction current = MotionInput::DirectionFromAxes(dir.m_x, dir.m_y, m_config.m_directionDeadZone);
+        if (m_directionHistory.empty() || m_directionHistory.back().m_direction != current)
+        {
+            m_directionHistory.push_back(MotionInput::Sample{ current, nowSeconds });
+            constexpr size_t MaxHistory = 24;
+            if (m_directionHistory.size() > MaxHistory)
+            {
+                m_directionHistory.erase(m_directionHistory.begin(), m_directionHistory.begin() + (m_directionHistory.size() - MaxHistory));
+            }
+        }
+
+        const AZStd::span<const MotionInput::Sample> history(m_directionHistory.data(), m_directionHistory.size());
+        for (size_t i = 0; i < m_config.m_motions.size(); ++i)
+        {
+            const AZStd::span<const MotionInput::Direction> sequence(m_motionSequences[i].data(), m_motionSequences[i].size());
+            const bool matched = MotionInput::Matches(history, sequence, m_config.m_motions[i].m_windowSeconds, nowSeconds);
+            if (matched && !m_motionMatched[i])
+            {
+                DioramaInputNotificationBus::Event(
+                    GetEntityId(), &DioramaInputNotifications::OnMotionPerformed, m_config.m_motions[i].m_name);
+            }
+            m_motionMatched[i] = matched;
         }
     }
 
@@ -267,5 +377,23 @@ namespace Diorama
     {
         const int index = FindAction(action);
         return (index >= 0 && index < static_cast<int>(m_values.size())) ? m_values[index].m_y : 0.0f;
+    }
+
+    int DioramaInputComponent::FindMotion(const AZStd::string& name) const
+    {
+        for (size_t i = 0; i < m_config.m_motions.size(); ++i)
+        {
+            if (m_config.m_motions[i].m_name == name)
+            {
+                return static_cast<int>(i);
+            }
+        }
+        return -1;
+    }
+
+    bool DioramaInputComponent::WasMotionPerformed(const AZStd::string& motion)
+    {
+        const int index = FindMotion(motion);
+        return (index >= 0 && index < static_cast<int>(m_motionMatched.size())) ? m_motionMatched[index] : false;
     }
 } // namespace Diorama

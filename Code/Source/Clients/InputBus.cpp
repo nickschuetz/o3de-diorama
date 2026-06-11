@@ -27,7 +27,11 @@ namespace Diorama
             ->Event("WasPressedThisFrame", &DioramaInputRequestBus::Events::WasPressedThisFrame, { { { "action", "Action name." } } })
             ->Event("WasReleasedThisFrame", &DioramaInputRequestBus::Events::WasReleasedThisFrame, { { { "action", "Action name." } } })
             ->Event("GetValue", &DioramaInputRequestBus::Events::GetValue, { { { "action", "Action name." } } })
-            ->Event("GetValueY", &DioramaInputRequestBus::Events::GetValueY, { { { "action", "Action name." } } });
+            ->Event("GetValueY", &DioramaInputRequestBus::Events::GetValueY, { { { "action", "Action name." } } })
+            ->Event(
+                "WasMotionPerformed",
+                &DioramaInputRequestBus::Events::WasMotionPerformed,
+                { { { "motion", "Motion name authored on the component." } } });
 
         behaviorContext->EBus<DioramaInputNotificationBus>("DioramaInputNotificationBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)

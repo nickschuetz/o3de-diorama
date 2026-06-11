@@ -330,6 +330,7 @@ a `Common`-scoped request bus at AI/human parity. The full catalog:
 | 2D lighting | `DioramaLightComponent` | `DioramaLightRequestBus` | [07](howto/07-lighting.md) |
 | Particles | `ParticleEmitterComponent` | `DioramaParticleRequestBus` | [09](howto/09-particles.md) |
 | 2D collision | `Collider2DComponent` | `Diorama2DColliderRequestBus` / `Diorama2DCollisionRequestBus` | - |
+| Frame-data hitboxes | `DioramaHitboxComponent` | `DioramaHitboxRequestBus` | [21](howto/21-fighting.md) |
 | Audio | (system) | `DioramaAudioRequestBus` | [15](howto/15-audio.md) |
 | 2D Look (post) | `DioramaLookComponent` | `DioramaLookRequestBus` | [14](howto/14-glow.md) |
 | CRT overlay | `DioramaCRTComponent` | `DioramaCRTRequestBus` | [16](howto/16-crt.md) |
@@ -346,7 +347,8 @@ Look and Skeletal twins add **edit-mode previews** (bloom A/B, pose scrubbing).
 
 The pure, engine-free cores that back these (`SpriteBatchPlan`, `SpriteCull`,
 `Collision2D`, `Camera2D`, `Particles2D`, `TilemapPaint`, `SkeletalClip`,
-`AsepriteImport`) are header/`.cpp` pairs unit-tested on their own, the same way the
+`AsepriteImport`, `MotionInput`, `HitboxFrames`) are header/`.cpp` pairs unit-tested
+on their own, the same way the
 config helpers are. `SpriteCull` is the off-screen reject: the feature processor
 builds the view frustum once per frame and skips packing/drawing any sprite whose
 bounding sphere is fully outside the side planes (conservative, so it never hides a

@@ -136,6 +136,7 @@ namespace Diorama
     inline constexpr const char* DioramaInputBindingDataTypeId = "{B2243546-5768-4091-A2A3-B4C5D6E7F906}";
     inline constexpr const char* InputActionKindTypeId = "{C3354657-6879-41A2-B3B4-C5D6E7F80A07}";
     inline constexpr const char* InputAxisTypeId = "{D4465768-798A-42B3-C4C5-D6E7F8091B08}";
+    inline constexpr const char* DioramaMotionDataTypeId = "{E5566879-8A9B-43C4-D5D6-E7F8091C2C09}";
     // 2D animation state machine TypeIds (parameter-driven graph over the existing
     // Sprite/Aseprite animation players)
     inline constexpr const char* DioramaAnimStateMachineConfigTypeId = "{A2B1C0D9-1E2F-4A3B-8C4D-5E6F70819201}";
@@ -156,4 +157,13 @@ namespace Diorama
     inline constexpr const char* Diorama2DCollisionRequestsTypeId = "{3CB7F919-1FE3-4718-B20F-5FDDF34F9B7A}";
     inline constexpr const char* Collider2DInfoTypeId = "{49F6D44E-02A1-4703-AEBB-51E14C72BD33}";
     inline constexpr const char* Raycast2DResultTypeId = "{4FCCC3DC-E65B-499C-9E85-F6014F4571AC}";
+
+    // Frame-data hitbox/hurtbox TypeIds (animation-frame-gated boxes over Collision2D)
+    inline constexpr const char* DioramaHitboxConfigTypeId = "{1A2B3C4D-5E6F-4071-8293-A4B5C6D7E8F1}";
+    inline constexpr const char* DioramaHitboxComponentTypeId = "{2B3C4D5E-6F70-4182-93A4-B5C6D7E8F1A2}";
+    inline constexpr const char* EditorDioramaHitboxComponentTypeId = "{3C4D5E6F-7081-4293-A4B5-C6D7E8F1A2B3}";
+    inline constexpr const char* DioramaHitboxRequestsTypeId = "{4D5E6F70-8192-43A4-B5C6-D7E8F1A2B3C4}";
+    inline constexpr const char* DioramaHitboxNotificationsTypeId = "{5E6F7081-92A3-44B5-C6D7-E8F1A2B3C4D5}";
+    inline constexpr const char* DioramaHitboxDataTypeId = "{6F708192-A3B4-45C6-D7E8-F1A2B3C4D5E6}";
+    inline constexpr const char* DioramaHitboxInfoTypeId = "{92A3B4C5-D6E7-48F1-A2B3-C4D5E6F70819}";
 } // namespace Diorama
