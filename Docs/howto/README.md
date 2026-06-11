@@ -66,7 +66,7 @@ Each has a written guide and a runnable example.
 | 2D Materials (flash + outline) | [10-materials.md](10-materials.md) | Written |
 | Crisp Pixel Art (point filter + no mipmaps) | [06-pixel-art.md](06-pixel-art.md) | Written |
 | Side-Scroller Slice (integration) | [11-sidescroller.md](11-sidescroller.md) | Written |
-| 2D UI / HUD (text + bar + panel) | [13-ui-hud.md](13-ui-hud.md) | Written |
+| World-Space HUD (health bars/icons via sprites) | [13-world-space-hud.md](13-world-space-hud.md) | Written |
 | Make it Glow (post-processing + emissive) | [14-glow.md](14-glow.md) | Written |
 | Sound (SFX and music via MiniAudio) | [15-audio.md](15-audio.md) | Written |
 | Retro CRT Overlay (scanlines) | [16-crt.md](16-crt.md) | Written |
@@ -113,7 +113,6 @@ the design, see:
 | 2D Particle Emitter | [../examples/particles_demo.py](../examples/particles_demo.py) |
 | 2D Materials (flash + outline) | [../examples/materials_demo.py](../examples/materials_demo.py) |
 | Side-Scroller Slice (integration) | [../examples/sidescroller_demo.py](../examples/sidescroller_demo.py) |
-| 2D UI / HUD | [../examples/ui_hud_demo.py](../examples/ui_hud_demo.py) |
 | 2.5D Quick-Start | [../examples/quickstart_demo.py](../examples/quickstart_demo.py) |
 
 Run an example in the editor:

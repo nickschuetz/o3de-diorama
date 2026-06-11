@@ -28,7 +28,6 @@
 #include <Clients/DioramaLookComponent.h>
 #include <Clients/DioramaParallaxComponent.h>
 #include <Clients/DioramaSkeletalClipComponent.h>
-#include <Clients/DioramaUIComponent.h>
 #include <Clients/ParticleEmitterComponent.h>
 #include <Clients/SkeletalClip.h>
 #include <Clients/SpriteAnimation.h>
@@ -841,7 +840,6 @@ namespace Diorama
         ExpectInspectorParity<DioramaLightConfig>("DioramaLightConfig", {});
         ExpectInspectorParity<DioramaParallaxConfig>("DioramaParallaxConfig", {});
         ExpectInspectorParity<Collider2DConfig>("Collider2DConfig", {});
-        ExpectInspectorParity<DioramaUIConfig>("DioramaUIConfig", {});
         ExpectInspectorParity<DioramaCRTConfig>("DioramaCRTConfig", {});
         ExpectInspectorParity<DioramaLookConfig>("DioramaLookConfig", {});
         ExpectInspectorParity<DioramaCamera2DConfig>("DioramaCamera2DConfig", {});

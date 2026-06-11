@@ -81,7 +81,6 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Tilemap | In-editor tile paint tool (editor component mode) | Working |
 | Tilemap | Autotiling: 4-bit edge set and 47-tile blob (corner-aware) | Working |
 | Tilemap | Custom rule-tile autotiling (neighbor-mask &rarr; tile offset) | Working |
-| UI | World/screen HUD: text, bars, panels via a typed bus | Working |
 | Post | 2D Look: bloom + vignette over Atom's PostProcess | Working |
 | Post | Retro CRT scanline overlay | Working |
 | Animation | Skeletal cutout clip player (keyframed bone hierarchy) | Working |

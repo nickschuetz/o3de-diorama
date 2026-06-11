@@ -14,7 +14,7 @@ rather than repeating the effect descriptions.
 The Diorama request buses (`DioramaSpriteRequestBus`, `DioramaTilemapRequestBus`,
 `DioramaCamera2DRequestBus`, `DioramaLightRequestBus`, `DioramaParticleRequestBus`,
 `DioramaParallaxRequestBus`, `Diorama2DColliderRequestBus`,
-`Diorama2DCollisionRequestBus`, `DioramaUIRequestBus`, `DioramaAudioRequestBus`,
+`Diorama2DCollisionRequestBus`, `DioramaAudioRequestBus`,
 `DioramaCRTRequestBus`, `DioramaLookRequestBus`, `DioramaSkeletalRequestBus`,
 `DioramaAsepriteRequestBus`, `DioramaInputRequestBus`,
 `DioramaAnimStateMachineRequestBus`) are the stable, typed, agent-facing API for driving the gem.
@@ -277,23 +277,6 @@ notification bus.
 | `Raycast2D` | `x, z, dirX, dirZ, maxDistance: float, layerMask: u32` | `Raycast2DResult` | First hit along the ray. |
 
 `Diorama2DCollisionNotificationBus` delivers enter/exit events (see [Notifications](#notifications-event-driven)).
-
-## DioramaUIRequestBus
-
-Drives a **2D UI** element: text, bar, or panel (how-to [13-ui-hud](../howto/13-ui-hud.md)).
-
-| Verb | Signature (after entity id) | Returns | Effect |
-| ---- | --------------------------- | ------- | ------ |
-| `SetText` | `text: string` | void | Text content (Text kind). |
-| `SetFontSize` | `pixels: float` | void | Font size. |
-| `SetColor` | `r, g, b, a: float` | void | Foreground color (`0..1`). |
-| `SetAnchor` | `anchor: int` | void | Screen anchor (corner/edge/center enum). |
-| `SetOffset` | `x, y: float` | void | Pixel offset from the anchor. |
-| `SetSize` | `width, height: float` | void | Element size (Bar/Panel). |
-| `SetValue` | `value: float` | void | Fill fraction `0..1` (Bar kind). |
-| `SetBackgroundColor` | `r, g, b, a: float` | void | Background color (Bar/Panel). |
-| `SetVisible` | `visible: bool` | void | Show/hide. |
-| `GetUIInfo` | (none) | `UIInfo` | Read-only. Safe to poll. |
 
 ## DioramaAudioRequestBus
 

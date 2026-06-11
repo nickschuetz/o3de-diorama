@@ -20,7 +20,7 @@ the published tree for now.
 
 Most of the tiers below have since shipped (each tracked inline as **Shipped**):
 2D lighting, the 2D camera (with versus framing + zoom), 2D collision (with pushbox
-resolution), particles, sprite materials, parallax, UI/HUD, audio, the 2D Look
+resolution), particles, sprite materials, parallax, audio, the 2D Look
 post-profile + CRT overlay, the in-editor tilemap paint tool, autotiling (4-bit +
 47-blob), a dedicated tilemap asset + builder (`.dtilemap` + Tiled `.tmj` import,
 multi-layer), native `.aseprite` import (parser + AssetBuilder), skeletal cutout
@@ -252,21 +252,13 @@ Missing table-stakes (no design doc yet):
   133 tests pass, and **verified audible** on a workstation (the GameLauncher/editor
   with an audio device; headless capture has no audio output, so sound is the one
   thing the capture pipeline cannot check).
-- **UI / HUD parity.** A first-class HUD/UI story that is *at parity* with the rest
-  of Diorama: AI- and human-drivable through a typed request bus (the same
-  parity model the sprite/tilemap buses follow), with an editor twin and demos,
-  rather than a bolt-on. Health/score/menus an agent can build the same way it
-  builds sprites. (LyShine is UI-only and outside Diorama's parity model today.)
-  **In progress**: design in [design/2d-ui-hud.md](design/2d-ui-hud.md). Landed: the
-  pure `UILayout2D.h` anchor/scale core (+ unit tests); `DioramaUIComponent` +
-  `DioramaUIRequestBus` + the `EditorDioramaUIComponent` twin; **text** elements via
-  `AzFramework::FontDrawInterface`; and **bar/gauge + solid-color panel** elements via
-  screen-space AuxGeom triangles with an orthographic view-proj override (no new
-  shader, no LyShine dependency). Bus: SetText/SetFontSize/SetColor/SetAnchor/
-  SetOffset/SetSize/SetValue/SetBackgroundColor/SetVisible/GetUIInfo. Verified
-  rendering a title + score + health bar + panel over the lighting demo. Next:
-  textured-image panels (sprite path), a HUD demo + how-to, and porting the
-  twin-stick score HUD off LyShine onto the Diorama bus.
+- **Screen-space UI / HUD: out of scope (LyShine owns it).** Diorama is world-space
+  only (see [VISION.md](../VISION.md)); screen-space UI is LyShine's domain and
+  Diorama does not overlap it. An early screen-space HUD component was removed for
+  this reason. In-world HUD elements (a health bar or icon pinned above an entity)
+  are just sprites and are covered by the sprite how-to; world-space text (floating
+  damage numbers, nameplates) is a possible future feature (it needs a bitmap-font
+  or text-to-texture approach, since the engine font interface is screen-space).
 - **Animation state machine.** **Shipped (v1)**
   ([design/2d-animation-state-machine.md](design/2d-animation-state-machine.md),
   [howto/22-anim-state-machine.md](howto/22-anim-state-machine.md)): a
@@ -299,7 +291,7 @@ Missing table-stakes (no design doc yet):
 Recommended order (closes gaps, then leans into the differentiators): audio ->
 post-processing (already designed, biggest "looks AAA" payoff) -> animation depth
 (clip editor + Aseprite import and/or skeletal) -> finish the AI-friendly API
-(the moat) -> UI/HUD parity -> starter template -> flagship demo.
+(the moat) -> starter template -> flagship demo.
 
 ## Beyond games: simulation and robotics
 

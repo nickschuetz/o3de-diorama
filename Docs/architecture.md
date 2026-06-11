@@ -330,7 +330,6 @@ a `Common`-scoped request bus at AI/human parity. The full catalog:
 | 2D lighting | `DioramaLightComponent` | `DioramaLightRequestBus` | [07](howto/07-lighting.md) |
 | Particles | `ParticleEmitterComponent` | `DioramaParticleRequestBus` | [09](howto/09-particles.md) |
 | 2D collision | `Collider2DComponent` | `Diorama2DColliderRequestBus` / `Diorama2DCollisionRequestBus` | - |
-| UI / HUD | `DioramaUIComponent` | `DioramaUIRequestBus` | [13](howto/13-ui-hud.md) |
 | Audio | (system) | `DioramaAudioRequestBus` | [15](howto/15-audio.md) |
 | 2D Look (post) | `DioramaLookComponent` | `DioramaLookRequestBus` | [14](howto/14-glow.md) |
 | CRT overlay | `DioramaCRTComponent` | `DioramaCRTRequestBus` | [16](howto/16-crt.md) |
@@ -346,9 +345,8 @@ brush painting, the Aseprite twin runs the **sprite-sheet JSON import**, and the
 Look and Skeletal twins add **edit-mode previews** (bloom A/B, pose scrubbing).
 
 The pure, engine-free cores that back these (`SpriteBatchPlan`, `Collision2D`,
-`Camera2D`, `Particles2D`, `UILayout2D`, `TilemapPaint`, `SkeletalClip`,
-`AsepriteImport`) are header/`.cpp` pairs unit-tested on their own, the same way the
-config helpers are.
+`Camera2D`, `Particles2D`, `TilemapPaint`, `SkeletalClip`, `AsepriteImport`) are
+header/`.cpp` pairs unit-tested on their own, the same way the config helpers are.
 
 ### The asset pipeline (builders and product assets)
 
