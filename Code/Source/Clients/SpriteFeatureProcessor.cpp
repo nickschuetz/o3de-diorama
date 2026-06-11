@@ -5,10 +5,12 @@
  * SPDX-License-Identifier: Apache-2.0 OR MIT
  */
 
+#include <Clients/SpriteCull.h>
 #include <Clients/SpriteFeatureProcessor.h>
 
 #include <AzCore/Asset/AssetManager.h>
 #include <AzCore/Console/IConsole.h>
+#include <AzCore/Math/Frustum.h>
 #include <AzCore/Math/Matrix3x3.h>
 #include <AzCore/Math/Vector3.h>
 #include <AzCore/Math/Vector4.h>
@@ -75,6 +77,18 @@ namespace Diorama
         nullptr,
         AZ::ConsoleFunctorFlags::Null,
         "Order Diorama sprites by camera distance each frame so nearer sprites draw in front (within their sort layer).");
+
+    // Off-screen culling: skip packing/drawing a sprite whose bounding sphere is fully
+    // outside the view's side planes. Conservative (side planes only, so it is
+    // independent of the projection reverse-depth convention and never wrongly hides a
+    // visible sprite); the win is large sparse scenes where most sprites are off-screen.
+    AZ_CVAR(
+        bool,
+        r_dioramaSpriteCull,
+        true,
+        nullptr,
+        AZ::ConsoleFunctorFlags::Null,
+        "Cull Diorama sprites whose bounding sphere is fully off the left/right/top/bottom of the view.");
 
     // Soft ground shadows under billboarded sprites: a 2.5D grounding cue. Drawn in
     // one batch just above the floor, below the sprites.
@@ -589,6 +603,17 @@ namespace Diorama
             cameraTransform = packet.m_views.front()->GetCameraTransform();
         }
 
+        // Off-screen cull volume: the primary view's frustum. Only its side planes are
+        // used (see SpriteCull::IsVisible), so the column-major extraction is correct
+        // regardless of the reverse-depth flag passed here.
+        AZ::Frustum cullFrustum;
+        const bool cullEnabled = static_cast<bool>(r_dioramaSpriteCull) && !packet.m_views.empty() && packet.m_views.front();
+        if (cullEnabled)
+        {
+            cullFrustum =
+                AZ::Frustum::CreateFromMatrixColumnMajor(packet.m_views.front()->GetWorldToClipMatrix(), AZ::Frustum::ReverseDepth::True);
+        }
+
         AZ::Data::Instance<AZ::RPI::Image> fallbackImage;
         if (auto* imageSystem = AZ::RPI::ImageSystemInterface::Get())
         {
@@ -727,10 +752,25 @@ namespace Diorama
             m_vertexScratch.resize(spriteCount * 4);
             m_indexScratch.reserve(spriteCount * 12); // up to 12 indices for a double-sided quad
 
+            // Visible sprites are packed contiguously: `visible` is the output slot, so
+            // a culled sprite simply leaves no gap. The vertex buffer is trimmed to the
+            // packed count after the loop.
+            AZ::u32 visible = 0;
             for (AZ::u32 n = 0; n < spriteCount; ++n)
             {
                 const SpriteEntry* entry = m_entryScratch[m_orderedScratch[batch.m_begin + n].m_index];
-                SpriteVertex* quad = &m_vertexScratch[n * 4];
+
+                if (cullEnabled)
+                {
+                    const float radius = SpriteCull::BoundingRadius(
+                        entry->m_config.m_size.GetX(), entry->m_config.m_size.GetY(), entry->m_worldTransform.GetUniformScale());
+                    if (!SpriteCull::IsVisible(cullFrustum, entry->m_worldTransform.GetTranslation(), radius))
+                    {
+                        continue; // fully off-screen: skip packing and drawing it
+                    }
+                }
+
+                SpriteVertex* quad = &m_vertexScratch[visible * 4];
                 AppendQuad(*entry, cameraTransform, quad);
 
                 if (usingFallback)
@@ -741,7 +781,7 @@ namespace Diorama
                     }
                 }
 
-                const AZ::u32 base = n * 4;
+                const AZ::u32 base = visible * 4;
                 for (int k = 0; k < 6; ++k)
                 {
                     m_indexScratch.push_back(base + quadIndices[k]);
@@ -756,6 +796,13 @@ namespace Diorama
                         m_indexScratch.push_back(base + quadIndicesBack[k]);
                     }
                 }
+                ++visible;
+            }
+
+            m_vertexScratch.resize(visible * 4);
+            if (visible == 0)
+            {
+                continue; // every sprite in this batch was culled; nothing to draw
             }
 
             m_dynamicDraw->SetSortKey(batchSortKey++);
