@@ -166,4 +166,12 @@ namespace Diorama
     inline constexpr const char* DioramaHitboxNotificationsTypeId = "{5E6F7081-92A3-44B5-C6D7-E8F1A2B3C4D5}";
     inline constexpr const char* DioramaHitboxDataTypeId = "{6F708192-A3B4-45C6-D7E8-F1A2B3C4D5E6}";
     inline constexpr const char* DioramaHitboxInfoTypeId = "{92A3B4C5-D6E7-48F1-A2B3-C4D5E6F70819}";
+
+    // Bullet-pattern (danmaku) emitter TypeIds (pooled pattern emission over Particles2D + Collision2D)
+    inline constexpr const char* DioramaBulletConfigTypeId = "{A3B4C5D6-E7F8-4192-93A4-B5C6D7E8F1A3}";
+    inline constexpr const char* DioramaBulletEmitterComponentTypeId = "{B4C5D6E7-F809-4203-A4B5-C6D7E8F1A2B4}";
+    inline constexpr const char* EditorDioramaBulletEmitterComponentTypeId = "{C5D6E7F8-0912-4314-B5C6-D7E8F1A2B3C5}";
+    inline constexpr const char* DioramaBulletRequestsTypeId = "{D6E7F809-1023-4425-C6D7-E8F1A2B3C4D6}";
+    inline constexpr const char* DioramaBulletNotificationsTypeId = "{E7F80912-1134-4536-D7E8-F1A2B3C4D5E7}";
+    inline constexpr const char* DioramaBulletInfoTypeId = "{F8091223-1245-4647-E8F1-A2B3C4D5E6F8}";
 } // namespace Diorama

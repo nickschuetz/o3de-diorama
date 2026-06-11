@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Bullet-pattern emitter** (danmaku / shmup). A new **2D Bullet Emitter** component
+  (`DioramaBulletEmitterComponent`) fires shots of a **Ring / Fan / Spiral** pattern at
+  a configurable rate (geometry from the pure tested `BulletPattern` core: `Ring` /
+  `Fan` / `AdvanceSpiral`), simulates the bullets as a pooled CPU particle set
+  (`Particles2D`), and renders the whole pattern in one draw call through the sprite
+  batch. Each frame every live bullet is tested against a target collision layer; an
+  overlap fires `OnBulletHit` and consumes the bullet. Driven by `DioramaBulletRequestBus`
+  (`Fire`/`Play`/`Stop`, `SetPattern`/`SetFireRate`/`SetCount`/`SetSpeed`/`SetAim`/
+  `SetSpread`/`SetSpin`, read-only `GetBulletInfo`). Fixed-capacity pool (hard-capped),
+  so no script or asset value spawns unboundedly. Reproducible sample
+  `Assets/Diorama/Examples/Shmup/enemy_danmaku.lua`
+  ([Docs/howto/24-bullet-patterns.md](Docs/howto/24-bullet-patterns.md)). Damage/scoring
+  stay game-side; the emitter reports the contact and removes the bullet.
 - **Fighting building blocks v2** (motions, frame-data hitboxes, impact juice). The
   **2D Input Actions** component gains a motion-input layer: point it at an `Axis2D`
   direction action and author motions in numpad notation (`236` = quarter-circle, `623`

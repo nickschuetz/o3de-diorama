@@ -80,6 +80,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Camera | Orthographic / pixel-perfect camera | Working |
 | Lighting | 2D dynamic lights + normal-mapped sprites | Working |
 | Effects | 2D particle emitter | Working |
+| Effects | Bullet-pattern emitter (danmaku: ring/fan/spiral, pooled, collidable) | Working |
 | Effects | Sprite materials (flash, outline, emissive/bloom) | Working |
 | Tilemap | In-editor tile paint tool (editor component mode) | Working |
 | Tilemap | Autotiling: 4-bit edge set and 47-tile blob (corner-aware) | Working |

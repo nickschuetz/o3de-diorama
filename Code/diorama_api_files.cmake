@@ -19,6 +19,7 @@ set(FILES
     Include/Diorama/DioramaSkeletalBus.h
     Include/Diorama/DioramaInputBus.h
     Include/Diorama/DioramaHitboxBus.h
+    Include/Diorama/DioramaBulletBus.h
     Include/Diorama/DioramaAnimStateMachineBus.h
     Include/Diorama/DioramaAsepriteBus.h
 )

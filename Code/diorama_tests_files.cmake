@@ -13,6 +13,8 @@ set(FILES
     Tests/Clients/MotionInputTest.cpp
     Tests/Clients/HitboxFramesTest.cpp
     Tests/Clients/DioramaHitboxComponentTest.cpp
+    Tests/Clients/BulletPatternTest.cpp
+    Tests/Clients/DioramaBulletEmitterComponentTest.cpp
     Tests/Clients/AnimStateMachineTest.cpp
     Tests/Clients/DioramaTestMain.cpp
 )

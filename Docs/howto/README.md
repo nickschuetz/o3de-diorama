@@ -75,6 +75,7 @@ Each has a written guide and a runnable example.
 | Input Action Mapping (rebindable named actions) | [23-input-actions.md](23-input-actions.md) | Written |
 | Animation State Machine (parameter-driven clip switching) | [22-anim-state-machine.md](22-anim-state-machine.md) | Written |
 | Fighting building blocks (frame events, hitboxes, versus camera) | [21-fighting.md](21-fighting.md) | Written |
+| Bullet patterns (danmaku / shmup emitter) | [24-bullet-patterns.md](24-bullet-patterns.md) | Written |
 
 ## Tooling
 

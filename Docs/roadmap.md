@@ -297,6 +297,14 @@ Missing table-stakes (no design doc yet):
   an impact-effects sample (`hit_response.lua`: hit-spark particle preset + material
   flash + camera trauma). Builds on the existing frame events, versus camera, hit-stop,
   and pushbox pieces. Charge-motion hold timing and rollback stay game-side.
+- **Bullet-pattern emitter (danmaku / shmup).** **Shipped**
+  ([howto/24-bullet-patterns.md](howto/24-bullet-patterns.md)): a **2D Bullet Emitter**
+  component (`DioramaBulletEmitterComponent`) fires Ring / Fan / Spiral patterns at a
+  fire rate (pure tested `BulletPattern` core), pools and integrates the bullets with
+  `Particles2D`, renders the pattern in one draw call through the sprite batch, and
+  hit-tests each live bullet against a target collision layer (`OnBulletHit` + consume).
+  Driven by `DioramaBulletRequestBus`; fixed-capacity pool. Reproducible sample
+  `Assets/Diorama/Examples/Shmup/enemy_danmaku.lua`. Damage/scoring stay game-side.
 - **Off-screen culling.** **Shipped**: the sprite feature processor builds the view
   frustum each frame and skips any sprite whose bounding sphere is fully outside the
   side planes, on the pure tested `SpriteCull.h` core (conservative and

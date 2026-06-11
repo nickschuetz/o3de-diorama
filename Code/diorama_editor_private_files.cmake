@@ -26,6 +26,8 @@ set(FILES
     Source/Tools/EditorDioramaInputComponent.h
     Source/Tools/EditorDioramaHitboxComponent.cpp
     Source/Tools/EditorDioramaHitboxComponent.h
+    Source/Tools/EditorDioramaBulletEmitterComponent.cpp
+    Source/Tools/EditorDioramaBulletEmitterComponent.h
     Source/Tools/EditorDioramaAnimStateMachineComponent.cpp
     Source/Tools/EditorDioramaAnimStateMachineComponent.h
     Source/Tools/EditorDioramaAsepriteComponent.cpp

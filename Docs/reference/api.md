@@ -384,6 +384,30 @@ live only on an animation-frame window, over the 2D collision world (how-to
 `OnHurt(attacker)` on the target when a live hitbox overlaps a live hurtbox, once per
 opponent per active window.
 
+## DioramaBulletRequestBus
+
+Drives the **2D Bullet Emitter** component: a pooled danmaku pattern emitter (ring /
+fan / spiral) with collidable bullets (how-to
+[24-bullet-patterns](../howto/24-bullet-patterns.md)). Bullets live in the world XY
+plane.
+
+| Verb | Signature (after entity id) | Returns | Effect |
+| ---- | --------------------------- | ------- | ------ |
+| `Fire` | | void | Fire one shot of the current pattern now (a spiral also advances). |
+| `Play` | | void | Start firing continuously at the fire rate. |
+| `Stop` | | void | Stop continuous firing (bullets in flight keep moving). |
+| `SetPattern` | `pattern: int` | void | 0 ring, 1 fan, 2 spiral (out-of-range clamps to ring). |
+| `SetFireRate` | `shotsPerSecond: float` | void | Continuous fire rate (clamped >= 0; 0 = manual). |
+| `SetCount` | `count: int` | void | Bullets per shot (clamped >= 0). |
+| `SetSpeed` | `speed: float` | void | Bullet speed, world units/sec (clamped >= 0). |
+| `SetAim` | `degrees: float` | void | Base angle (0 = +X, 90 = +Y). |
+| `SetSpread` | `degrees: float` | void | Fan arc width (clamped [0, 360]; ignored by ring). |
+| `SetSpin` | `degreesPerShot: float` | void | Spiral rotation per shot (ignored by ring/fan). |
+| `GetBulletInfo` | | `DioramaBulletInfo` | Read-only: alive count, max, firing, pattern, fire rate. |
+
+`DioramaBulletNotificationBus` fires `OnBulletHit(target)` on the emitter when a live
+bullet overlaps a collider on the emitter's target layer; the bullet is then consumed.
+
 ## DioramaAnimStateMachineRequestBus
 
 Drives the **2D Animation State Machine** component: a parameter-driven graph that

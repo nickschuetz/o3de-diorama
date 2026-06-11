@@ -14,6 +14,7 @@
 #include <Clients/Collision2DSystemComponent.h>
 #include <Clients/DioramaAnimStateMachineComponent.h>
 #include <Clients/DioramaAsepriteComponent.h>
+#include <Clients/DioramaBulletEmitterComponent.h>
 #include <Clients/DioramaCRTComponent.h>
 #include <Clients/DioramaCamera2DComponent.h>
 #include <Clients/DioramaHitboxComponent.h>
@@ -56,6 +57,7 @@ namespace Diorama
                 DioramaSkeletalClipComponent::CreateDescriptor(),
                 DioramaInputComponent::CreateDescriptor(),
                 DioramaHitboxComponent::CreateDescriptor(),
+                DioramaBulletEmitterComponent::CreateDescriptor(),
                 DioramaAnimStateMachineComponent::CreateDescriptor(),
                 DioramaAsepriteComponent::CreateDescriptor(),
             });
