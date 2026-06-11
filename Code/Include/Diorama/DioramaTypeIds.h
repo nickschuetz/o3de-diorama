@@ -175,4 +175,11 @@ namespace Diorama
     inline constexpr const char* DioramaBulletRequestsTypeId = "{D6E7F809-1023-4425-C6D7-E8F1A2B3C4D6}";
     inline constexpr const char* DioramaBulletNotificationsTypeId = "{E7F80912-1134-4536-D7E8-F1A2B3C4D5E7}";
     inline constexpr const char* DioramaBulletInfoTypeId = "{F8091223-1245-4647-E8F1-A2B3C4D5E6F8}";
+
+    // 2.5D brawler depth-lane TypeIds (depth-driven sprite lift / sort over the DepthLane core)
+    inline constexpr const char* DioramaDepthBodyConfigTypeId = "{1C2D3E4F-5061-4273-8495-A6B7C8D9E0F2}";
+    inline constexpr const char* DioramaDepthBodyComponentTypeId = "{2D3E4F50-6172-4384-95A6-B7C8D9E0F1A3}";
+    inline constexpr const char* EditorDioramaDepthBodyComponentTypeId = "{3E4F5061-7283-4495-A6B7-C8D9E0F1A2B4}";
+    inline constexpr const char* DioramaDepthBodyRequestsTypeId = "{4F506172-8394-45A6-B7C8-D9E0F1A2B3C5}";
+    inline constexpr const char* DioramaDepthBodyInfoTypeId = "{50617283-94A5-46B7-C8D9-E0F1A2B3C4D6}";
 } // namespace Diorama

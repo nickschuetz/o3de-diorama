@@ -77,6 +77,7 @@ Each has a written guide and a runnable example.
 | Fighting building blocks (frame events, hitboxes, versus camera) | [21-fighting.md](21-fighting.md) | Written |
 | Bullet patterns (danmaku / shmup emitter) | [24-bullet-patterns.md](24-bullet-patterns.md) | Written |
 | Side-scroller platforming (one-way platforms + ramps) | [25-platformer.md](25-platformer.md) | Written |
+| 2.5D brawler (depth lanes + depth-aware combat) | [26-brawler.md](26-brawler.md) | Written |
 
 ## Tooling
 

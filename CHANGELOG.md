@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   `Assets/Diorama/Examples/SideScroller/` (`platformer_body.lua` + `platformer_ground.lua`)
   ([Docs/howto/25-platformer.md](Docs/howto/25-platformer.md)). Driving slope tiles
   straight from a tilemap is a noted follow-up (needs tilemap XY-plane collision).
+- **2.5D brawler depth lanes** (beat-em-up). A new **2.5D Depth Body** component
+  (`DioramaDepthBodyComponent`) owns a character's **depth** (toward/away from the
+  camera) and renders it so a flat orthographic scene reads as 2.5D: it lifts the
+  sprite up-screen (`Lift Per Unit`) and biases its draw order (`Sort Per Unit`) from
+  depth, backed by the pure tested `DepthLane` core (`SameLane`, `ScreenLift`,
+  `SortBias`, `MoveToward`, `ClampToArena`). Driven by `DioramaDepthBodyRequestBus`
+  (`SetDepth`, `MoveDepthToward`, `GetDepth`, read-only `GetDepthInfo`); with a tilted
+  camera set the lift to 0 and use it just for the lane value. Depth-aware combat
+  composes the **2D Frame-Data Hitboxes** component: gate `OnHit` by `SameLane`, or put
+  the hitboxes on the XZ floor plane so the 2D overlap is depth-aware automatically.
+  Reproducible sample under `Assets/Diorama/Examples/Brawler/` (`brawler_player.lua` +
+  `brawler_enemy.lua`) ([Docs/howto/26-brawler.md](Docs/howto/26-brawler.md)).
 - **Bullet-pattern emitter** (danmaku / shmup). A new **2D Bullet Emitter** component
   (`DioramaBulletEmitterComponent`) fires shots of a **Ring / Fan / Spiral** pattern at
   a configurable rate (geometry from the pure tested `BulletPattern` core: `Ring` /

@@ -314,6 +314,15 @@ Missing table-stakes (no design doc yet):
   side-scroller sample ships under `Assets/Diorama/Examples/SideScroller/`. Driving
   slope tiles straight from a tilemap is a follow-up (needs the tilemap per-tile
   collision to support the XY screen plane; today it projects to the XZ ground plane).
+- **2.5D brawler depth lanes (beat-em-up).** **Shipped**
+  ([howto/26-brawler.md](howto/26-brawler.md)): a **2.5D Depth Body** component
+  (`DioramaDepthBodyComponent`) owns a character's depth (toward/away from the camera)
+  and renders it as an up-screen lift + draw-order bias so a flat orthographic scene
+  reads as 2.5D, on the pure tested `DepthLane` core. Driven by
+  `DioramaDepthBodyRequestBus` (`SetDepth`/`MoveDepthToward`/`GetDepth`/`GetDepthInfo`).
+  Depth-aware combat composes the frame-data hitbox component (gate `OnHit` by
+  `SameLane`, or author hitboxes on the XZ floor plane). Brawler sample under
+  `Assets/Diorama/Examples/Brawler/`.
 - **Off-screen culling.** **Shipped**: the sprite feature processor builds the view
   frustum each frame and skips any sprite whose bounding sphere is fully outside the
   side planes, on the pure tested `SpriteCull.h` core (conservative and

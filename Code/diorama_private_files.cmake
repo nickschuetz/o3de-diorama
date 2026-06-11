@@ -69,6 +69,10 @@ set(FILES
     Source/Clients/DioramaBulletEmitterComponent.cpp
     Source/Clients/DioramaBulletEmitterComponent.h
     Source/Clients/BulletBus.cpp
+    Source/Clients/DepthLane.h
+    Source/Clients/DioramaDepthBodyComponent.cpp
+    Source/Clients/DioramaDepthBodyComponent.h
+    Source/Clients/DepthBodyBus.cpp
     Source/Clients/AnimStateMachine.h
     Source/Clients/DioramaAnimStateMachineComponent.cpp
     Source/Clients/DioramaAnimStateMachineComponent.h

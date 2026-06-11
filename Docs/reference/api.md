@@ -412,6 +412,19 @@ plane.
 `DioramaBulletNotificationBus` fires `OnBulletHit(target)` on the emitter when a live
 bullet overlaps a collider on the emitter's target layer; the bullet is then consumed.
 
+## DioramaDepthBodyRequestBus
+
+Drives the **2.5D Depth Body** component: a brawler character's depth lane
+(toward/away from the camera), rendered as an up-screen lift + draw-order bias (how-to
+[26-brawler](../howto/26-brawler.md)).
+
+| Verb | Signature (after entity id) | Returns | Effect |
+| ---- | --------------------------- | ------- | ------ |
+| `SetDepth` | `depth: float` | void | Set the depth lane (clamped to the arena range); the sprite re-lifts and re-sorts. |
+| `MoveDepthToward` | `targetDepth, maxDelta: float` | `float` | Ease the lane toward a target by at most `maxDelta`; returns the new depth. |
+| `GetDepth` | | `float` | Current depth lane. |
+| `GetDepthInfo` | | `DioramaDepthBodyInfo` | Read-only: depth, screen lift, sort bias. |
+
 ## DioramaAnimStateMachineRequestBus
 
 Drives the **2D Animation State Machine** component: a parameter-driven graph that
