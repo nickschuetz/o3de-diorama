@@ -76,6 +76,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Input | Rebindable input action mapping (Button / Axis1D / Axis2D actions) | Working |
 | Input | Motion inputs (numpad sequences: quarter-circle, dragon-punch) | Working |
 | Gameplay | 2.5D brawler depth lanes (depth lift/sort + depth-aware combat) | Working |
+| Gameplay | Grid intelligence cores: FOV/fog, movement range, A* pathfinding | Working |
 | 2.5D | Parallax background layers | Working |
 | Camera | 2D camera controller (follow, deadzone, bounds, shake) | Working |
 | Camera | Versus framing (two-target midpoint) + distance zoom/dolly | Working |

@@ -350,7 +350,7 @@ Look and Skeletal twins add **edit-mode previews** (bloom A/B, pose scrubbing).
 The pure, engine-free cores that back these (`SpriteBatchPlan`, `SpriteCull`,
 `Collision2D`, `Camera2D`, `Particles2D`, `TilemapPaint`, `SkeletalClip`,
 `AsepriteImport`, `MotionInput`, `HitboxFrames`, `BulletPattern`, `SlopeCollision`,
-`DepthLane`) are header/`.cpp` pairs unit-tested on their own, the same way the
+`DepthLane`, `Pathfinding`, `MovementRange`, `FieldOfView`) are header/`.cpp` pairs unit-tested on their own, the same way the
 config helpers are. `SpriteCull` is the off-screen reject: the feature processor
 builds the view frustum once per frame and skips packing/drawing any sprite whose
 bounding sphere is fully outside the side planes (conservative, so it never hides a

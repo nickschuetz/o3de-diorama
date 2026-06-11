@@ -78,6 +78,7 @@ Each has a written guide and a runnable example.
 | Bullet patterns (danmaku / shmup emitter) | [24-bullet-patterns.md](24-bullet-patterns.md) | Written |
 | Side-scroller platforming (one-way platforms + ramps) | [25-platformer.md](25-platformer.md) | Written |
 | 2.5D brawler (depth lanes + depth-aware combat) | [26-brawler.md](26-brawler.md) | Written |
+| Grid intelligence (FOV, movement range, A* pathfinding) | [27-grid-intelligence.md](27-grid-intelligence.md) | Written |
 
 ## Tooling
 

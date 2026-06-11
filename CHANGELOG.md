@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Grid intelligence cores** (roguelike / tactics). Three pure, unit-tested
+  header algorithms over a tile grid (each takes a grid predicate, so they work over a
+  Diorama tilemap or any grid, with no engine coupling): **A\* pathfinding**
+  (`Pathfinding::FindPath`, 4-connected, Manhattan heuristic, returns the route or
+  fails on an unreachable goal); **movement range** (`MovementRange::ComputeReachable`,
+  a Dijkstra flood honoring per-cell entry costs, the "blue tiles"); and **field of
+  view** (`FieldOfView::Compute`, symmetric recursive shadowcasting over 8 octants, the
+  visible set a fog-of-war layer marks explored). FOV/fog is in-vision (feeds visibility
+  rendering); movement-range and A\* are general grid utilities kept here for
+  convenience. A tilemap-backed bus exposure for Lua/agents is a noted follow-up; the
+  tests under `GridIntelligenceTest.cpp` are runnable usage examples
+  ([Docs/howto/27-grid-intelligence.md](Docs/howto/27-grid-intelligence.md)).
 - **Side-scroller platforming** (one-way platforms + ramps). The 2D collision world
   gains the platformer primitives, on the pure tested `SlopeCollision` core. **One-way
   platforms**: a `m_oneWay` flag on the 2D Collider (Inspector **One Way** + `SetOneWay`

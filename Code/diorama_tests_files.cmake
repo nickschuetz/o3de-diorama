@@ -17,6 +17,7 @@ set(FILES
     Tests/Clients/BulletPatternTest.cpp
     Tests/Clients/DioramaBulletEmitterComponentTest.cpp
     Tests/Clients/DepthLaneTest.cpp
+    Tests/Clients/GridIntelligenceTest.cpp
     Tests/Clients/AnimStateMachineTest.cpp
     Tests/Clients/DioramaTestMain.cpp
 )

@@ -323,6 +323,13 @@ Missing table-stakes (no design doc yet):
   Depth-aware combat composes the frame-data hitbox component (gate `OnHit` by
   `SameLane`, or author hitboxes on the XZ floor plane). Brawler sample under
   `Assets/Diorama/Examples/Brawler/`.
+- **Grid intelligence cores (roguelike / tactics).** **Shipped**
+  ([howto/27-grid-intelligence.md](howto/27-grid-intelligence.md)): three pure tested
+  header algorithms over a tile grid -- A* pathfinding (`Pathfinding::FindPath`),
+  movement range (`MovementRange::ComputeReachable`, Dijkstra flood with per-cell
+  costs), and field of view (`FieldOfView::Compute`, recursive shadowcasting) for fog
+  of war. Each takes a grid predicate (no engine coupling). FOV/fog is in-vision;
+  movement-range and A* are general grid utilities. A tilemap-backed bus is a follow-up.
 - **Off-screen culling.** **Shipped**: the sprite feature processor builds the view
   frustum each frame and skips any sprite whose bounding sphere is fully outside the
   side planes, on the pure tested `SpriteCull.h` core (conservative and
