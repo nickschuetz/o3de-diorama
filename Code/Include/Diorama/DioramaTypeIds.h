@@ -114,6 +114,8 @@ namespace Diorama
     inline constexpr const char* SkeletalKeyframeDataTypeId = "{E5263728-93A4-4EBF-90D1-4C5D6E7F8091}";
     inline constexpr const char* SkeletalBoneTrackDataTypeId = "{F6374839-A4B5-4FC0-A1E2-5D6E7F809102}";
     inline constexpr const char* SkeletalEaseTypeId = "{0748594A-B5C6-40D1-B2F3-6E7F80910213}";
+    // Named alternative clip in the cross-fade library (v2 animation depth)
+    inline constexpr const char* SkeletalNamedClipDataTypeId = "{18596A5B-C6D7-40E2-A3B4-7F8091021324}";
     // Aseprite import TypeIds (sprite-sheet JSON -> frames + named tag animations)
     inline constexpr const char* DioramaAsepriteConfigTypeId = "{1A2B3C4D-5E6F-4071-8192-A3B4C5D6E7F8}";
     inline constexpr const char* DioramaAsepriteComponentTypeId = "{2B3C4D5E-6F70-4182-92A3-B4C5D6E7F809}";

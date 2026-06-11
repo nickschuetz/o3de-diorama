@@ -44,6 +44,10 @@ namespace Diorama
         virtual void SetLooping(bool looping) = 0;
         //! Clip length in seconds; the time base SetNormalizedTime maps onto. Clamped > 0.
         virtual void SetDuration(float seconds) = 0;
+        //! Cross-fade to a named clip from the config's clip library over durationSeconds,
+        //! blending the current and target poses per bone. An unknown name is ignored; a
+        //! non-positive duration switches instantly. Restarts the target clip from its start.
+        virtual void CrossFadeTo(const AZStd::string& clipName, float durationSeconds) = 0;
         //! True while the clip is advancing.
         virtual bool IsPlaying() = 0;
     };

@@ -924,6 +924,54 @@ namespace Diorama
         EXPECT_LT(SkeletalClip::ApplyEase(SkeletalClip::Ease::InQuad, 0.5f), 0.5f);
     }
 
+    // ---- v2 animation depth: pose blending (cross-fades + 1D blend trees) --------
+
+    TEST(SkeletalClipTest, BlendPose_EndpointsAndClamping)
+    {
+        SkeletalClip::Pose a;
+        a.m_translation = AZ::Vector3(0.0f, 0.0f, 0.0f);
+        a.m_scale = AZ::Vector3(1.0f, 1.0f, 1.0f);
+        SkeletalClip::Pose b;
+        b.m_translation = AZ::Vector3(10.0f, 0.0f, 0.0f);
+        b.m_scale = AZ::Vector3(3.0f, 3.0f, 3.0f);
+
+        // weight 0 -> a, weight 1 -> b, and out-of-range clamps to those endpoints.
+        EXPECT_NEAR(SkeletalClip::BlendPose(a, b, 0.0f).m_translation.GetX(), 0.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::BlendPose(a, b, 1.0f).m_translation.GetX(), 10.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::BlendPose(a, b, -0.5f).m_translation.GetX(), 0.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::BlendPose(a, b, 2.0f).m_scale.GetX(), 3.0f, 1e-4f);
+    }
+
+    TEST(SkeletalClipTest, BlendPose_MidpointInterpolatesTranslationScaleAndRotation)
+    {
+        SkeletalClip::Pose a;
+        a.m_translation = AZ::Vector3(0.0f, 0.0f, 0.0f);
+        a.m_scale = AZ::Vector3(1.0f, 1.0f, 1.0f);
+        a.m_rotation = AZ::Quaternion::CreateIdentity();
+        SkeletalClip::Pose b;
+        b.m_translation = AZ::Vector3(4.0f, 0.0f, 0.0f);
+        b.m_scale = AZ::Vector3(3.0f, 1.0f, 1.0f);
+        b.m_rotation = AZ::Quaternion::CreateRotationZ(AZ::DegToRad(90.0f));
+
+        const SkeletalClip::Pose mid = SkeletalClip::BlendPose(a, b, 0.5f);
+        EXPECT_NEAR(mid.m_translation.GetX(), 2.0f, 1e-4f); // halfway
+        EXPECT_NEAR(mid.m_scale.GetX(), 2.0f, 1e-4f); // halfway
+        // Rotation slerps to ~45 degrees about Z (half of 90).
+        const AZ::Quaternion expected = AZ::Quaternion::CreateRotationZ(AZ::DegToRad(45.0f));
+        EXPECT_TRUE(mid.m_rotation.IsClose(expected, 1e-3f));
+    }
+
+    TEST(SkeletalClipTest, CrossfadeWeight_RampsAndClampsAndSnapsOnInstant)
+    {
+        // Linear 0..1 across the fade duration, clamped at the ends.
+        EXPECT_NEAR(SkeletalClip::CrossfadeWeight(0.0f, 0.4f), 0.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::CrossfadeWeight(0.2f, 0.4f), 0.5f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::CrossfadeWeight(0.4f, 0.4f), 1.0f, 1e-4f);
+        EXPECT_NEAR(SkeletalClip::CrossfadeWeight(0.9f, 0.4f), 1.0f, 1e-4f); // past the end
+        // Non-positive duration is an instant switch (weight 1 immediately).
+        EXPECT_NEAR(SkeletalClip::CrossfadeWeight(0.0f, 0.0f), 1.0f, 1e-4f);
+    }
+
     // ---- Aseprite import: JSON parse + playback timeline -----------------------
     // The component is sprite-driven (it sets the sprite's texture + UV per frame),
     // but the parse and the per-frame-duration / direction timeline are pure and

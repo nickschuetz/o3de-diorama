@@ -145,19 +145,50 @@ namespace Diorama
         }
     }
 
+    void SkeletalNamedClipData::Reflect(AZ::ReflectContext* context)
+    {
+        if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serializeContext->Class<SkeletalNamedClipData>()
+                ->Version(1)
+                ->Field("name", &SkeletalNamedClipData::m_name)
+                ->Field("duration", &SkeletalNamedClipData::m_duration)
+                ->Field("looping", &SkeletalNamedClipData::m_looping)
+                ->Field("tracks", &SkeletalNamedClipData::m_tracks);
+
+            if (auto* editContext = serializeContext->GetEditContext())
+            {
+                editContext->Class<SkeletalNamedClipData>("Skeletal clip", "A named clip on the same rig, selectable via CrossFadeTo")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &SkeletalNamedClipData::m_name, "Name", "Name used by CrossFadeTo")
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &SkeletalNamedClipData::m_duration, "Duration", "Clip length in seconds")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.001f)
+                    ->DataElement(AZ::Edit::UIHandlers::CheckBox, &SkeletalNamedClipData::m_looping, "Loop", "Wrap at the end")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SkeletalNamedClipData::m_tracks,
+                        "Tracks",
+                        "One per animated bone (same bones as the default clip)");
+            }
+        }
+    }
+
     void DioramaSkeletalClipConfig::Reflect(AZ::ReflectContext* context)
     {
         SkeletalBoneTrackData::Reflect(context);
+        SkeletalNamedClipData::Reflect(context);
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<DioramaSkeletalClipConfig>()
-                ->Version(1)
+                ->Version(2)
                 ->Field("duration", &DioramaSkeletalClipConfig::m_duration)
                 ->Field("looping", &DioramaSkeletalClipConfig::m_looping)
                 ->Field("speed", &DioramaSkeletalClipConfig::m_speed)
                 ->Field("autoPlay", &DioramaSkeletalClipConfig::m_autoPlay)
-                ->Field("tracks", &DioramaSkeletalClipConfig::m_tracks);
+                ->Field("tracks", &DioramaSkeletalClipConfig::m_tracks)
+                ->Field("clips", &DioramaSkeletalClipConfig::m_clips);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -171,7 +202,12 @@ namespace Diorama
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default, &DioramaSkeletalClipConfig::m_speed, "Speed", "Playback rate (negative = reverse)")
                     ->DataElement(AZ::Edit::UIHandlers::CheckBox, &DioramaSkeletalClipConfig::m_autoPlay, "Auto play", "Play on activate")
-                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaSkeletalClipConfig::m_tracks, "Tracks", "One per animated bone");
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaSkeletalClipConfig::m_tracks, "Tracks", "One per animated bone")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaSkeletalClipConfig::m_clips,
+                        "Clips",
+                        "Named alternative clips on the same rig, selectable via CrossFadeTo");
             }
         }
     }
@@ -199,6 +235,41 @@ namespace Diorama
             const AZStd::vector<SkeletalClip::Keyframe> keys = BuildPureTrack(config.m_tracks[i]);
             const SkeletalClip::Pose pose =
                 SkeletalClip::SampleTrack(AZStd::span<const SkeletalClip::Keyframe>(keys.data(), keys.size()), timeSeconds);
+
+            AZ::Transform tm = AZ::Transform::CreateFromQuaternionAndTranslation(pose.m_rotation, pose.m_translation);
+            tm.SetUniformScale(AZ::GetMax(pose.m_scale.GetX(), AZ::Constants::FloatEpsilon));
+            AZ::TransformBus::Event(bones[i], &AZ::TransformBus::Events::SetLocalTM, tm);
+        }
+    }
+
+    void ApplySkeletalPoseBlended(
+        const AZStd::vector<SkeletalBoneTrackData>& tracksA,
+        float timeA,
+        const AZStd::vector<SkeletalBoneTrackData>& tracksB,
+        float timeB,
+        const AZStd::vector<AZ::EntityId>& bones,
+        float weight)
+    {
+        const size_t count = AZ::GetMin(bones.size(), tracksA.size());
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (!bones[i].IsValid())
+            {
+                continue;
+            }
+            const AZStd::vector<SkeletalClip::Keyframe> keysA = BuildPureTrack(tracksA[i]);
+            const SkeletalClip::Pose poseA =
+                SkeletalClip::SampleTrack(AZStd::span<const SkeletalClip::Keyframe>(keysA.data(), keysA.size()), timeA);
+
+            SkeletalClip::Pose pose = poseA;
+            // Blend in the target clip's matching bone (by index; clips share the rig).
+            if (i < tracksB.size())
+            {
+                const AZStd::vector<SkeletalClip::Keyframe> keysB = BuildPureTrack(tracksB[i]);
+                const SkeletalClip::Pose poseB =
+                    SkeletalClip::SampleTrack(AZStd::span<const SkeletalClip::Keyframe>(keysB.data(), keysB.size()), timeB);
+                pose = SkeletalClip::BlendPose(poseA, poseB, weight);
+            }
 
             AZ::Transform tm = AZ::Transform::CreateFromQuaternionAndTranslation(pose.m_rotation, pose.m_translation);
             tm.SetUniformScale(AZ::GetMax(pose.m_scale.GetX(), AZ::Constants::FloatEpsilon));
@@ -252,6 +323,7 @@ namespace Diorama
         }
 
         const float duration = AZ::GetMax(m_config.m_duration, AZ::Constants::FloatEpsilon);
+        const bool fading = m_fadeIndex >= 0 && m_fadeIndex < static_cast<int>(m_config.m_clips.size());
         m_time += deltaTime * m_config.m_speed;
 
         if (m_config.m_looping)
@@ -266,15 +338,79 @@ namespace Diorama
         else if (m_time >= duration)
         {
             m_time = duration;
-            m_playing = false;
+            m_playing = fading; // keep ticking so a cross-fade can finish
         }
         else if (m_time < 0.0f)
         {
             m_time = 0.0f;
-            m_playing = false;
+            m_playing = fading;
+        }
+
+        if (fading)
+        {
+            const SkeletalNamedClipData& target = m_config.m_clips[m_fadeIndex];
+            const float targetDuration = AZ::GetMax(target.m_duration, AZ::Constants::FloatEpsilon);
+            m_fadeTime += deltaTime * m_config.m_speed;
+            if (target.m_looping)
+            {
+                m_fadeTime = std::fmod(m_fadeTime, targetDuration);
+                if (m_fadeTime < 0.0f)
+                {
+                    m_fadeTime += targetDuration;
+                }
+            }
+            else
+            {
+                m_fadeTime = AZ::GetClamp(m_fadeTime, 0.0f, targetDuration);
+            }
+
+            m_fadeElapsed += deltaTime >= 0.0f ? deltaTime : -deltaTime; // fade by wall-time magnitude
+            const float weight = SkeletalClip::CrossfadeWeight(m_fadeElapsed, m_fadeDuration);
+            ApplySkeletalPoseBlended(m_config.m_tracks, m_time, target.m_tracks, m_fadeTime, m_bones, weight);
+
+            if (weight >= 1.0f)
+            {
+                // The fade finished: promote the target to the current clip.
+                m_config.m_tracks = target.m_tracks;
+                m_config.m_duration = target.m_duration;
+                m_config.m_looping = target.m_looping;
+                m_time = m_fadeTime;
+                m_fadeIndex = -1;
+            }
+            return;
         }
 
         ApplySkeletalPose(m_config, m_bones, m_time);
+    }
+
+    void DioramaSkeletalClipComponent::CrossFadeTo(const AZStd::string& clipName, float durationSeconds)
+    {
+        for (size_t i = 0; i < m_config.m_clips.size(); ++i)
+        {
+            if (m_config.m_clips[i].m_name != clipName)
+            {
+                continue;
+            }
+            m_playing = true; // ensure the player ticks the fade
+            const float fadeDuration = durationSeconds > 0.0f ? durationSeconds : 0.0f;
+            if (fadeDuration <= 0.0f)
+            {
+                // Instant switch: promote immediately and pose the target's start.
+                m_config.m_duration = m_config.m_clips[i].m_duration;
+                m_config.m_looping = m_config.m_clips[i].m_looping;
+                m_config.m_tracks = m_config.m_clips[i].m_tracks;
+                m_time = 0.0f;
+                m_fadeIndex = -1;
+                ApplySkeletalPose(m_config, m_bones, m_time);
+                return;
+            }
+            m_fadeIndex = static_cast<int>(i);
+            m_fadeTime = 0.0f;
+            m_fadeElapsed = 0.0f;
+            m_fadeDuration = fadeDuration;
+            return;
+        }
+        // Unknown clip name: ignored (forgiving bus).
     }
 
     void DioramaSkeletalClipComponent::Play()

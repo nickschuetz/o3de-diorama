@@ -67,6 +67,27 @@ DioramaSkeletalRequestBus.Event.Stop(self.entityId)
 `IsPlaying` reads back whether the clip is advancing, so a script can sequence one clip
 after another without a screenshot.
 
+## Cross-fade between clips
+
+A character usually has more than one animation on the same rig (idle, walk, attack).
+Author the alternatives under **Clips** in the component (each a name, duration, loop,
+and a track per bone, on the *same* bones as the default clip), then blend to one with
+`CrossFadeTo`:
+
+```lua
+-- Smoothly blend from the current clip to "walk" over 0.25s; the player samples both
+-- clips and eases each bone's pose across the fade, then continues on "walk".
+DioramaSkeletalRequestBus.Event.CrossFadeTo(self.entityId, "walk", 0.25)
+
+-- A non-positive duration switches instantly (no blend), e.g. a hard cut to "hit":
+DioramaSkeletalRequestBus.Event.CrossFadeTo(self.entityId, "hit", 0.0)
+```
+
+The blend is the pure `SkeletalClip::BlendPose` (lerp translation/scale, slerp rotation)
+weighted by `CrossfadeWeight` over the duration, so the transition math is unit tested
+headlessly. An unknown clip name is ignored. Clips share the rig: their tracks animate
+the same bones, matched in order, so only the keyframes differ between clips.
+
 ## Scope
 
 This is the **v1 cutout player**: a transform hierarchy of sprite bones, keyframed local

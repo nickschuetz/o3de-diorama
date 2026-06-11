@@ -54,6 +54,24 @@ namespace Diorama
         AZStd::vector<SkeletalKeyframeData> m_keys;
     };
 
+    //! A named alternative clip the player can cross-fade to. It shares the rig: its
+    //! tracks animate the same bones (matched by name) as the default clip, so blending
+    //! is per-bone. Authored alongside the default clip; selected by name via CrossFadeTo.
+    struct SkeletalNamedClipData final
+    {
+        AZ_TYPE_INFO(Diorama::SkeletalNamedClipData, SkeletalNamedClipDataTypeId);
+        static void Reflect(AZ::ReflectContext* context);
+
+        //! Name used to select this clip (CrossFadeTo).
+        AZStd::string m_name;
+        //! Clip length in seconds. Clamped > 0.
+        float m_duration = 1.0f;
+        //! Wrap at the end (true) or hold the last frame (false).
+        bool m_looping = true;
+        //! One track per animated bone (same bones as the default clip).
+        AZStd::vector<SkeletalBoneTrackData> m_tracks;
+    };
+
     //! Configuration for the cutout skeletal clip player. The character is the entity
     //! hierarchy under this entity; each track names a descendant and animates its
     //! local transform over the clip.
@@ -76,6 +94,9 @@ namespace Diorama
         bool m_autoPlay = true;
         //! One track per animated bone.
         AZStd::vector<SkeletalBoneTrackData> m_tracks;
+        //! Named alternative clips on the same rig, selectable via CrossFadeTo. Empty
+        //! leaves the player single-clip (unchanged from v1).
+        AZStd::vector<SkeletalNamedClipData> m_clips;
     };
 
     //! Resolve each track's bone name to a descendant entity of root (breadth-first
@@ -86,6 +107,18 @@ namespace Diorama
     //! Sample the config at timeSeconds and apply each track's local transform to its
     //! resolved bone entity via TransformBus. bones must align with config.m_tracks.
     void ApplySkeletalPose(const DioramaSkeletalClipConfig& config, const AZStd::vector<AZ::EntityId>& bones, float timeSeconds);
+
+    //! Apply a per-bone cross-fade of two clips: sample tracksA at timeA and tracksB at
+    //! timeB, blend each bone's pose by weight (0 = A, 1 = B) with SkeletalClip::BlendPose,
+    //! and write the result to the resolved bone via TransformBus. bones align with
+    //! tracksA; tracksB is matched by index (clips share the rig / bone order).
+    void ApplySkeletalPoseBlended(
+        const AZStd::vector<SkeletalBoneTrackData>& tracksA,
+        float timeA,
+        const AZStd::vector<SkeletalBoneTrackData>& tracksB,
+        float timeB,
+        const AZStd::vector<AZ::EntityId>& bones,
+        float weight);
 
     //! Runtime cutout skeletal clip player. Drives a transform hierarchy of sprite
     //! "bones" from a keyframed clip, sampling the pure SkeletalClip core each tick and
@@ -121,6 +154,7 @@ namespace Diorama
         void SetSpeed(float speed) override;
         void SetLooping(bool looping) override;
         void SetDuration(float seconds) override;
+        void CrossFadeTo(const AZStd::string& clipName, float durationSeconds) override;
         bool IsPlaying() override;
 
     private:
@@ -128,5 +162,12 @@ namespace Diorama
         AZStd::vector<AZ::EntityId> m_bones;
         float m_time = 0.0f;
         bool m_playing = false;
+        // Cross-fade state: when m_fadeIndex >= 0 the player blends from the current
+        // clip toward m_config.m_clips[m_fadeIndex] over m_fadeDuration seconds, then
+        // promotes the target to the current clip.
+        int m_fadeIndex = -1;
+        float m_fadeTime = 0.0f; //!< playback time of the fade-target clip
+        float m_fadeElapsed = 0.0f; //!< seconds into the fade
+        float m_fadeDuration = 0.0f;
     };
 } // namespace Diorama

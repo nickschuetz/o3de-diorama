@@ -122,4 +122,32 @@ namespace Diorama::SkeletalClip
         pose.m_scale = keyA.m_scale.Lerp(keyB.m_scale, t);
         return pose;
     }
+
+    //! Normalized cross-fade weight (0..1) at `elapsed` seconds into a fade of the
+    //! given `duration`. A non-positive duration snaps to 1 (an instant switch). This
+    //! drives BlendPose across a clip transition. Pure, unit tested directly.
+    inline float CrossfadeWeight(float elapsed, float duration)
+    {
+        if (duration <= 0.0f)
+        {
+            return 1.0f;
+        }
+        const float w = elapsed / duration;
+        return w < 0.0f ? 0.0f : (w > 1.0f ? 1.0f : w);
+    }
+
+    //! Blend between two poses by weight, clamped to [0,1]: 0 returns a, 1 returns b.
+    //! Translation and scale lerp; rotation slerps (shortest arc). This is the v2
+    //! animation-depth primitive: a cross-fade blends the outgoing and incoming clip
+    //! poses across a transition, and a 1D blend tree blends the two clips that
+    //! bracket a parameter, both by calling this. Pure, so it is unit tested directly.
+    inline Pose BlendPose(const Pose& a, const Pose& b, float weight)
+    {
+        const float w = weight < 0.0f ? 0.0f : (weight > 1.0f ? 1.0f : weight);
+        Pose out;
+        out.m_translation = a.m_translation.Lerp(b.m_translation, w);
+        out.m_rotation = a.m_rotation.Slerp(b.m_rotation, w);
+        out.m_scale = a.m_scale.Lerp(b.m_scale, w);
+        return out;
+    }
 } // namespace Diorama::SkeletalClip

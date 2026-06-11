@@ -41,6 +41,11 @@ namespace Diorama
                 "SetDuration",
                 &DioramaSkeletalRequestBus::Events::SetDuration,
                 { { { "seconds", "Clip length in seconds; clamped > 0." } } })
+            ->Event(
+                "CrossFadeTo",
+                &DioramaSkeletalRequestBus::Events::CrossFadeTo,
+                { { { "clipName", "Name of a clip in the config's clip library to blend to (unknown name is ignored)." },
+                    { "durationSeconds", "Cross-fade time in seconds; non-positive switches instantly." } } })
             ->Event("IsPlaying", &DioramaSkeletalRequestBus::Events::IsPlaying);
     }
 } // namespace Diorama
