@@ -96,8 +96,14 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Project | `Diorama2DGame` "New 2.5D Game" project template | Working |
 | Asset pipeline | Dedicated tilemap asset + builder (`.dtilemap` JSON or Tiled `.tmj` &rarr; validated `.dtilemapc`), multi-layer + per-tile flip/rotate | Working |
 
-A known limitation: the editor preview does not yet live-update to every
-runtime property change. See the roadmap and issues for tracking.
+Editor preview scope: components that have a viewport preview (Sprite, Tilemap,
+2D Light, 2D Look, Skeletal, Aseprite) live-update as you edit their Inspector
+properties. Behaviors that only exist at run time (input, collision, particles,
+camera follow, the animation state machine, CRT and parallax scroll) and any
+state set through the runtime request buses are seen in play / game mode, not in
+the static edit-mode preview. This mirrors O3DE's split between authored state
+(the Inspector and the saved prefab) and runtime state (transient, not written
+back to the prefab), and is by design rather than a pending fix.
 
 ## Requirements
 

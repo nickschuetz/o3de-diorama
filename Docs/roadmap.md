@@ -190,14 +190,19 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   verified by running create-project ([howto/20-template.md](howto/20-template.md)).
   Remaining from the design ([design/2d-starter-template.md](design/2d-starter-template.md)):
   a fully pre-populated demo level baked into the template.
-- **Editor live-preview** (S). Make sprite property edits update the viewport live.
-  **Design done** ([design/2d-live-preview.md](design/2d-live-preview.md)): the old
-  "doesn't live-update" note is largely stale (the `ChangeNotify -> SetConfig ->
-  UpdateSprite` path already works for Sprite and Tilemap); the work is a
-  verification pass + correcting the README, plus a guardrail that new asset fields
-  extend `SetConfig`'s reload detection. **Shipped for the newer components**: the
-  2D Look twin previews bloom/vignette live in the edit viewport, and the Skeletal
-  twin scrubs a pose non-destructively, both without entering game mode.
+- **Editor live-preview** (S). **Done / verified.** Audited every editor twin: each
+  reflects its `Config` as a single element wired `ChangeNotify -> OnConfigChanged`,
+  and that handler re-pushes the whole config to the preview (`SetConfig` /
+  `ApplyPreview`), so *every* Inspector property of a previewing component (Sprite,
+  Tilemap, 2D Light, 2D Look, Skeletal, Aseprite) live-updates the viewport. The
+  remaining components (input, collision, camera, particles, anim state machine, CRT,
+  parallax) have no edit preview by nature -- they are runtime behaviors seen in
+  play / game mode. The old "doesn't live-update" README note was stale and has been
+  corrected to state the authored-vs-runtime boundary (it is by design, not a gap).
+  Reflecting *runtime request-bus* mutations in the static edit preview is a non-goal
+  (it would duplicate every bus on the editor twin and blur O3DE's authored/runtime
+  split; agents author in edit mode via the component-property API, which already
+  refreshes the preview).
 
 ## Recommended sequence
 
