@@ -82,6 +82,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Camera | Versus framing (two-target midpoint) + distance zoom/dolly | Working |
 | Camera | Orthographic / pixel-perfect camera | Working |
 | Lighting | 2D dynamic lights + normal-mapped sprites | Working |
+| Lighting | Day/night cycle (time-of-day color/intensity/direction over a light) | Working |
 | Effects | 2D particle emitter | Working |
 | Effects | Bullet-pattern emitter (danmaku: ring/fan/spiral, pooled, collidable) | Working |
 | Effects | Sprite materials (flash, outline, emissive/bloom) | Working |

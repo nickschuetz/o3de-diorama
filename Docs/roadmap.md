@@ -323,6 +323,13 @@ Missing table-stakes (no design doc yet):
   Depth-aware combat composes the frame-data hitbox component (gate `OnHit` by
   `SameLane`, or author hitboxes on the XZ floor plane). Brawler sample under
   `Assets/Diorama/Examples/Brawler/`.
+- **Day/night cycle (lighting).** **Shipped**
+  ([howto/28-day-night.md](howto/28-day-night.md)): a `DioramaDayNightComponent` advances a
+  time-of-day clock and drives a target Diorama light's color, intensity, and direction
+  over the day, on the pure tested `DayNightCycle` core (four-phase gradient + sun
+  direction). A thin complementary layer over the lighting feature (no new light or
+  rendering); clock knobs on `DioramaDayNightRequestBus`. Driving multiple lights (a fill /
+  moon) and a sky/atmosphere tie-in are follow-ups; Atom owns skyboxes.
 - **Grid intelligence cores (roguelike / tactics).** **Shipped**
   ([howto/27-grid-intelligence.md](howto/27-grid-intelligence.md)): three pure tested
   header algorithms over a tile grid -- A* pathfinding (`Pathfinding::FindPath`),

@@ -16,6 +16,7 @@
 #include <Tools/EditorDioramaBulletEmitterComponent.h>
 #include <Tools/EditorDioramaCRTComponent.h>
 #include <Tools/EditorDioramaCamera2DComponent.h>
+#include <Tools/EditorDioramaDayNightComponent.h>
 #include <Tools/EditorDioramaDepthBodyComponent.h>
 #include <Tools/EditorDioramaHitboxComponent.h>
 #include <Tools/EditorDioramaInputComponent.h>
@@ -59,6 +60,7 @@ namespace Diorama
                     EditorDioramaHitboxComponent::CreateDescriptor(),
                     EditorDioramaBulletEmitterComponent::CreateDescriptor(),
                     EditorDioramaDepthBodyComponent::CreateDescriptor(),
+                    EditorDioramaDayNightComponent::CreateDescriptor(),
                     EditorDioramaAnimStateMachineComponent::CreateDescriptor(),
                     EditorDioramaAsepriteComponent::CreateDescriptor(),
                     DioramaBuilderComponent::CreateDescriptor(),

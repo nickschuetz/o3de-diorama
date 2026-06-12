@@ -182,4 +182,11 @@ namespace Diorama
     inline constexpr const char* EditorDioramaDepthBodyComponentTypeId = "{3E4F5061-7283-4495-A6B7-C8D9E0F1A2B4}";
     inline constexpr const char* DioramaDepthBodyRequestsTypeId = "{4F506172-8394-45A6-B7C8-D9E0F1A2B3C5}";
     inline constexpr const char* DioramaDepthBodyInfoTypeId = "{50617283-94A5-46B7-C8D9-E0F1A2B3C4D6}";
+
+    // Day/night cycle TypeIds (time-of-day clock driving a Diorama light over the DayNightCycle core)
+    inline constexpr const char* DioramaDayNightConfigTypeId = "{61728394-A5B6-47C8-D9E0-F1A2B3C4D5E7}";
+    inline constexpr const char* DioramaDayNightComponentTypeId = "{728394A5-B6C7-48D9-E0F1-A2B3C4D5E6F8}";
+    inline constexpr const char* EditorDioramaDayNightComponentTypeId = "{8394A5B6-C7D8-49E0-F1A2-B3C4D5E6F7A9}";
+    inline constexpr const char* DioramaDayNightRequestsTypeId = "{94A5B6C7-D8E9-40F1-A2B3-C4D5E6F7A8BA}";
+    inline constexpr const char* DioramaDayNightInfoTypeId = "{A5B6C7D8-E9F0-41A2-B3C4-D5E6F7A8B9CB}";
 } // namespace Diorama

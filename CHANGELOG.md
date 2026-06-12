@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Day/night cycle** (lighting). A new **Day/Night Cycle** component
+  (`DioramaDayNightComponent`) advances a normalized time-of-day clock and drives a target
+  Diorama light's color, intensity, and direction over the day, on the pure tested
+  `DayNightCycle` core (cyclic four-phase gradient `Sample` + sun `SunDirection` from
+  elevation/azimuth). A thin complementary layer over the 2D lighting feature: it creates
+  no light and owns no new rendering, just animates an existing one (self by default, or a
+  `Target Light` entity). Phase colors / intensities (night, dawn, day, dusk) and cycle
+  timing are authored in the Inspector; the clock is also on `DioramaDayNightRequestBus`
+  (`SetTimeOfDay`, `SetCycleSeconds`, `SetPaused`, `StepHours`, `GetDayNightInfo`) for
+  Lua / Python / Script Canvas / agents. Reproducible sample under
+  `Assets/Diorama/Examples/DayNight/` (`daynight_controller.lua` scrubs the clock and logs
+  sunrise/sunset; `daynight_lamp.lua` switches a lamp on at night) plus a one-command demo
+  scene builder (`Docs/examples/daynight_demo.py`)
+  ([Docs/howto/28-day-night.md](Docs/howto/28-day-night.md)).
 - **Grid intelligence cores** (roguelike / tactics). Three pure, unit-tested
   header algorithms over a tile grid (each takes a grid predicate, so they work over a
   Diorama tilemap or any grid, with no engine coupling): **A\* pathfinding**
@@ -141,6 +155,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   ([Docs/howto/06-pixel-art.md](Docs/howto/06-pixel-art.md)) plus an example
   `pixel_sprite.png`, covering both halves of crisp pixel art (sampler + mipmaps).
   Came out of an O3DE community request for explicit nearest-neighbor filtering.
+
+### Fixed
+- **Bullet emitter unity-build robustness.** `DioramaBulletEmitterComponent.cpp` serializes
+  a `Data::Asset<StreamingImageAsset>` field but was relying on a transitive include of the
+  `Data::Asset<T>` serializer from a unity-build neighbor; it now includes
+  `<AzCore/Asset/AssetSerializer.h>` directly (the same include the other asset-bearing
+  components already carry), so it compiles regardless of unity grouping.
 
 ### Removed
 - **Screen-space UI/HUD component.** The early `DioramaUIComponent` (text/bar/panel

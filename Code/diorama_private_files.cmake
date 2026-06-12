@@ -73,9 +73,13 @@ set(FILES
     Source/Clients/Pathfinding.h
     Source/Clients/MovementRange.h
     Source/Clients/FieldOfView.h
+    Source/Clients/DayNightCycle.h
     Source/Clients/DioramaDepthBodyComponent.cpp
     Source/Clients/DioramaDepthBodyComponent.h
     Source/Clients/DepthBodyBus.cpp
+    Source/Clients/DioramaDayNightComponent.cpp
+    Source/Clients/DioramaDayNightComponent.h
+    Source/Clients/DayNightBus.cpp
     Source/Clients/AnimStateMachine.h
     Source/Clients/DioramaAnimStateMachineComponent.cpp
     Source/Clients/DioramaAnimStateMachineComponent.h

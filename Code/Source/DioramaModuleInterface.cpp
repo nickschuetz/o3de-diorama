@@ -17,6 +17,7 @@
 #include <Clients/DioramaBulletEmitterComponent.h>
 #include <Clients/DioramaCRTComponent.h>
 #include <Clients/DioramaCamera2DComponent.h>
+#include <Clients/DioramaDayNightComponent.h>
 #include <Clients/DioramaDepthBodyComponent.h>
 #include <Clients/DioramaHitboxComponent.h>
 #include <Clients/DioramaInputComponent.h>
@@ -60,6 +61,7 @@ namespace Diorama
                 DioramaHitboxComponent::CreateDescriptor(),
                 DioramaBulletEmitterComponent::CreateDescriptor(),
                 DioramaDepthBodyComponent::CreateDescriptor(),
+                DioramaDayNightComponent::CreateDescriptor(),
                 DioramaAnimStateMachineComponent::CreateDescriptor(),
                 DioramaAsepriteComponent::CreateDescriptor(),
             });

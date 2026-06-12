@@ -11,6 +11,7 @@
 #include <Diorama/Collision2DBus.h>
 
 #include <AzCore/Asset/AssetManager.h>
+#include <AzCore/Asset/AssetSerializer.h>
 #include <AzCore/Component/TransformBus.h>
 #include <AzCore/Math/Transform.h>
 #include <AzCore/Serialization/EditContext.h>

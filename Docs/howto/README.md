@@ -79,6 +79,7 @@ Each has a written guide and a runnable example.
 | Side-scroller platforming (one-way platforms + ramps) | [25-platformer.md](25-platformer.md) | Written |
 | 2.5D brawler (depth lanes + depth-aware combat) | [26-brawler.md](26-brawler.md) | Written |
 | Grid intelligence (FOV, movement range, A* pathfinding) | [27-grid-intelligence.md](27-grid-intelligence.md) | Written |
+| Day/night cycle (time-of-day lighting) | [28-day-night.md](28-day-night.md) | Written |
 
 ## Tooling
 
@@ -118,6 +119,7 @@ the design, see:
 | 2D Materials (flash + outline) | [../examples/materials_demo.py](../examples/materials_demo.py) |
 | Side-Scroller Slice (integration) | [../examples/sidescroller_demo.py](../examples/sidescroller_demo.py) |
 | 2.5D Quick-Start | [../examples/quickstart_demo.py](../examples/quickstart_demo.py) |
+| Day/Night Cycle | [../examples/daynight_demo.py](../examples/daynight_demo.py) |
 
 Run an example in the editor:
 
