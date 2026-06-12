@@ -12,10 +12,7 @@
 #include <AzCore/EBus/EBus.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/RTTI/RTTI.h>
-<<<<<<< HEAD
 #include <AzCore/std/containers/vector.h>
-=======
->>>>>>> origin/main
 
 namespace AZ
 {
@@ -68,7 +65,6 @@ namespace Diorama
         virtual void SetStepsPerSecond(float stepsPerSecond) = 0;
         //! Resolved clock state. Safe to poll.
         virtual DioramaSimClockInfo GetSimClockInfo() = 0;
-<<<<<<< HEAD
 
         // Snapshot / restore (design phase B). A frame image covers the clock itself
         // (frame counter, accumulator, pause state, seeded RNG) plus every entity
@@ -92,8 +88,6 @@ namespace Diorama
         virtual void SaveToSlot(int slot) = 0;
         //! Restore from an internal slot; false if the slot is empty/invalid.
         virtual bool RestoreFromSlot(int slot) = 0;
-=======
->>>>>>> origin/main
     };
 
     using DioramaSimClockRequestBus = AZ::EBus<DioramaSimClockRequests>;
