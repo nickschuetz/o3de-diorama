@@ -24,6 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   xorshift64*, exact integer math, platform-identical) over `DioramaRandomRequestBus`
   (`SetSeed`, `RandFloat`, `RandRange`, `RandInt`, `GetRandomDraws`), so randomness can
   be seeded, replayed, and later snapshotted. Not cryptographic; gameplay only.
+- **Simulation snapshot/restore** (deterministic sim, phase B infrastructure). The
+  clock gains frame capture: a new **Simulation State** marker component
+  (`DioramaSimStateComponent`, no configuration) enrolls an entity, and the marker
+  itself snapshots/restores the entity's **world translation** (the bulk of sim state
+  in transform-driven Diorama gameplay); snapshot-capable components contribute their
+  own tagged chunks through an internal participant bus (component coverage lands
+  next). Capture writes a canonical little-endian image on the pure tested `SimState`
+  writer/reader core (participants sorted by entity id, so the image and its hash are
+  run-independent); **restore treats the buffer as untrusted** (bounds-checked reads,
+  magic/version/range validation, malformed input rejected, chunks for missing
+  entities skipped). C++ rollback layers use `CaptureFrame`/`RestoreFrame` on
+  `DioramaSimClockRequestBus`; scripts and agents use the reflected surface:
+  **`GetStateHash`** (FNV-1a 64 determinism fingerprint), **`SaveToSlot(slot)`** and
+  **`RestoreFromSlot(slot)`** (8 internal slots: training-mode rewind, replays,
+  tests).
 
 - **Day/night cycle** (lighting). A new **Day/Night Cycle** component
   (`DioramaDayNightComponent`) advances a normalized time-of-day clock and drives a target

@@ -34,6 +34,8 @@ set(FILES
     Source/Tools/EditorDioramaDayNightComponent.h
     Source/Tools/EditorDioramaSimClockComponent.cpp
     Source/Tools/EditorDioramaSimClockComponent.h
+    Source/Tools/EditorDioramaSimStateComponent.cpp
+    Source/Tools/EditorDioramaSimStateComponent.h
     Source/Tools/EditorDioramaAnimStateMachineComponent.cpp
     Source/Tools/EditorDioramaAnimStateMachineComponent.h
     Source/Tools/EditorDioramaAsepriteComponent.cpp

@@ -199,4 +199,8 @@ namespace Diorama
     inline constexpr const char* DioramaSimTickNotificationsTypeId = "{6CF083AB-B466-4BFF-9BF7-79267ED56A36}";
     inline constexpr const char* DioramaSimClockInfoTypeId = "{98F1EAE2-365A-47E2-BBDB-C19596E362D2}";
     inline constexpr const char* DioramaRandomRequestsTypeId = "{B0E25564-5A2A-4A35-8252-4B26ED38D9DF}";
+
+    // Simulation state marker TypeIds (enrolls an entity in snapshot/restore capture)
+    inline constexpr const char* DioramaSimStateComponentTypeId = "{034F5837-545F-4930-AA58-F728EFBC0F73}";
+    inline constexpr const char* EditorDioramaSimStateComponentTypeId = "{C8908981-1387-4055-ACB5-4B189AC1F486}";
 } // namespace Diorama

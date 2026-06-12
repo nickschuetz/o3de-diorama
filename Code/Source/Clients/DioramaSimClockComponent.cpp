@@ -6,9 +6,12 @@
  */
 
 #include <Clients/DioramaSimClockComponent.h>
+#include <Clients/SimState.h>
+#include <Clients/SimStateBus.h>
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
+#include <AzCore/std/sort.h>
 
 namespace Diorama
 {
@@ -193,5 +196,168 @@ namespace Diorama
     float DioramaSimClockComponent::StepSeconds() const
     {
         return 1.0f / m_config.m_stepsPerSecond;
+    }
+
+    // ---- Snapshot / restore (design phase B) -----------------------------------------
+    //
+    // Frame image layout (all little-endian through SimState::Writer):
+    //   u32  magic 'DSS1'
+    //   u8   version (1)
+    //   s64  clock frame
+    //   f64  clock accumulator
+    //   u8   paused
+    //   u64  rng state
+    //   u64  rng draws
+    //   f32  steps per second
+    //   u32  participant count
+    //   per participant (sorted by entity id for a canonical, hash-stable image):
+    //     u64  entity id
+    //     u32  block size (bytes of chunks that follow)
+    //     ...  tagged chunks (each component's own payload)
+
+    namespace
+    {
+        constexpr AZ::u32 FrameMagic = 0x31535344; // 'DSS1'
+        constexpr AZ::u8 FrameVersion = 1;
+    } // namespace
+
+    void DioramaSimClockComponent::CaptureFrame(AZStd::vector<AZ::u8>& out)
+    {
+        out.clear();
+        SimState::Writer writer(out);
+        writer.U32(FrameMagic);
+        writer.U8(FrameVersion);
+        writer.S64(m_clock.m_frame);
+        writer.F64(m_clock.m_accumulator);
+        writer.U8(m_paused ? 1 : 0);
+        writer.U64(m_random.m_state);
+        writer.U64(m_random.m_draws);
+        writer.F32(m_config.m_stepsPerSecond);
+
+        // Enumerate enrolled entities and capture in entity-id order, so the image
+        // (and therefore the state hash) is canonical regardless of activation order.
+        AZStd::vector<AZ::EntityId> participants;
+        DioramaSimStateRegistryBus::EnumerateHandlers(
+            [&participants](DioramaSimStateRegistry* handler)
+            {
+                participants.push_back(handler->GetSimStateEntity());
+                return true;
+            });
+        AZStd::sort(participants.begin(), participants.end());
+
+        writer.U32(static_cast<AZ::u32>(participants.size()));
+        for (const AZ::EntityId& id : participants)
+        {
+            writer.U64(static_cast<AZ::u64>(id));
+            // Length-prefix the entity's chunk block so restore can skip a missing
+            // entity wholesale: write a size placeholder, append the chunks, patch.
+            const size_t sizePos = out.size();
+            writer.U32(0);
+            const size_t blockStart = out.size();
+            DioramaSimStateParticipantBus::Event(id, &DioramaSimStateParticipants::SaveSimState, writer);
+            const AZ::u32 blockSize = static_cast<AZ::u32>(out.size() - blockStart);
+            out[sizePos + 0] = static_cast<AZ::u8>(blockSize);
+            out[sizePos + 1] = static_cast<AZ::u8>(blockSize >> 8);
+            out[sizePos + 2] = static_cast<AZ::u8>(blockSize >> 16);
+            out[sizePos + 3] = static_cast<AZ::u8>(blockSize >> 24);
+        }
+    }
+
+    bool DioramaSimClockComponent::RestoreFrame(const AZStd::vector<AZ::u8>& buffer)
+    {
+        SimState::Reader reader(buffer.data(), buffer.size());
+
+        AZ::u32 magic = 0;
+        AZ::u8 version = 0;
+        if (!reader.U32(magic) || magic != FrameMagic || !reader.U8(version) || version != FrameVersion)
+        {
+            return false;
+        }
+
+        // Parse the clock state into locals first: nothing is applied unless the
+        // whole header parses (no partial clock state from a truncated buffer).
+        AZ::s64 frame = 0;
+        double accumulator = 0.0;
+        AZ::u8 paused = 0;
+        AZ::u64 rngState = 0;
+        AZ::u64 rngDraws = 0;
+        float stepsPerSecond = 0.0f;
+        AZ::u32 participantCount = 0;
+        if (!reader.S64(frame) || !reader.F64(accumulator) || !reader.U8(paused) || !reader.U64(rngState) || !reader.U64(rngDraws) ||
+            !reader.F32(stepsPerSecond) || !reader.U32(participantCount))
+        {
+            return false;
+        }
+        if (rngState == 0 || !(stepsPerSecond >= 1.0f && stepsPerSecond <= 1000.0f))
+        {
+            return false; // invalid by construction: never produced by CaptureFrame
+        }
+
+        m_clock.m_frame = frame;
+        m_clock.m_accumulator = accumulator;
+        m_paused = paused != 0;
+        m_random.m_state = rngState;
+        m_random.m_draws = rngDraws;
+        m_config.m_stepsPerSecond = stepsPerSecond;
+
+        // Apply participant blocks. An entity that no longer exists (no handler) has
+        // its block skipped; an unrecognized chunk within a block is skipped too, so
+        // newer images degrade gracefully on older component sets.
+        for (AZ::u32 p = 0; p < participantCount; ++p)
+        {
+            AZ::u64 rawId = 0;
+            AZ::u32 blockSize = 0;
+            if (!reader.U64(rawId) || !reader.U32(blockSize) || blockSize > reader.Remaining())
+            {
+                return false;
+            }
+            const AZ::EntityId entityId(rawId);
+            SimState::Reader block = reader.SubReader(blockSize);
+            while (block.Ok() && block.Remaining() > 0)
+            {
+                AZ::u32 tag = 0;
+                AZ::u32 payloadSize = 0;
+                if (!block.ChunkHeader(tag, payloadSize))
+                {
+                    return false;
+                }
+                SimState::Reader payload = block.SubReader(payloadSize);
+                bool consumed = false;
+                DioramaSimStateParticipantBus::EnumerateHandlersId(
+                    entityId,
+                    [&consumed, tag, &payload](DioramaSimStateParticipants* handler)
+                    {
+                        // Offer until one component takes the chunk; a later handler
+                        // never sees a consumed payload.
+                        consumed = handler->TryRestoreChunk(tag, payload);
+                        return !consumed;
+                    });
+            }
+        }
+        return reader.Ok();
+    }
+
+    AZ::u64 DioramaSimClockComponent::GetStateHash()
+    {
+        CaptureFrame(m_hashScratch);
+        return SimState::Fnv1a64(m_hashScratch.data(), m_hashScratch.size());
+    }
+
+    void DioramaSimClockComponent::SaveToSlot(int slot)
+    {
+        if (slot < 0 || slot >= SlotCount)
+        {
+            return;
+        }
+        CaptureFrame(m_slots[slot]);
+    }
+
+    bool DioramaSimClockComponent::RestoreFromSlot(int slot)
+    {
+        if (slot < 0 || slot >= SlotCount || m_slots[slot].empty())
+        {
+            return false;
+        }
+        return RestoreFrame(m_slots[slot]);
     }
 } // namespace Diorama

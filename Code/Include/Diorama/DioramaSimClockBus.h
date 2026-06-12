@@ -12,6 +12,7 @@
 #include <AzCore/EBus/EBus.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/RTTI/RTTI.h>
+#include <AzCore/std/containers/vector.h>
 
 namespace AZ
 {
@@ -64,6 +65,29 @@ namespace Diorama
         virtual void SetStepsPerSecond(float stepsPerSecond) = 0;
         //! Resolved clock state. Safe to poll.
         virtual DioramaSimClockInfo GetSimClockInfo() = 0;
+
+        // Snapshot / restore (design phase B). A frame image covers the clock itself
+        // (frame counter, accumulator, pause state, seeded RNG) plus every entity
+        // carrying the Simulation State marker (each snapshot-capable component on it
+        // contributes its own chunks; in this phase that is the entity's world
+        // translation). The buffer verbs are C++-facing (a rollback layer owns its
+        // own history); the slot verbs are the script/agent surface over the same
+        // capture (training-mode rewind, replays, tests).
+
+        //! Serialize a frame image into `out` (replacing its contents).
+        virtual void CaptureFrame(AZStd::vector<AZ::u8>& out) = 0;
+        //! Restore a frame image captured by CaptureFrame. The buffer is treated as
+        //! untrusted: malformed input is rejected (returns false) without applying a
+        //! partial clock state. Chunks for entities that no longer exist are skipped.
+        virtual bool RestoreFrame(const AZStd::vector<AZ::u8>& buffer) = 0;
+        //! FNV-1a 64 hash of a fresh frame image: the determinism fingerprint (two
+        //! runs in the same state hash identically; a desync shows immediately).
+        virtual AZ::u64 GetStateHash() = 0;
+        //! Capture into one of the clock's internal snapshot slots (clamped to the
+        //! slot range); the script-facing save for rewind/replay.
+        virtual void SaveToSlot(int slot) = 0;
+        //! Restore from an internal slot; false if the slot is empty/invalid.
+        virtual bool RestoreFromSlot(int slot) = 0;
     };
 
     using DioramaSimClockRequestBus = AZ::EBus<DioramaSimClockRequests>;

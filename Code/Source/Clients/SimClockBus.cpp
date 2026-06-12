@@ -58,7 +58,16 @@ namespace Diorama
                 "SetStepsPerSecond",
                 &DioramaSimClockRequestBus::Events::SetStepsPerSecond,
                 { { { "stepsPerSecond", "Fixed steps per second; clamped to 1..1000." } } })
-            ->Event("GetSimClockInfo", &DioramaSimClockRequestBus::Events::GetSimClockInfo);
+            ->Event("GetSimClockInfo", &DioramaSimClockRequestBus::Events::GetSimClockInfo)
+            // Snapshot surface for scripts/agents: slots + the determinism hash. The
+            // raw CaptureFrame/RestoreFrame buffer verbs are C++-facing (a rollback
+            // layer owns its own frame history) and are intentionally not reflected.
+            ->Event("GetStateHash", &DioramaSimClockRequestBus::Events::GetStateHash)
+            ->Event("SaveToSlot", &DioramaSimClockRequestBus::Events::SaveToSlot, { { { "slot", "Snapshot slot index (0..7)." } } })
+            ->Event(
+                "RestoreFromSlot",
+                &DioramaSimClockRequestBus::Events::RestoreFromSlot,
+                { { { "slot", "Snapshot slot index (0..7); false if empty." } } });
 
         behaviorContext->EBus<DioramaSimTickNotificationBus>("DioramaSimTickNotificationBus")
             ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)

@@ -85,6 +85,10 @@ set(FILES
     Source/Clients/DioramaSimClockComponent.cpp
     Source/Clients/DioramaSimClockComponent.h
     Source/Clients/SimClockBus.cpp
+    Source/Clients/SimState.h
+    Source/Clients/SimStateBus.h
+    Source/Clients/DioramaSimStateComponent.cpp
+    Source/Clients/DioramaSimStateComponent.h
     Source/Clients/AnimStateMachine.h
     Source/Clients/DioramaAnimStateMachineComponent.cpp
     Source/Clients/DioramaAnimStateMachineComponent.h
