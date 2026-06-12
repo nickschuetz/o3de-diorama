@@ -44,7 +44,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   **`GetStateHash`** (FNV-1a 64 determinism fingerprint), **`SaveToSlot(slot)`** and
   **`RestoreFromSlot(slot)`** (8 internal slots: training-mode rewind, replays,
   tests).
-
+- **2D Bullet Emitter: muzzle offset.** A general `Muzzle Offset` (Vector2) on the emitter
+  config (Inspector + `SetMuzzleOffset(x, y)` on `DioramaBulletRequestBus`): bullets spawn
+  at the entity origin plus this offset, so a gun fires from a ship's nose, a turret's
+  barrel, or any offset point instead of the entity center. A unit test verifies the spawn
+  point moves. Motivated by the shmup dogfood (firing from the ship center caused
+  point-blank ram-kills).
+- **Shmup dogfood example** (a playable vertical slice). A small shoot-em-up assembled
+  from the shipped features to integration-test the gem end to end and serve as a worked
+  example: a sprite ship flown by the input map, the **2D Bullet Emitter reused as the
+  ship's gun** (a single bolt, autofire, firing from the nose via the muzzle offset), 2D
+  collision for the hits, a flash-and-knockback combat loop, a descending **enemy wave**
+  that recycles to the top (no spawnables) with two bigger, tougher **Odie** (the O3DE
+  mascot, scaled from sprite width so no per-enemy tuning is needed), **lives** with a ram
+  cost, a game-over freeze and a Space restart, a parallax starfield, and a camera over the
+  XY play plane. Ships as `Assets/Diorama/Examples/Shmup/{player_ship,enemy_wave}.lua`,
+  procedural art (`Assets/Diorama/Textures/_gen_shmup_textures.py` -> `shmup_*.png`), and a
+  level builder (`Docs/examples/shmup_demo.py`) that wires the scene and Lua scripts,
+  documented with the gameplay-scripting gotchas it surfaced
+  ([Docs/howto/29-shmup.md](Docs/howto/29-shmup.md)).
 - **Day/night cycle** (lighting). A new **Day/Night Cycle** component
   (`DioramaDayNightComponent`) advances a normalized time-of-day clock and drives a target
   Diorama light's color, intensity, and direction over the day, on the pure tested
@@ -204,6 +222,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   both). Float addition is not associative, so summing in hash-map iteration order
   could differ across runs in the low bits: harmless to the eye, but a divergence
   seed for replays and rollback.
+- **Sample scripts: broken `Vector3` access idiom.** The `brawler_*.lua` and
+  `platformer_body.lua` examples read/wrote a transform with `pos:GetX()` / `pos:SetX()`,
+  which is **nil** in this engine's Lua (so they failed at runtime, never play-tested).
+  Fixed to property access (`pos.x`) and `Vector3(...)` construction, matching the working
+  `walker.lua`. Surfaced by the shmup dogfood.
 - **Bullet emitter unity-build robustness.** `DioramaBulletEmitterComponent.cpp` serializes
   a `Data::Asset<StreamingImageAsset>` field but was relying on a transitive include of the
   `Data::Asset<T>` serializer from a unity-build neighbor; it now includes

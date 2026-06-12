@@ -15,8 +15,11 @@
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/RTTI/RTTI.h>
+<<<<<<< HEAD
 #include <AzCore/std/containers/array.h>
 #include <AzCore/std/containers/vector.h>
+=======
+>>>>>>> origin/main
 
 namespace Diorama
 {
@@ -76,11 +79,14 @@ namespace Diorama
         void StepOnce() override;
         void SetStepsPerSecond(float stepsPerSecond) override;
         DioramaSimClockInfo GetSimClockInfo() override;
+<<<<<<< HEAD
         void CaptureFrame(AZStd::vector<AZ::u8>& out) override;
         bool RestoreFrame(const AZStd::vector<AZ::u8>& buffer) override;
         AZ::u64 GetStateHash() override;
         void SaveToSlot(int slot) override;
         bool RestoreFromSlot(int slot) override;
+=======
+>>>>>>> origin/main
 
         // DioramaRandomRequests
         void SetSeed(AZ::u64 seed) override;
@@ -95,15 +101,21 @@ namespace Diorama
         //! The fixed step length in seconds (1 / steps per second).
         float StepSeconds() const;
 
+<<<<<<< HEAD
         static constexpr int SlotCount = 8;
 
+=======
+>>>>>>> origin/main
         DioramaSimClockConfig m_config;
         SimClock::State m_clock;
         SimRandom::State m_random;
         bool m_paused = false;
+<<<<<<< HEAD
         //! Script-facing snapshot slots (SaveToSlot / RestoreFromSlot).
         AZStd::array<AZStd::vector<AZ::u8>, SlotCount> m_slots;
         //! Reused by GetStateHash so steady-state hashing allocates nothing.
         AZStd::vector<AZ::u8> m_hashScratch;
+=======
+>>>>>>> origin/main
     };
 } // namespace Diorama

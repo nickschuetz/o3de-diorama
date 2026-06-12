@@ -41,8 +41,9 @@ function BrawlerPlayer:OnTick(deltaTime, timePoint)
     local moveX = DioramaInputRequestBus.Event.GetValue(id, "moveX")
     if moveX ~= 0.0 then
         local pos = TransformBus.Event.GetWorldTranslation(id)
-        pos:SetX(pos:GetX() + moveX * self.Properties.MoveSpeed * deltaTime)
-        TransformBus.Event.SetWorldTranslation(id, pos)
+        -- Read the Vector3 by property (pos.x); pos:GetX() is nil in this engine's Lua.
+        local nx = pos.x + moveX * self.Properties.MoveSpeed * deltaTime
+        TransformBus.Event.SetWorldTranslation(id, Vector3(nx, pos.y, pos.z))
         -- Face the way we move (flip the sprite).
         DioramaSpriteRequestBus.Event.SetFlip(id, moveX < 0.0, false)
     end

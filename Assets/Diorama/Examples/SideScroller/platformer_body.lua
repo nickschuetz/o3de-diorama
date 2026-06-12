@@ -37,8 +37,9 @@ end
 function PlatformerBody:OnTick(deltaTime, timePoint)
     local id = self.entityId
     local pos = TransformBus.Event.GetWorldTranslation(id)
-    local x = pos:GetX()
-    local y = pos:GetY()
+    -- Read the Vector3/Vector2 by property (.x/.y); :GetX() is nil in this engine's Lua.
+    local x = pos.x
+    local y = pos.y
 
     -- Horizontal movement from input.
     local moveX = DioramaInputRequestBus.Event.GetValue(id, "moveX")
@@ -63,9 +64,9 @@ function PlatformerBody:OnTick(deltaTime, timePoint)
     -- colliders only push up (landing on top), so the body drops through from below.
     local push = Diorama2DCollisionRequestBus.Broadcast.ComputeBoxPushOut(
         x, y, self.Properties.HalfWidth, self.Properties.HalfHeight, self.Properties.GroundLayer, id)
-    x = x + push:GetX()
-    y = y + push:GetY()
-    if push:GetY() > 0.0 and self.vy < 0.0 then
+    x = x + push.x
+    y = y + push.y
+    if push.y > 0.0 and self.vy < 0.0 then
         self.vy = 0.0
         self.onGround = true
     end
@@ -76,7 +77,7 @@ function PlatformerBody:OnTick(deltaTime, timePoint)
         self.onGround = false
     end
 
-    TransformBus.Event.SetWorldTranslation(id, Vector3(x, y, pos:GetZ()))
+    TransformBus.Event.SetWorldTranslation(id, Vector3(x, y, pos.z))
 end
 
 return PlatformerBody
