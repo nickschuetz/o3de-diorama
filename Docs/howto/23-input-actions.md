@@ -8,6 +8,18 @@ input channels, then your scripts read the actions by name over a typed bus,
 exactly like every other Diorama feature. Rebinding is editing the bindings, not
 the gameplay code.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(an input-driven character whose state machine switches clips from the action map); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/anim_input_demo.py
+```
+
 ## The pieces
 
 - An **action** has a name, a **kind**, and a list of **bindings**:

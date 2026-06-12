@@ -11,6 +11,18 @@ that an agent drives the same bus.
 > asset processing, the components, and the script calls below are real and verified
 > to build/load; confirm the audio *plays* by listening in game mode.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(an input-wired soundboard: press 1/2/3 in game mode for the bundled one-shots); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/audio_demo.py
+```
+
 ## A sound asset
 
 Drop a `.wav` / `.ogg` / `.mp3` / `.flac` into the project; the asset processor turns

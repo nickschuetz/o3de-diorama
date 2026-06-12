@@ -7,6 +7,18 @@ parameters (a `speed`, a `grounded` flag, a `jump` trigger) and the graph switch
 states for you, the same way Unity's Animator or Godot's AnimationTree does, so you
 stop hand-rolling clip-switching `if`/`else` in Lua.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(an input-driven character whose state machine switches clips from the action map); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/anim_input_demo.py
+```
+
 ## The pieces
 
 - **Parameters** are the inputs your game sets. Three kinds:

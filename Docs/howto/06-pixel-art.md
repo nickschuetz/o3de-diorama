@@ -17,6 +17,18 @@ Getting crisp pixel art in Diorama has two halves, and you usually want both:
 A ready example ships at `Assets/Diorama/Textures/pixel_sprite.png` (a 16x16
 sprite).
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(the same low-resolution sprite twice, linear vs point filtered, side by side); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/pixel_art_demo.py
+```
+
 ## 1. Turn on Point Filter
 
 In the editor, select the entity, find the **Sprite** component, and enable

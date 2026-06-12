@@ -6,6 +6,18 @@ and ramps**, **one-way platforms** you jump up through and land on, and a body t
 body's movement stays a small game script (the renderer gives primitives, the game
 decides how it moves). Everything is in the world **XY plane** (X right, Y up).
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(a ground-follow body, a ramp, and a one-way ledge); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/platformer_demo.py
+```
+
 ## Ground-follow (flat ground and ramps)
 
 Register the walkable ground as a set of segments. `AddGroundSegment(x0, x1, y0, y1)`

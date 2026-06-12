@@ -4,6 +4,18 @@ A bullet-hell or shoot-em-up needs to spray bullets in geometric patterns, move
 hundreds of them cheaply, and know when one hits the player. The **2D Bullet
 Emitter** component (`DioramaBulletEmitterComponent`) does all three.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(a boss emitter cycling ring/fan/spiral over a dummy target); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/danmaku_demo.py
+```
+
 ## What it does
 
 Add the component to an enemy (or a turret, a boss part, the player ship). Each

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Demo backfill: a one-command scene builder for every how-to that lacked one.**
+  Ten new self-contained builders under `Docs/examples/` (pixel-art A/B, glow,
+  CRT, world-space readout, audio one-shots, danmaku boss, platformer, brawler
+  lanes, fighting rigs with a quarter-circle special, and the deterministic
+  rewind demo), plus two small samples they wire: `audio_oneshot.lua` (input ->
+  `PlayOneShot`) and `sim_mover.lua` (a mover that advances on the 2D Simulation
+  Clock's fixed steps, so the rewind demo's restores line up exactly). Each
+  builder assembles its scene in its own level and bakes what the editor cannot
+  set live (Lua script assets, input action maps, the fighting demo's hitbox
+  rig) into the saved prefab; remaining manual steps are printed. The twelve
+  affected how-tos gain a Build it section, including the two that already had a
+  builder nobody linked (`anim_input_demo.py`). All ten scenes were built and
+  structurally verified through the live editor.
 - **2D Simulation Clock** (deterministic sim, phase A of
   [Docs/design/2d-deterministic-sim.md](Docs/design/2d-deterministic-sim.md)). A new
   **2D Simulation Clock** component (`DioramaSimClockComponent`, one per level, opt-in:

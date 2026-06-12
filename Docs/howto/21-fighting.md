@@ -5,6 +5,18 @@ collision: **frame-exact triggers**, **frame-data hitboxes/hurtboxes**, **motion
 inputs** (quarter-circles, dragon-punches), **impact juice**, and a **two-character
 camera**. Diorama provides all of them.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(two frame-data hitbox rigs plus a quarter-circle special on the input map); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/fighting_demo.py
+```
+
 ## Frame-exact animation events
 
 `DioramaSpriteNotificationBus` fires `OnAnimationFrame(frameIndex)` every time the

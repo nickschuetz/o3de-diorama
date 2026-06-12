@@ -6,6 +6,18 @@ glow. The key finding: Atom already does post-processing, and Diorama's transpar
 sprites are in the image it post-processes, so this is mostly enabling + one gem
 feature (emissive), not new render passes.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(a 2D Look profile plus three sprites at rising emissive intensity); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/glow_demo.py
+```
+
 ## Turn on post-processing (Atom, no code)
 
 Atom ships the components; enabling whole-scene bloom is one entity:

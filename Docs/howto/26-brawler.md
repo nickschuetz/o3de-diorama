@@ -5,6 +5,18 @@ but they move on a **floor** with depth (toward and away from the camera), and a
 punch only connects with an enemy on the **same depth lane**. Diorama gives you the
 depth lane and composes with the fighting building blocks for the combat.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(depth-lane movement and in-lane attacks against a chasing enemy); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/brawler_demo.py
+```
+
 ## The depth lane
 
 Add the **2.5D Depth Body** component (`DioramaDepthBodyComponent`) to each

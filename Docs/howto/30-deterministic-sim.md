@@ -9,6 +9,18 @@ with O3DE Multiplayer or middleware.
 
 Everything is opt-in: without a clock in the level, nothing changes.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(a sim-clock mover with rotating snapshot autosaves; R rewinds about two seconds); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/rewind_demo.py
+```
+
 ## The 2D Simulation Clock
 
 Add a **2D Simulation Clock** component to one entity in the level (a second clock

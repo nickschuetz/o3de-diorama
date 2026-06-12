@@ -11,6 +11,18 @@ are just **sprites**. No new component is needed: you compose them from the Spri
 component you already know, and they get depth sorting, lighting, and camera framing
 for free because they are real world objects.
 
+## Build it
+
+A one-command scene builder assembles this guide's demo in its own level
+(a unit with a world-space health bar and marker pinned above it); finish any wiring the editor cannot script (noted in its output), then
+enter game mode:
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/hud_demo.py
+```
+
 ## A floating health bar
 
 A health bar is two sprites parented above the unit:
