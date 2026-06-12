@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **2D Bullet Emitter: muzzle offset.** A general `Muzzle Offset` (Vector2) on the emitter
+  config (Inspector + `SetMuzzleOffset(x, y)` on `DioramaBulletRequestBus`): bullets spawn
+  at the entity origin plus this offset, so a gun fires from a ship's nose, a turret's
+  barrel, or any offset point instead of the entity center. A unit test verifies the spawn
+  point moves. Motivated by the shmup dogfood (firing from the ship center caused
+  point-blank ram-kills).
 - **Shmup dogfood example** (a playable vertical slice). A small shoot-em-up assembled
   from the shipped features to integration-test the gem end to end and serve as a worked
   example: a sprite ship flown by the input map, the **2D Bullet Emitter reused as the

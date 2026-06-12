@@ -55,7 +55,8 @@ These are O3DE/Lua behaviors, not Diorama bugs, but they bite every game script:
 
 ## Where it stops (and what is next)
 
-This slice is the core loop (move, autofire, hit, kill). A full game adds enemy **waves**
-(several descending, recycling), a **muzzle offset** so the gun fires from the nose instead
-of the ship center (which also stops point-blank ram-kills), a world-space score readout,
-and player death. The muzzle offset is a noted gem follow-up on the 2D Bullet Emitter.
+This slice is the core loop (move, autofire, hit, kill). The gun fires from the ship's
+**nose** via the emitter's **Muzzle Offset** (a general spawn offset from the entity
+origin, added to the 2D Bullet Emitter for this dogfood), which also avoids point-blank
+ram-kills. A full game still adds enemy **waves** (several descending, recycling), a
+world-space score readout, and player death.

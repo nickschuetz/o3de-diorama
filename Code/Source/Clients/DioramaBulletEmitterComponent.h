@@ -60,6 +60,9 @@ namespace Diorama
 
         float m_bulletLifetime = 4.0f; //!< Seconds before a bullet expires.
         float m_bulletRadius = 0.25f; //!< Collision + render half size (world units).
+        //! Spawn offset from the entity origin (world XY), e.g. a ship's nose or wings,
+        //! so the gun does not fire from the body center.
+        AZ::Vector2 m_muzzleOffset = AZ::Vector2(0.0f, 0.0f);
         AZ::Vector2 m_gravity = AZ::Vector2(0.0f, 0.0f); //!< Optional acceleration.
         float m_drag = 0.0f;
         AZ::Color m_color = AZ::Color(1.0f, 0.4f, 0.4f, 1.0f);
@@ -117,6 +120,7 @@ namespace Diorama
         void SetAim(float degrees) override;
         void SetSpread(float degrees) override;
         void SetSpin(float degreesPerShot) override;
+        void SetMuzzleOffset(float x, float y) override;
         DioramaBulletInfo GetBulletInfo() override;
 
     public:

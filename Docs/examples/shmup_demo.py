@@ -160,7 +160,8 @@ def patch_prefab():
     # the script: a sibling component's request bus may not be connected during the
     # script's OnActivate, so SetPattern/SetAim from there would be silently lost.
     gun = {"pattern": 1, "count": 1, "speed": 18.0, "fireRate": 8.0, "aimDegrees": 90.0,
-           "spreadDegrees": 0.0, "bulletLifetime": 3.0, "bulletRadius": 0.3, "fireOnActivate": True}
+           "spreadDegrees": 0.0, "bulletLifetime": 3.0, "bulletRadius": 0.3, "fireOnActivate": True,
+           "muzzleOffset": [0.0, 0.9]}  # fire from the ship's nose, not its center
     inp, cam, emit = 0, 0, 0
     for entity in doc.get("Entities", {}).values():
         name = entity.get("Name")
