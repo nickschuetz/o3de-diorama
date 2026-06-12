@@ -23,6 +23,7 @@ set(FILES
     Tests/Clients/SimStateTest.cpp
     Tests/Clients/SimInputRingTest.cpp
     Tests/Clients/DeterminismTest.cpp
+    Tests/Clients/SimClockMigrationTest.cpp
     Tests/Clients/AnimStateMachineTest.cpp
     Tests/Clients/DioramaTestMain.cpp
 )

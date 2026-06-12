@@ -70,6 +70,10 @@ namespace Diorama
         //! Muzzle offset from the entity origin (world XY) where bullets spawn, e.g. a
         //! ship's nose, so the gun does not fire from the body center.
         virtual void SetMuzzleOffset(float x, float y) = 0;
+        //! Step bullets and fire accumulation on the 2D Simulation Clock's fixed steps
+        //! instead of the render tick (deterministic flight and hits, snapshot/rewind
+        //! friendly). With no clock in the level the render tick still steps as before.
+        virtual void SetUseSimClock(bool enabled) = 0;
         //! Resolved emitter state. Safe to poll.
         virtual DioramaBulletInfo GetBulletInfo() = 0;
     };

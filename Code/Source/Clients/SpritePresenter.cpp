@@ -33,6 +33,7 @@ namespace Diorama
         AZ::TransformBus::EventResult(m_worldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
 
         m_connected = true;
+        RefreshSimClockConnection();
 
         // Resolve the feature processor now if the scene already exists. If it
         // does not yet (common during level load / editor entity creation),
@@ -81,6 +82,7 @@ namespace Diorama
         {
             return;
         }
+        DioramaSimTickNotificationBus::Handler::BusDisconnect();
 
         AZ::TransformNotificationBus::Handler::BusDisconnect();
         AZ::Data::AssetBus::MultiHandler::BusDisconnect();
@@ -112,6 +114,7 @@ namespace Diorama
         // re-evaluate whether this sprite needs to tick.
         ResetAnimation();
         RefreshTickConnection();
+        RefreshSimClockConnection();
         Push();
     }
 
@@ -210,10 +213,49 @@ namespace Diorama
             return;
         }
 
+        // Use Simulation Clock mode: while a clock is running, the fixed sim tick
+        // owns the advance (OnSimTick); the render tick stands down. With no clock
+        // (editor preview, a level without one) the render tick advances as before.
+        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
+        {
+            return;
+        }
+        AdvanceAnimation(deltaTime);
+    }
+
+    void SpritePresenter::RefreshSimClockConnection()
+    {
+        if (m_connected && m_config.m_useSimClock)
+        {
+            if (!DioramaSimTickNotificationBus::Handler::BusIsConnected())
+            {
+                DioramaSimTickNotificationBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
+    }
+
+    void SpritePresenter::OnSimTick([[maybe_unused]] AZ::s64 frame, float stepSeconds)
+    {
+        // No draw-handle guard here: the deterministic advance (and the
+        // OnAnimationFrame events that drive hitbox windows) must not depend on
+        // renderer availability. Push() inside AdvanceAnimation no-ops safely.
+        if (!NeedsAnimationTick())
+        {
+            return;
+        }
+        AdvanceAnimation(stepSeconds);
+    }
+
+    void SpritePresenter::AdvanceAnimation(float deltaSeconds)
+    {
         const int previousFrame = m_frameState.m_frame;
         const bool wasFinished = m_frameState.m_finished;
         // Time-scale the step (0 = hit-stop freeze, <1 = slow motion).
-        const float scaledDelta = deltaTime * (m_config.m_playbackSpeed < 0.0f ? 0.0f : m_config.m_playbackSpeed);
+        const float scaledDelta = deltaSeconds * (m_config.m_playbackSpeed < 0.0f ? 0.0f : m_config.m_playbackSpeed);
         m_frameState =
             SpriteAnimation::Advance(m_frameState, scaledDelta, m_config.m_framesPerSecond, m_config.GetFrameCount(), m_config.m_loop);
 
@@ -227,6 +269,12 @@ namespace Diorama
         {
             DioramaSpriteNotificationBus::Event(m_entityId, &DioramaSpriteNotifications::OnAnimationFinished);
         }
+    }
+
+    void SpritePresenter::SetFrameState(const SpriteAnimation::FrameState& state)
+    {
+        m_frameState = state;
+        Push(); // show the restored frame immediately
     }
 
     bool SpritePresenter::NeedsAnimationTick() const

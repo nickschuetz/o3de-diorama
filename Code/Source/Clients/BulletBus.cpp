@@ -67,6 +67,12 @@ namespace Diorama
                 "SetMuzzleOffset",
                 &DioramaBulletRequestBus::Events::SetMuzzleOffset,
                 { { { "x", "Muzzle X offset from the entity origin." }, { "y", "Muzzle Y offset." } } })
+            ->Event(
+                "SetUseSimClock",
+                &DioramaBulletRequestBus::Events::SetUseSimClock,
+                { { { "enabled",
+                      "Step bullets and fire accumulation on the 2D Simulation Clock's fixed steps instead of the "
+                      "render tick; with no clock in the level the render tick still steps." } } })
             ->Event("GetBulletInfo", &DioramaBulletRequestBus::Events::GetBulletInfo);
 
         behaviorContext->EBus<DioramaBulletNotificationBus>("DioramaBulletNotificationBus")

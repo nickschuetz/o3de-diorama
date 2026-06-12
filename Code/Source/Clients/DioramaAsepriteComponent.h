@@ -10,7 +10,9 @@
 #include <Clients/AsepriteImport.h>
 #include <Clients/AsepriteSheetData.h>
 #include <Clients/DioramaAsepriteSheetAsset.h>
+#include <Clients/SimStateBus.h>
 #include <Diorama/DioramaAsepriteBus.h>
+#include <Diorama/DioramaSimClockBus.h>
 
 #include <AzCore/Asset/AssetCommon.h>
 #include <AzCore/Component/Component.h>
@@ -50,6 +52,9 @@ namespace Diorama
         bool m_looping = true;
         //! Begin playing on activate.
         bool m_autoPlay = true;
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render
+        //! tick (deterministic; falls back to the render tick when no clock runs).
+        bool m_useSimClock = false;
         //! Optional: a .dioramasheet product (emitted by the native .aseprite
         //! AssetBuilder). When set, its frames/tags/atlas are loaded at runtime and
         //! take precedence over the inline (JSON-imported) data above -- assigning the
@@ -72,6 +77,8 @@ namespace Diorama
         , protected AZ::TickBus::Handler
         , protected AZ::Data::AssetBus::Handler
         , protected DioramaAsepriteRequestBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaAsepriteComponent, DioramaAsepriteComponentTypeId);
@@ -82,6 +89,9 @@ namespace Diorama
         explicit DioramaAsepriteComponent(const DioramaAsepriteConfig& config);
         ~DioramaAsepriteComponent() override = default;
 
+        //! Snapshot chunk: Aseprite playback position ('ASEP' little-endian).
+        static constexpr AZ::u32 AsepriteChunkTag = 0x50455341; // 'ASEP' little-endian
+
     protected:
         // AZ::Component
         void Activate() override;
@@ -90,6 +100,18 @@ namespace Diorama
         // AZ::TickBus
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
 
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
+        // DioramaSimStateParticipantBus (snapshot/restore of playback position)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
+
+    private:
+        //! Advance playback by `deltaTime` seconds (render tick or fixed sim step).
+        void Advance(float deltaTime);
+
+    protected:
         // AZ::Data::AssetBus (asset-reference mode: load the .dioramasheet, then play)
         void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
         void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
@@ -101,6 +123,7 @@ namespace Diorama
         void SetFrame(int frameIndex) override;
         void SetSpeed(float speed) override;
         void SetLooping(bool looping) override;
+        void SetUseSimClock(bool enabled) override;
         bool IsPlaying() override;
         int GetCurrentFrame() override;
 

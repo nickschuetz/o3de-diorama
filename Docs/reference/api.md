@@ -132,6 +132,7 @@ parameter in the [Sprite component reference](./sprite-component.md).
 | `SetPlayback` | `framesPerSecond: float, loop: bool` | void | `framesPerSecond` clamped to `>= 0`. | [Frames Per Second](./sprite-component.md#frames-per-second) / [Loop](./sprite-component.md#loop) |
 | `SetPlaybackSpeed` | `speed: float` | void | Clamped to `>= 0`. Time-scale multiplier on animation advance (`1` = normal, `0` = paused, `0.2` = slow-motion); the global hit-stop / slow-motion knob. | [Playback Speed](./sprite-component.md#playback-speed) |
 | `SetStartFrame` | `frame: int` | void | Clamped to `>= 0` on store; clamped to the valid frame range at read time. | [Start Frame](./sprite-component.md#start-frame) |
+| `SetUseSimClock` | `enabled: bool` | void | None. Advance playback on the 2D Simulation Clock's fixed steps instead of the render tick; with no clock in the level the render tick still advances. | Use Simulation Clock |
 | `PlaySpriteSheet` | `columns: int, rows: int, frameCount: int, framesPerSecond: float, loop: bool` | void | `columns`/`rows`/`frameCount` clamped to `>= 1`; `framesPerSecond` clamped to `>= 0`; also sets `animEnabled = true`. | [Convenience: PlaySpriteSheet](./sprite-component.md#convenience-playspritesheet) |
 | `GetSpriteInfo` | (none) | `SpriteInfo` | Read-only. Safe to poll. | [Verify loop](#query-and-verify-the-verify-loop) |
 
@@ -351,6 +352,7 @@ entity (its texture + per-frame UV), honoring per-frame durations and tag direct
 | `SetFrame` | `frameIndex: int` | void | Clamped to the sheet. | Show a frame and stop. |
 | `SetSpeed` | `speed: float` | void | None (negative reverses). | Playback rate multiplier. |
 | `SetLooping` | `looping: bool` | void | None. | Wrap the current tag vs. hold the last frame. |
+| `SetUseSimClock` | `enabled: bool` | void | None. | Advance on the 2D Simulation Clock's fixed steps instead of the render tick (no clock: render tick still advances). |
 | `IsPlaying` | (none) | `bool` | n/a | True while a tag is advancing. |
 | `GetCurrentFrame` | (none) | `int` | n/a | The frame index currently shown. |
 
@@ -394,6 +396,7 @@ live only on an animation-frame window, over the 2D collision world (how-to
 | `SetFacing` | `facing: int` | void | +1 faces +X, -1 mirrors every box's X offset. |
 | `GetFacing` | | `int` | Current facing (+1 or -1). |
 | `SetFrame` | `frame: int` | void | Override the activation frame (for rigs not driven by the sprite player). |
+| `SetUseSimClock` | `enabled: bool` | void | Evaluate overlaps on the 2D Simulation Clock's fixed steps instead of the render tick (deterministic hit order; no clock: render tick still evaluates). |
 | `GetHitboxInfo` | | `DioramaHitboxInfo` | Read-only: current frame, facing, active hitbox/hurtbox counts. |
 
 `DioramaHitboxNotificationBus` fires `OnHit(target)` on the attacker and
@@ -420,6 +423,7 @@ plane.
 | `SetSpread` | `degrees: float` | void | Fan arc width (clamped [0, 360]; ignored by ring). |
 | `SetSpin` | `degreesPerShot: float` | void | Spiral rotation per shot (ignored by ring/fan). |
 | `SetMuzzleOffset` | `x, y: float` | void | Spawn offset from the entity origin (a ship's nose, a turret's barrel). |
+| `SetUseSimClock` | `enabled: bool` | void | Step bullets and fire accumulation on the 2D Simulation Clock's fixed steps instead of the render tick (no clock: render tick still steps). |
 | `GetBulletInfo` | | `DioramaBulletInfo` | Read-only: alive count, max, firing, pattern, fire rate. |
 
 `DioramaBulletNotificationBus` fires `OnBulletHit(target)` on the emitter when a live
@@ -453,6 +457,7 @@ are addressed by the names authored in the Inspector; an unknown name is ignored
 | `SetTrigger` | `name: string` | void | Unknown name ignored. | Pulse a Trigger; fires a matching transition once, then auto-clears. |
 | `ResetTrigger` | `name: string` | void | Unknown name ignored. | Clear a pending Trigger before it fires. |
 | `Play` | `stateName: string` | void | Unknown name = no change. | Force a state immediately, bypassing transitions. |
+| `SetUseSimClock` | `enabled: bool` | void | None. | Evaluate the graph on the 2D Simulation Clock's fixed steps instead of the render tick (no clock: render tick still evaluates). |
 | `GetCurrentState` | (none) | `string` | n/a | Name of the current state (empty if not entered). |
 | `GetBool` | `name: string` | `bool` | n/a | Current Bool/Trigger value (false if unknown). |
 | `GetFloat` | `name: string` | `float` | n/a | Current Float value (0 if unknown). |
@@ -547,6 +552,7 @@ Reflected property names (read from `DioramaSpriteInfo`):
 | `animEnabled` | bool | Sprite-sheet playback is on. |
 | `currentFrame` | int | Frame currently on screen (resolved from the presenter). |
 | `frameCount` | int | Effective frame count (capped at `columns * rows`). |
+| `useSimClock` | bool | Animation advances on the 2D Simulation Clock's fixed steps. |
 
 ### TilemapInfo fields
 

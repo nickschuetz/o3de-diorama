@@ -8,7 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- **Sim-clock migration: the five render-tick gameplay components can now advance
+  on the 2D Simulation Clock's fixed steps.** The Sprite sheet playback, the
+  Aseprite player, the 2D Animation State Machine, the 2D Frame-Data Hitboxes,
+  and the 2D Bullet Emitter each gain a **Use Simulation Clock** checkbox and a
+  matching **`SetUseSimClock`** verb on their request bus (live-togglable,
+  AI/human parity). Flagged on, the component advances in `OnSimTick` and its
+  render tick stands down while a clock runs (no clock: render tick advances as
+  before, so editor previews still play); the bullet emitter's render tick keeps
+  pushing the pool to the renderer while firing, integration, and hit-testing
+  move to the fixed step. Deterministic advance no longer depends on renderer
+  availability (headless runs simulate identically). Snapshot coverage grows
+  three chunks: sprite playback position (`'SPRA'`), Aseprite playback position
+  (`'ASEP'`), and the state-machine runtime (current state, time in state,
+  parameter values; `'ANSM'`), so animation timelines rewind exactly with the
+  rest of the simulation. `SpriteInfo` reports `useSimClock`. New
+  `SimClockMigrationTest` suite: fixed-step advance via `StepOnce`, live verb
+  toggling, and byte-identical chunk round trips.
 
 ## [0.3.0-beta] - 2026-06-12
 

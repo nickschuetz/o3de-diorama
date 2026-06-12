@@ -115,6 +115,7 @@ namespace Diorama
                 ->Field("speed", &DioramaAsepriteConfig::m_speed)
                 ->Field("looping", &DioramaAsepriteConfig::m_looping)
                 ->Field("autoPlay", &DioramaAsepriteConfig::m_autoPlay)
+                ->Field("useSimClock", &DioramaAsepriteConfig::m_useSimClock)
                 ->Field("sheet", &DioramaAsepriteConfig::m_sheet);
 
             if (auto* editContext = serializeContext->GetEditContext())
@@ -145,7 +146,13 @@ namespace Diorama
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default, &DioramaAsepriteConfig::m_speed, "Speed", "Playback rate (negative reverses)")
                     ->DataElement(AZ::Edit::UIHandlers::CheckBox, &DioramaAsepriteConfig::m_looping, "Loop", "Wrap the default tag")
-                    ->DataElement(AZ::Edit::UIHandlers::CheckBox, &DioramaAsepriteConfig::m_autoPlay, "Auto play", "Play on activate");
+                    ->DataElement(AZ::Edit::UIHandlers::CheckBox, &DioramaAsepriteConfig::m_autoPlay, "Auto play", "Play on activate")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaAsepriteConfig::m_useSimClock,
+                        "Use Simulation Clock",
+                        "Advance playback on the 2D Simulation Clock's fixed steps instead of the render tick. "
+                        "With no clock in the level, falls back to the render tick.");
             }
         }
     }
@@ -219,6 +226,7 @@ namespace Diorama
     void DioramaAsepriteComponent::Activate()
     {
         DioramaAsepriteRequestBus::Handler::BusConnect(GetEntityId());
+        DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
 
         if (m_config.m_sheet.GetId().IsValid())
         {
@@ -268,6 +276,10 @@ namespace Diorama
             AZ::TickBus::Handler::BusConnect();
             m_ticking = true;
         }
+        if (m_config.m_useSimClock)
+        {
+            DioramaSimTickNotificationBus::Handler::BusConnect();
+        }
     }
 
     void DioramaAsepriteComponent::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
@@ -293,6 +305,8 @@ namespace Diorama
 
     void DioramaAsepriteComponent::Deactivate()
     {
+        DioramaSimStateParticipantBus::Handler::BusDisconnect();
+        DioramaSimTickNotificationBus::Handler::BusDisconnect();
         if (m_ticking)
         {
             AZ::TickBus::Handler::BusDisconnect();
@@ -303,6 +317,22 @@ namespace Diorama
     }
 
     void DioramaAsepriteComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    {
+        // Use Simulation Clock mode: a running clock owns the advance (OnSimTick);
+        // with no clock the render tick advances as before (editor preview included).
+        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
+        {
+            return;
+        }
+        Advance(deltaTime);
+    }
+
+    void DioramaAsepriteComponent::OnSimTick([[maybe_unused]] AZ::s64 frame, float stepSeconds)
+    {
+        Advance(stepSeconds);
+    }
+
+    void DioramaAsepriteComponent::Advance(float deltaTime)
     {
         if (!m_playing)
         {
@@ -390,6 +420,22 @@ namespace Diorama
         m_config.m_looping = looping;
     }
 
+    void DioramaAsepriteComponent::SetUseSimClock(bool enabled)
+    {
+        m_config.m_useSimClock = enabled;
+        if (enabled)
+        {
+            if (!DioramaSimTickNotificationBus::Handler::BusIsConnected())
+            {
+                DioramaSimTickNotificationBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
+    }
+
     bool DioramaAsepriteComponent::IsPlaying()
     {
         return m_playing;
@@ -398,5 +444,44 @@ namespace Diorama
     int DioramaAsepriteComponent::GetCurrentFrame()
     {
         return m_currentFrame;
+    }
+
+    // ---- Snapshot / restore -----------------------------------------------------------
+    // Chunk payload: elapsed seconds in the current tag (f32), tag index (s64), shown
+    // frame (s64), playing (u8). The document/tags are config; only playback position
+    // is runtime state. Restore re-applies the frame so the sprite UVs match.
+
+    void DioramaAsepriteComponent::SaveSimState(SimState::Writer& writer)
+    {
+        const size_t sizePos = writer.BeginChunk(AsepriteChunkTag);
+        writer.F32(m_elapsed);
+        writer.S64(m_tagIndex);
+        writer.S64(m_currentFrame);
+        writer.U8(m_playing ? 1 : 0);
+        writer.EndChunk(sizePos);
+    }
+
+    bool DioramaAsepriteComponent::TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload)
+    {
+        if (tag != AsepriteChunkTag)
+        {
+            return false;
+        }
+        float elapsed = 0.0f;
+        AZ::s64 tagIndex = -1;
+        AZ::s64 frame = 0;
+        AZ::u8 playing = 0;
+        if (!payload.F32(elapsed) || !payload.S64(tagIndex) || !payload.S64(frame) || !payload.U8(playing))
+        {
+            return false;
+        }
+        m_elapsed = elapsed;
+        // A re-authored document can shrink the tag list; out-of-range falls back to
+        // "whole sheet" (-1) rather than indexing past the end.
+        const int restoredTag = static_cast<int>(tagIndex);
+        m_tagIndex = (restoredTag >= 0 && restoredTag < static_cast<int>(m_doc.m_tags.size())) ? restoredTag : -1;
+        m_playing = playing != 0;
+        ApplyFrame(static_cast<int>(frame));
+        return true;
     }
 } // namespace Diorama

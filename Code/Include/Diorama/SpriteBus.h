@@ -47,6 +47,7 @@ namespace Diorama
         bool m_animEnabled = false;
         int m_currentFrame = 0;
         int m_frameCount = 1;
+        bool m_useSimClock = false; //!< Animation advances on the 2D Simulation Clock's fixed steps.
     };
 
     //! Stable, typed, agent-facing API for driving a single sprite, addressed by
@@ -123,6 +124,10 @@ namespace Diorama
         virtual void SetPlaybackSpeed(float speed) = 0;
         //! Frame shown first (and while not playing); clamped to range.
         virtual void SetStartFrame(int frame) = 0;
+        //! Advance playback on the 2D Simulation Clock's fixed steps instead of the
+        //! render tick (deterministic playback, snapshot/rewind friendly). With no
+        //! clock in the level the render tick still advances as before.
+        virtual void SetUseSimClock(bool enabled) = 0;
         //! Convenience: set the grid, set playback, and enable animation in one
         //! call (the common "play this sheet" intent).
         virtual void PlaySpriteSheet(int columns, int rows, int frameCount, float framesPerSecond, bool loop) = 0;

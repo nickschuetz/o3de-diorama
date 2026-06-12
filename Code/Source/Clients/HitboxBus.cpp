@@ -59,6 +59,12 @@ namespace Diorama
                 "SetFrame",
                 &DioramaHitboxRequestBus::Events::SetFrame,
                 { { { "frame", "Animation frame driving box activation (for rigs not driven by the sprite player)." } } })
+            ->Event(
+                "SetUseSimClock",
+                &DioramaHitboxRequestBus::Events::SetUseSimClock,
+                { { { "enabled",
+                      "Evaluate overlaps on the 2D Simulation Clock's fixed steps instead of the render tick; "
+                      "with no clock in the level the render tick still evaluates." } } })
             ->Event("GetHitboxInfo", &DioramaHitboxRequestBus::Events::GetHitboxInfo);
 
         behaviorContext->EBus<DioramaHitboxNotificationBus>("DioramaHitboxNotificationBus")

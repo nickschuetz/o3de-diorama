@@ -48,6 +48,11 @@ namespace Diorama
         //! play its animation. Unknown name -> no change.
         virtual void Play(const AZStd::string& stateName) = 0;
 
+        //! Evaluate the graph on the 2D Simulation Clock's fixed steps instead of the
+        //! render tick (deterministic stepping, snapshot/rewind friendly). With no
+        //! clock in the level the render tick still evaluates as before.
+        virtual void SetUseSimClock(bool enabled) = 0;
+
         //! Name of the current state (empty if not yet entered). Safe to poll.
         virtual AZStd::string GetCurrentState() = 0;
         //! Current value of a Bool/Trigger parameter (false if unknown).

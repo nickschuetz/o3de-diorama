@@ -43,6 +43,12 @@ namespace Diorama
                 "Play",
                 &DioramaAnimStateMachineRequestBus::Events::Play,
                 { { { "stateName", "State to enter immediately, bypassing transitions." } } })
+            ->Event(
+                "SetUseSimClock",
+                &DioramaAnimStateMachineRequestBus::Events::SetUseSimClock,
+                { { { "enabled",
+                      "Evaluate the graph on the 2D Simulation Clock's fixed steps instead of the render tick; "
+                      "with no clock in the level the render tick still evaluates." } } })
             ->Event("GetCurrentState", &DioramaAnimStateMachineRequestBus::Events::GetCurrentState)
             ->Event("GetBool", &DioramaAnimStateMachineRequestBus::Events::GetBool, { { { "name", "Bool/Trigger parameter name." } } })
             ->Event("GetFloat", &DioramaAnimStateMachineRequestBus::Events::GetFloat, { { { "name", "Float parameter name." } } });

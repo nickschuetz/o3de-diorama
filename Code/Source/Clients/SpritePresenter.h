@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Clients/SpriteAnimation.h>
+#include <Diorama/DioramaSimClockBus.h>
 #include <Diorama/SpriteComponentConfig.h>
 
 #include <AzCore/Asset/AssetCommon.h>
@@ -33,6 +34,7 @@ namespace Diorama
         : private AZ::TransformNotificationBus::Handler
         , private AZ::Data::AssetBus::MultiHandler
         , private AZ::TickBus::Handler
+        , private DioramaSimTickNotificationBus::Handler
     {
     public:
         AZ_TYPE_INFO(Diorama::SpritePresenter, "{6F2E9B8A-2D7C-4C1E-9D3A-7E5B0C4F1A22}");
@@ -69,6 +71,23 @@ namespace Diorama
         // AZ::TickBus::Handler
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
 
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
+    public:
+        //! Frame-state access for the snapshot/restore contract (frame, timer,
+        //! finished); restore re-pushes and refires nothing (state-only).
+        SpriteAnimation::FrameState GetFrameState() const
+        {
+            return m_frameState;
+        }
+        void SetFrameState(const SpriteAnimation::FrameState& state);
+
+    private:
+        //! Advance the sprite-sheet animation by `deltaSeconds` (shared by the
+        //! render tick and the fixed sim tick) and push/notify on frame changes.
+        void AdvanceAnimation(float deltaSeconds);
+
         void QueueTextureLoad();
         void Push();
 
@@ -76,6 +95,9 @@ namespace Diorama
         //! ticks if it is animating, or if it has not yet acquired a feature
         //! processor (so it can keep retrying until its scene exists).
         void RefreshTickConnection();
+        //! Connect or disconnect the fixed sim tick bus to match the config's
+        //! Use Simulation Clock flag (a live SetUseSimClock lands here via SetConfig).
+        void RefreshSimClockConnection();
         //! Reset playback to the configured start frame.
         void ResetAnimation();
 

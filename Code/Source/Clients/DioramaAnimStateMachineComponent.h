@@ -8,7 +8,9 @@
 #pragma once
 
 #include <Clients/AnimStateMachine.h>
+#include <Clients/SimStateBus.h>
 #include <Diorama/DioramaAnimStateMachineBus.h>
+#include <Diorama/DioramaSimClockBus.h>
 
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/EntityId.h>
@@ -109,6 +111,9 @@ namespace Diorama
         AZStd::vector<AnimTransitionData> m_transitions;
         AZStd::string m_defaultState; //!< Initial state name; empty = first state.
         AZ::EntityId m_target; //!< Entity whose Sprite/Aseprite to drive; invalid = self.
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render
+        //! tick (deterministic; falls back to the render tick when no clock runs).
+        bool m_useSimClock = false;
     };
 
     //! Resolve the authored, name-based config into the pure AnimSM definition: the
@@ -133,6 +138,8 @@ namespace Diorama
         : public AZ::Component
         , protected AZ::TickBus::Handler
         , protected DioramaAnimStateMachineRequestBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaAnimStateMachineComponent, DioramaAnimStateMachineComponentTypeId);
@@ -143,6 +150,9 @@ namespace Diorama
         explicit DioramaAnimStateMachineComponent(const DioramaAnimStateMachineConfig& config);
         ~DioramaAnimStateMachineComponent() override = default;
 
+        //! Snapshot chunk: graph runtime (current state, time, params) ('ANSM' little-endian).
+        static constexpr AZ::u32 AnimStateMachineChunkTag = 0x4D534E41; // 'ANSM' little-endian
+
     protected:
         // AZ::Component
         void Activate() override;
@@ -151,12 +161,25 @@ namespace Diorama
         // AZ::TickBus
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
 
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
+        // DioramaSimStateParticipantBus (snapshot/restore of the graph runtime)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
+
+    private:
+        //! Advance the graph by `deltaTime` (render tick or fixed sim step).
+        void Advance(float deltaTime);
+
+    protected:
         // DioramaAnimStateMachineRequests
         void SetBool(const AZStd::string& name, bool value) override;
         void SetFloat(const AZStd::string& name, float value) override;
         void SetTrigger(const AZStd::string& name) override;
         void ResetTrigger(const AZStd::string& name) override;
         void Play(const AZStd::string& stateName) override;
+        void SetUseSimClock(bool enabled) override;
         AZStd::string GetCurrentState() override;
         bool GetBool(const AZStd::string& name) override;
         float GetFloat(const AZStd::string& name) override;

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <Clients/SimStateBus.h>
 #include <Clients/SpritePresenter.h>
 #include <Clients/SpriteRequestHandler.h>
 #include <Diorama/SpriteComponentConfig.h>
@@ -19,7 +20,9 @@ namespace Diorama
     //! It holds the configuration and delegates all rendering to the shared
     //! SpritePresenter, which talks to the gem's SpriteRenderer. It has no Qt or
     //! tools dependency so it ships in game clients.
-    class SpriteComponent final : public AZ::Component
+    class SpriteComponent final
+        : public AZ::Component
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::SpriteComponent, SpriteComponentTypeId);
@@ -35,10 +38,17 @@ namespace Diorama
         explicit SpriteComponent(const SpriteComponentConfig& config);
         ~SpriteComponent() override = default;
 
+        //! Snapshot chunk: sprite-sheet playback position ('SPRA' little-endian).
+        static constexpr AZ::u32 SpriteChunkTag = 0x41525053; // 'SPRA' little-endian
+
     protected:
         // AZ::Component
         void Activate() override;
         void Deactivate() override;
+
+        // DioramaSimStateParticipantBus (snapshot/restore of playback position)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
 
     private:
         SpriteComponentConfig m_config;

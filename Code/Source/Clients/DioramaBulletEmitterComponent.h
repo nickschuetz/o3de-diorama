@@ -11,6 +11,7 @@
 #include <Clients/Particles2D.h>
 #include <Clients/SimStateBus.h>
 #include <Diorama/DioramaBulletBus.h>
+#include <Diorama/DioramaSimClockBus.h>
 #include <Diorama/SpriteComponentConfig.h>
 
 #include <AzCore/Asset/AssetCommon.h>
@@ -74,6 +75,9 @@ namespace Diorama
         AZ::u32 m_targetMask = 0x0001;
         //! Transparent draw-order bias for the bullets.
         float m_sortOffset = 1.0f;
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render
+        //! tick (deterministic; falls back to the render tick when no clock runs).
+        bool m_useSimClock = false;
     };
 
     //! Runtime bullet-pattern (danmaku) emitter. Fires shots of a Ring / Fan / Spiral
@@ -89,6 +93,7 @@ namespace Diorama
         , protected DioramaBulletRequestBus::Handler
         , protected AZ::Data::AssetBus::Handler
         , protected DioramaSimStateParticipantBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaBulletEmitterComponent, DioramaBulletEmitterComponentTypeId);
@@ -111,6 +116,9 @@ namespace Diorama
         // AZ::TickBus
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
 
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
         // AZ::Data::AssetBus
         void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 
@@ -126,6 +134,7 @@ namespace Diorama
         void SetSpread(float degrees) override;
         void SetSpin(float degreesPerShot) override;
         void SetMuzzleOffset(float x, float y) override;
+        void SetUseSimClock(bool enabled) override;
         DioramaBulletInfo GetBulletInfo() override;
 
         // DioramaSimStateParticipants (rollback snapshot: the live bullet pool and
@@ -142,6 +151,12 @@ namespace Diorama
         //! step. Public so tests can advance the sim without the tick bus or a renderer.
         void StepBullets(float dt, bool render);
 
+    private:
+        //! Continuous-fire accumulation only (shared by render tick and sim tick);
+        //! callers run StepBullets themselves.
+        void AdvanceFire(float dt);
+
+    public:
     private:
         bool TryAcquireFeatureProcessor();
         Particles2D::EmitterParams MakeParams() const;

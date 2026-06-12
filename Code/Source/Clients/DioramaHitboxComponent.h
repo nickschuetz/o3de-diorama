@@ -11,6 +11,7 @@
 #include <Clients/HitboxFrames.h>
 #include <Clients/SimStateBus.h>
 #include <Diorama/DioramaHitboxBus.h>
+#include <Diorama/DioramaSimClockBus.h>
 #include <Diorama/SpriteBus.h>
 
 #include <AzCore/Component/Component.h>
@@ -66,6 +67,9 @@ namespace Diorama
         int m_facing = 1;
         //! The authored boxes.
         AZStd::vector<DioramaHitboxData> m_boxes;
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render
+        //! tick (deterministic; falls back to the render tick when no clock runs).
+        bool m_useSimClock = false;
     };
 
     //! Runtime frame-data hitbox component. Each frame it reads the animation frame
@@ -81,6 +85,7 @@ namespace Diorama
         , protected DioramaSpriteNotificationBus::Handler
         , protected DioramaHitboxRequestBus::Handler
         , protected DioramaSimStateParticipantBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaHitboxComponent, DioramaHitboxComponentTypeId);
@@ -106,6 +111,9 @@ namespace Diorama
         // AZ::TickBus
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
 
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
         // DioramaSpriteNotifications
         void OnAnimationFrame(int frameIndex) override;
 
@@ -113,6 +121,7 @@ namespace Diorama
         void SetFacing(int facing) override;
         int GetFacing() override;
         void SetFrame(int frame) override;
+        void SetUseSimClock(bool enabled) override;
         DioramaHitboxInfo GetHitboxInfo() override;
 
         // DioramaSimStateParticipants (rollback snapshot: frame, facing, and each

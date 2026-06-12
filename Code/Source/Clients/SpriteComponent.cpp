@@ -84,11 +84,49 @@ namespace Diorama
             {
                 m_presenter.SetConfig(m_config);
             });
+
+        DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
     }
 
     void SpriteComponent::Deactivate()
     {
+        DioramaSimStateParticipantBus::Handler::BusDisconnect();
         m_requestHandler.Disconnect();
         m_presenter.Disconnect();
+    }
+
+    // ---- Snapshot / restore -----------------------------------------------------------
+    // Chunk payload: frame (s64), frame timer (f32), finished (u8). The playback
+    // position is the only mutable runtime state; the clip itself is config.
+
+    void SpriteComponent::SaveSimState(SimState::Writer& writer)
+    {
+        const SpriteAnimation::FrameState state = m_presenter.GetFrameState();
+        const size_t sizePos = writer.BeginChunk(SpriteChunkTag);
+        writer.S64(state.m_frame);
+        writer.F32(state.m_timer);
+        writer.U8(state.m_finished ? 1 : 0);
+        writer.EndChunk(sizePos);
+    }
+
+    bool SpriteComponent::TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload)
+    {
+        if (tag != SpriteChunkTag)
+        {
+            return false;
+        }
+        AZ::s64 frame = 0;
+        float timer = 0.0f;
+        AZ::u8 finished = 0;
+        if (!payload.S64(frame) || !payload.F32(timer) || !payload.U8(finished))
+        {
+            return false;
+        }
+        SpriteAnimation::FrameState state;
+        state.m_frame = static_cast<int>(frame);
+        state.m_timer = timer;
+        state.m_finished = finished != 0;
+        m_presenter.SetFrameState(state);
+        return true;
     }
 } // namespace Diorama

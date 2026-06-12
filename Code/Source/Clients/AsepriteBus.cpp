@@ -41,6 +41,12 @@ namespace Diorama
                 "SetLooping",
                 &DioramaAsepriteRequestBus::Events::SetLooping,
                 { { { "looping", "Wrap the current tag (true) or hold the last frame." } } })
+            ->Event(
+                "SetUseSimClock",
+                &DioramaAsepriteRequestBus::Events::SetUseSimClock,
+                { { { "enabled",
+                      "Advance playback on the 2D Simulation Clock's fixed steps instead of the render tick; "
+                      "with no clock in the level the render tick still advances." } } })
             ->Event("IsPlaying", &DioramaAsepriteRequestBus::Events::IsPlaying)
             ->Event("GetCurrentFrame", &DioramaAsepriteRequestBus::Events::GetCurrentFrame);
     }

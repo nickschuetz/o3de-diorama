@@ -33,7 +33,8 @@ namespace Diorama
                 ->Field("flipVertical", &SpriteInfo::m_flipVertical)
                 ->Field("animEnabled", &SpriteInfo::m_animEnabled)
                 ->Field("currentFrame", &SpriteInfo::m_currentFrame)
-                ->Field("frameCount", &SpriteInfo::m_frameCount);
+                ->Field("frameCount", &SpriteInfo::m_frameCount)
+                ->Field("useSimClock", &SpriteInfo::m_useSimClock);
         }
 
         if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
@@ -59,7 +60,8 @@ namespace Diorama
                 ->Property("flipVertical", BehaviorValueGetter(&SpriteInfo::m_flipVertical), nullptr)
                 ->Property("animEnabled", BehaviorValueGetter(&SpriteInfo::m_animEnabled), nullptr)
                 ->Property("currentFrame", BehaviorValueGetter(&SpriteInfo::m_currentFrame), nullptr)
-                ->Property("frameCount", BehaviorValueGetter(&SpriteInfo::m_frameCount), nullptr);
+                ->Property("frameCount", BehaviorValueGetter(&SpriteInfo::m_frameCount), nullptr)
+                ->Property("useSimClock", BehaviorValueGetter(&SpriteInfo::m_useSimClock), nullptr);
         }
     }
 
@@ -196,6 +198,12 @@ namespace Diorama
                 "SetStartFrame",
                 &DioramaSpriteRequestBus::Events::SetStartFrame,
                 { { { "frame", "Frame shown first and while not playing; clamped to range." } } })
+            ->Event(
+                "SetUseSimClock",
+                &DioramaSpriteRequestBus::Events::SetUseSimClock,
+                { { { "enabled",
+                      "Advance playback on the 2D Simulation Clock's fixed steps instead of the render tick; "
+                      "with no clock in the level the render tick still advances." } } })
             ->Event(
                 "PlaySpriteSheet",
                 &DioramaSpriteRequestBus::Events::PlaySpriteSheet,

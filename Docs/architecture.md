@@ -423,7 +423,7 @@ flowchart LR
         BUF --> HASH[GetStateHash FNV-1a]
         BUF --> SLOTS[slots 0-7]
         SLOTS --> RES[RestoreFrame]
-        RES -->|TryRestoreChunk| COMP[hitbox rig, bullet pool, translation]
+        RES -->|TryRestoreChunk| COMP[hitbox rig, bullet pool, translation, playback positions]
     end
 
     clock --> snapshot
@@ -438,8 +438,10 @@ Three contracts make it hold together:
 2. **The frame image.** Entities carrying the **Simulation State** marker enroll in
    `CaptureFrame`: each snapshot-capable component appends tagged chunks (the
    marker itself contributes the world translation; the hitbox rig and bullet pool
-   contribute their combat state) into a canonical little-endian buffer, ordered by
-   entity id so the image and its `GetStateHash` are run-independent. Restore
+   contribute their combat state; the Sprite sheet, Aseprite player, and animation
+   state machine contribute their playback positions) into a canonical
+   little-endian buffer, ordered by entity id so the image and its `GetStateHash`
+   are run-independent. Restore
    treats the buffer as untrusted: bounds-checked reads, version checks, hostile
    sizes rejected, chunks for vanished entities skipped. Scripts use the eight
    snapshot slots; a C++ rollback layer keeps its own buffer history.
@@ -456,8 +458,11 @@ the shared systems: collision query results and push-out accumulation now iterat
 in sorted entity-id order instead of hash-map order. A headless determinism proof
 (`DeterminismTest.cpp`) runs in the normal suite, so every PR re-proves that a
 scripted run replays from a restored snapshot to bit-identical per-frame hashes.
-The named follow-up is migrating the render-tick components (bullet emitter,
-hitbox evaluation, sprite animation) onto the sim clock.
+The five render-tick gameplay components (Sprite playback, Aseprite, the state
+machine, the hitbox rig, the bullet emitter) each carry a **Use Simulation
+Clock** flag (Inspector checkbox + `SetUseSimClock` bus verb) that moves their
+advance onto the fixed step; the render tick stands down while a clock runs and
+takes back over when none exists, so editor previews keep playing.
 
 ## Extending the gem
 

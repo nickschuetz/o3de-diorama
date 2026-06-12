@@ -62,7 +62,8 @@ namespace Diorama
                 ->Field("drag", &DioramaBulletConfig::m_drag)
                 ->Field("color", &DioramaBulletConfig::m_color)
                 ->Field("targetMask", &DioramaBulletConfig::m_targetMask)
-                ->Field("sortOffset", &DioramaBulletConfig::m_sortOffset);
+                ->Field("sortOffset", &DioramaBulletConfig::m_sortOffset)
+                ->Field("useSimClock", &DioramaBulletConfig::m_useSimClock);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -129,7 +130,13 @@ namespace Diorama
                         "Target Mask",
                         "Collision layer mask the bullets hit (0 = visual only)")
                     ->DataElement(
-                        AZ::Edit::UIHandlers::Default, &DioramaBulletConfig::m_sortOffset, "Sort Offset", "Transparent draw-order bias");
+                        AZ::Edit::UIHandlers::Default, &DioramaBulletConfig::m_sortOffset, "Sort Offset", "Transparent draw-order bias")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaBulletConfig::m_useSimClock,
+                        "Use Simulation Clock",
+                        "Step bullets and fire accumulation on the 2D Simulation Clock's fixed steps instead of the "
+                        "render tick. With no clock in the level, falls back to the render tick.");
             }
         }
     }
@@ -181,6 +188,10 @@ namespace Diorama
 
         QueueTextureLoad();
         AZ::TickBus::Handler::BusConnect();
+        if (m_config.m_useSimClock)
+        {
+            DioramaSimTickNotificationBus::Handler::BusConnect();
+        }
         DioramaBulletRequestBus::Handler::BusConnect(GetEntityId());
         DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
         TryAcquireFeatureProcessor();
@@ -188,6 +199,7 @@ namespace Diorama
 
     void DioramaBulletEmitterComponent::Deactivate()
     {
+        DioramaSimTickNotificationBus::Handler::BusDisconnect();
         DioramaSimStateParticipantBus::Handler::BusDisconnect();
         DioramaBulletRequestBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
@@ -409,8 +421,31 @@ namespace Diorama
             return;
         }
 
-        const float dt = Particles2D::ClampTimeStep(deltaTime, BulletMaxTimeStep);
+        // Use Simulation Clock mode: a running clock owns firing, integration, and
+        // hit-testing (OnSimTick); the render tick only re-pushes the current pool
+        // to the renderer. Never run a zero-dt StepBullets here: its hit-test would
+        // consume bullets on the render tick, off the deterministic timeline.
+        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
+        {
+            PushToRenderer();
+            return;
+        }
 
+        AdvanceFire(Particles2D::ClampTimeStep(deltaTime, BulletMaxTimeStep));
+        StepBullets(Particles2D::ClampTimeStep(deltaTime, BulletMaxTimeStep), true);
+    }
+
+    void DioramaBulletEmitterComponent::OnSimTick([[maybe_unused]] AZ::s64 frame, float stepSeconds)
+    {
+        // No feature-processor guard here: the deterministic advance must not depend
+        // on renderer availability (headless runs). Acquisition stays on the render tick.
+        const float dt = Particles2D::ClampTimeStep(stepSeconds, BulletMaxTimeStep);
+        AdvanceFire(dt);
+        StepBullets(dt, false); // render push happens on the render tick
+    }
+
+    void DioramaBulletEmitterComponent::AdvanceFire(float dt)
+    {
         if (m_firing && m_config.m_fireRate > 0.0f)
         {
             m_fireAccumulator += m_config.m_fireRate * dt;
@@ -428,8 +463,6 @@ namespace Diorama
                 EmitShot();
             }
         }
-
-        StepBullets(dt, true);
     }
 
     void DioramaBulletEmitterComponent::Fire()
@@ -496,6 +529,22 @@ namespace Diorama
     void DioramaBulletEmitterComponent::SetMuzzleOffset(float x, float y)
     {
         m_config.m_muzzleOffset = AZ::Vector2(x, y);
+    }
+
+    void DioramaBulletEmitterComponent::SetUseSimClock(bool enabled)
+    {
+        m_config.m_useSimClock = enabled;
+        if (enabled)
+        {
+            if (!DioramaSimTickNotificationBus::Handler::BusIsConnected())
+            {
+                DioramaSimTickNotificationBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
     }
 
     DioramaBulletInfo DioramaBulletEmitterComponent::GetBulletInfo()

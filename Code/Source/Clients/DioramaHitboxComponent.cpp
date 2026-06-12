@@ -69,7 +69,8 @@ namespace Diorama
                 ->Field("hurtLayer", &DioramaHitboxConfig::m_hurtLayer)
                 ->Field("targetMask", &DioramaHitboxConfig::m_targetMask)
                 ->Field("facing", &DioramaHitboxConfig::m_facing)
-                ->Field("boxes", &DioramaHitboxConfig::m_boxes);
+                ->Field("boxes", &DioramaHitboxConfig::m_boxes)
+                ->Field("useSimClock", &DioramaHitboxConfig::m_useSimClock);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -93,7 +94,13 @@ namespace Diorama
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default, &DioramaHitboxConfig::m_facing, "Facing", "+1 faces +X, -1 mirrors box offsets")
                     ->DataElement(
-                        AZ::Edit::UIHandlers::Default, &DioramaHitboxConfig::m_boxes, "Boxes", "The authored hitboxes and hurtboxes");
+                        AZ::Edit::UIHandlers::Default, &DioramaHitboxConfig::m_boxes, "Boxes", "The authored hitboxes and hurtboxes")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaHitboxConfig::m_useSimClock,
+                        "Use Simulation Clock",
+                        "Evaluate overlaps on the 2D Simulation Clock's fixed steps instead of the render tick. "
+                        "With no clock in the level, falls back to the render tick.");
             }
         }
     }
@@ -145,12 +152,17 @@ namespace Diorama
         DioramaHitboxRequestBus::Handler::BusConnect(GetEntityId());
         DioramaSpriteNotificationBus::Handler::BusConnect(GetEntityId());
         DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
+        if (m_config.m_useSimClock)
+        {
+            DioramaSimTickNotificationBus::Handler::BusConnect();
+        }
         AZ::TickBus::Handler::BusConnect();
     }
 
     void DioramaHitboxComponent::Deactivate()
     {
         AZ::TickBus::Handler::BusDisconnect();
+        DioramaSimTickNotificationBus::Handler::BusDisconnect();
         DioramaSimStateParticipantBus::Handler::BusDisconnect();
         DioramaSpriteNotificationBus::Handler::BusDisconnect();
         DioramaHitboxRequestBus::Handler::BusDisconnect();
@@ -167,8 +179,22 @@ namespace Diorama
 
     void DioramaHitboxComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
     {
+        // Use Simulation Clock mode: a running clock owns evaluation (OnSimTick),
+        // so hits resolve once per fixed step, in deterministic order.
+        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
+        {
+            return;
+        }
         // Refresh world position (the fighter moves) and re-evaluate boxes for the
         // current frame. Cheap: a handful of boxes per rig.
+        AZ::Transform worldTM = AZ::Transform::CreateIdentity();
+        AZ::TransformBus::EventResult(worldTM, GetEntityId(), &AZ::TransformBus::Events::GetWorldTM);
+        m_worldTranslation = worldTM.GetTranslation();
+        Evaluate();
+    }
+
+    void DioramaHitboxComponent::OnSimTick([[maybe_unused]] AZ::s64 frame, [[maybe_unused]] float stepSeconds)
+    {
         AZ::Transform worldTM = AZ::Transform::CreateIdentity();
         AZ::TransformBus::EventResult(worldTM, GetEntityId(), &AZ::TransformBus::Events::GetWorldTM);
         m_worldTranslation = worldTM.GetTranslation();
@@ -283,6 +309,22 @@ namespace Diorama
     void DioramaHitboxComponent::SetFrame(int frame)
     {
         m_frame = frame;
+    }
+
+    void DioramaHitboxComponent::SetUseSimClock(bool enabled)
+    {
+        m_config.m_useSimClock = enabled;
+        if (enabled)
+        {
+            if (!DioramaSimTickNotificationBus::Handler::BusIsConnected())
+            {
+                DioramaSimTickNotificationBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
     }
 
     DioramaHitboxInfo DioramaHitboxComponent::GetHitboxInfo()

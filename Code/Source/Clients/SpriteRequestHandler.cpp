@@ -280,6 +280,16 @@ namespace Diorama
         NotifyChanged();
     }
 
+    void SpriteRequestHandler::SetUseSimClock(bool enabled)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_useSimClock = enabled;
+        NotifyChanged();
+    }
+
     void SpriteRequestHandler::SetStartFrame(int frame)
     {
         if (m_config == nullptr)
@@ -333,6 +343,7 @@ namespace Diorama
         info.m_flipVertical = m_config->m_flipVertical;
         info.m_animEnabled = m_config->m_animEnabled;
         info.m_frameCount = m_config->GetFrameCount();
+        info.m_useSimClock = m_config->m_useSimClock;
 
         // Resolved runtime state from the presenter (drawability + current frame).
         if (m_presenter != nullptr)

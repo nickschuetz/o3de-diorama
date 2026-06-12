@@ -54,6 +54,10 @@ namespace Diorama
         //! taken from OnAnimationFrame; this is for rigs not driven by the sprite
         //! animation player (or for deterministic testing/agents).
         virtual void SetFrame(int frame) = 0;
+        //! Evaluate overlaps on the 2D Simulation Clock's fixed steps instead of the
+        //! render tick (deterministic hit order, snapshot/rewind friendly). With no
+        //! clock in the level the render tick still evaluates as before.
+        virtual void SetUseSimClock(bool enabled) = 0;
         //! Resolved hitbox state. Safe to poll.
         virtual DioramaHitboxInfo GetHitboxInfo() = 0;
     };

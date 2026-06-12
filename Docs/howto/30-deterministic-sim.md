@@ -42,6 +42,19 @@ The clock is driven over `DioramaSimClockRequestBus`: `GetSimFrame`, `SetPaused`
 `StepOnce` (single-step while paused: a training-mode frame advance),
 `SetStepsPerSecond`, and read-only `GetSimClockInfo`.
 
+## Putting Diorama components on the clock
+
+Five gameplay-relevant components carry a **Use Simulation Clock** checkbox (and a
+matching `SetUseSimClock` verb on their request bus): the Sprite's sheet playback,
+the Aseprite player, the animation state machine, the frame-data hitbox rig, and
+the bullet emitter. Flagged on, they advance on the clock's fixed steps; the render
+tick stands down while a clock is running (and takes back over if no clock exists,
+so an editor preview still plays). The bullet emitter's render tick keeps pushing
+the current pool to the renderer; firing, integration, and hit-testing move to the
+fixed step, so hits resolve once per frame in deterministic order. A fighter built
+from these pieces (state machine picking clips, clips driving `OnAnimationFrame`,
+frames driving hitbox windows) steps frame-exactly under `StepOnce`.
+
 ## Seeded randomness
 
 The clock hosts a deterministic RNG on `DioramaRandomRequestBus` (`SetSeed`,
@@ -54,8 +67,9 @@ Not cryptographic: gameplay only.
 
 Mark each entity whose **world position** belongs to the simulation with a
 **Simulation State** component; snapshot-capable Diorama components on marked
-entities (the frame-data hitbox rig, the bullet emitter's live pool) save and
-restore their own state with it.
+entities save and restore their own state with it: the frame-data hitbox rig, the
+bullet emitter's live pool, and the playback positions of the Sprite sheet, the
+Aseprite player, and the animation state machine.
 
 ```lua
 DioramaSimClockRequestBus.Broadcast.SaveToSlot(0)        -- capture now
@@ -109,10 +123,9 @@ re-advances to the exact end-state hash.
 
 ## Current limits (honest list)
 
-- Sprite/Aseprite animation, the state machine, and the bullet emitter still
-  advance on the render tick; their *state* snapshots and restores correctly, but
-  fully deterministic playback means driving gameplay state from `OnSimTick`
-  (their sim-clock migration is the noted follow-up).
+- "Use Simulation Clock" is opt-in per component and defaults off; a mixed scene
+  (some components on the clock, some on the render tick) is fine visually but
+  only the flagged components replay deterministically.
 - The motion-input direction history is not rewound by a restore; motion
   recognition converges within one buffer window. Gate motions on button edges
   (which replay exactly) where this matters.

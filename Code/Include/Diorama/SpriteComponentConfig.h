@@ -143,6 +143,10 @@ namespace Diorama
         //! in place (hit-stop), < 1 is slow motion, > 1 fast-forward. Clamped
         //! non-negative. Mirrors the Aseprite component's speed control.
         float m_playbackSpeed = 1.0f;
+        //! Advance the sprite-sheet animation on the 2D Simulation Clock's fixed
+        //! steps instead of the render tick (deterministic playback; falls back to
+        //! the render tick when no clock is running, so editor previews still play).
+        bool m_useSimClock = false;
 
         //! Loop back to the first frame after the last, or hold the last frame.
         bool m_loop = true;

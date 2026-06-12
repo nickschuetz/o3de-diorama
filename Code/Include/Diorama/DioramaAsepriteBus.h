@@ -44,6 +44,10 @@ namespace Diorama
         virtual void SetSpeed(float speed) = 0;
         //! Whether the current tag wraps at its end or holds the last frame.
         virtual void SetLooping(bool looping) = 0;
+        //! Advance playback on the 2D Simulation Clock's fixed steps instead of the
+        //! render tick (deterministic playback, snapshot/rewind friendly). With no
+        //! clock in the level the render tick still advances as before.
+        virtual void SetUseSimClock(bool enabled) = 0;
         //! True while a tag is advancing.
         virtual bool IsPlaying() = 0;
         //! The frame index currently shown.

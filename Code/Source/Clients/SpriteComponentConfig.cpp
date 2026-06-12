@@ -47,6 +47,7 @@ namespace Diorama
                 ->Field("FrameCount", &SpriteComponentConfig::m_frameCount)
                 ->Field("FramesPerSecond", &SpriteComponentConfig::m_framesPerSecond)
                 ->Field("PlaybackSpeed", &SpriteComponentConfig::m_playbackSpeed)
+                ->Field("UseSimClock", &SpriteComponentConfig::m_useSimClock)
                 ->Field("Loop", &SpriteComponentConfig::m_loop)
                 ->Field("StartFrame", &SpriteComponentConfig::m_startFrame);
 
@@ -185,6 +186,12 @@ namespace Diorama
                         "Time-scale multiplier (1 = normal, 0 = freeze / hit-stop, <1 = slow motion)")
                     ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
                     ->Attribute(AZ::Edit::Attributes::Suffix, " fps")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SpriteComponentConfig::m_useSimClock,
+                        "Use Simulation Clock",
+                        "Advance the animation on the 2D Simulation Clock's fixed steps (deterministic); falls back to the render tick "
+                        "when no clock runs")
                     ->DataElement(AZ::Edit::UIHandlers::Default, &SpriteComponentConfig::m_loop, "Loop", "Loop or hold the last frame")
                     ->DataElement(AZ::Edit::UIHandlers::Default, &SpriteComponentConfig::m_startFrame, "Start Frame", "Frame shown first")
                     ->Attribute(AZ::Edit::Attributes::Min, 0);

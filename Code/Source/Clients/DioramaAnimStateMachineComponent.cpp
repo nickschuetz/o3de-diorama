@@ -184,7 +184,8 @@ namespace Diorama
                 ->Field("states", &DioramaAnimStateMachineConfig::m_states)
                 ->Field("transitions", &DioramaAnimStateMachineConfig::m_transitions)
                 ->Field("defaultState", &DioramaAnimStateMachineConfig::m_defaultState)
-                ->Field("target", &DioramaAnimStateMachineConfig::m_target);
+                ->Field("target", &DioramaAnimStateMachineConfig::m_target)
+                ->Field("useSimClock", &DioramaAnimStateMachineConfig::m_useSimClock);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -207,7 +208,13 @@ namespace Diorama
                         AZ::Edit::UIHandlers::Default,
                         &DioramaAnimStateMachineConfig::m_target,
                         "Target entity",
-                        "Entity whose Sprite/Aseprite to drive (empty = this entity)");
+                        "Entity whose Sprite/Aseprite to drive (empty = this entity)")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaAnimStateMachineConfig::m_useSimClock,
+                        "Use Simulation Clock",
+                        "Evaluate the graph on the 2D Simulation Clock's fixed steps instead of the render tick. "
+                        "With no clock in the level, falls back to the render tick.");
             }
         }
     }
@@ -334,7 +341,12 @@ namespace Diorama
         m_definition = BuildAnimStateMachineDefinition(m_config);
 
         DioramaAnimStateMachineRequestBus::Handler::BusConnect(GetEntityId());
+        DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
+        if (m_config.m_useSimClock)
+        {
+            DioramaSimTickNotificationBus::Handler::BusConnect();
+        }
 
         // Enter the initial state (from = none) so the rig is posed and OnStateChanged fires.
         if (m_definition.m_defaultStateIndex >= 0)
@@ -345,11 +357,28 @@ namespace Diorama
 
     void DioramaAnimStateMachineComponent::Deactivate()
     {
+        DioramaSimTickNotificationBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
+        DioramaSimStateParticipantBus::Handler::BusDisconnect();
         DioramaAnimStateMachineRequestBus::Handler::BusDisconnect();
     }
 
     void DioramaAnimStateMachineComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    {
+        // Use Simulation Clock mode: a running clock owns the advance (OnSimTick).
+        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
+        {
+            return;
+        }
+        Advance(deltaTime);
+    }
+
+    void DioramaAnimStateMachineComponent::OnSimTick([[maybe_unused]] AZ::s64 frame, float stepSeconds)
+    {
+        Advance(stepSeconds);
+    }
+
+    void DioramaAnimStateMachineComponent::Advance(float deltaTime)
     {
         const int fromIndex = m_definition.m_runtime.m_current;
         const int destination = AnimSM::Step(
@@ -478,6 +507,22 @@ namespace Diorama
         EnterState(FindState(stateName));
     }
 
+    void DioramaAnimStateMachineComponent::SetUseSimClock(bool enabled)
+    {
+        m_config.m_useSimClock = enabled;
+        if (enabled)
+        {
+            if (!DioramaSimTickNotificationBus::Handler::BusIsConnected())
+            {
+                DioramaSimTickNotificationBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
+    }
+
     AZStd::string DioramaAnimStateMachineComponent::GetCurrentState()
     {
         const int current = m_definition.m_runtime.m_current;
@@ -506,5 +551,67 @@ namespace Diorama
             return m_definition.m_runtime.m_params[index].m_float;
         }
         return 0.0f;
+    }
+
+    // ---- Snapshot / restore -----------------------------------------------------------
+    // Chunk payload: current state index (s64), seconds in state (f32), param count
+    // (u32), then per parameter its float (f32) and bool (u8) values. Param kinds are
+    // config, not runtime state. Restore applies indices silently (no EnterState): the
+    // bound animation's own chunk restores the visual playback, and re-entering would
+    // restart the clip and re-fire OnStateChanged mid-rollback.
+
+    void DioramaAnimStateMachineComponent::SaveSimState(SimState::Writer& writer)
+    {
+        const AnimSM::Runtime& runtime = m_definition.m_runtime;
+        const size_t sizePos = writer.BeginChunk(AnimStateMachineChunkTag);
+        writer.S64(runtime.m_current);
+        writer.F32(runtime.m_time);
+        writer.U32(static_cast<AZ::u32>(runtime.m_params.size()));
+        for (const AnimSM::ParamValue& param : runtime.m_params)
+        {
+            writer.F32(param.m_float);
+            writer.U8(param.m_bool ? 1 : 0);
+        }
+        writer.EndChunk(sizePos);
+    }
+
+    bool DioramaAnimStateMachineComponent::TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload)
+    {
+        if (tag != AnimStateMachineChunkTag)
+        {
+            return false;
+        }
+        AZ::s64 current = -1;
+        float time = 0.0f;
+        AZ::u32 paramCount = 0;
+        if (!payload.S64(current) || !payload.F32(time) || !payload.U32(paramCount))
+        {
+            return false;
+        }
+        AnimSM::Runtime& runtime = m_definition.m_runtime;
+        if (paramCount != runtime.m_params.size())
+        {
+            // The graph was re-authored since this image was taken: apply the scalar
+            // state and keep the current (default) parameter values rather than
+            // misalign values across a different parameter set.
+            runtime.m_current = static_cast<int>(current);
+            runtime.m_time = time;
+            return true;
+        }
+        // Parse into scratch first so a truncated payload cannot half-apply.
+        AZStd::vector<AnimSM::ParamValue> restored = runtime.m_params;
+        for (AZ::u32 i = 0; i < paramCount; ++i)
+        {
+            AZ::u8 boolValue = 0;
+            if (!payload.F32(restored[i].m_float) || !payload.U8(boolValue))
+            {
+                return false;
+            }
+            restored[i].m_bool = boolValue != 0;
+        }
+        runtime.m_current = static_cast<int>(current);
+        runtime.m_time = time;
+        runtime.m_params = AZStd::move(restored);
+        return true;
     }
 } // namespace Diorama
