@@ -48,7 +48,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 ## At a glance
 
 <p align="center">
-  <img src="Docs/images/diorama-features.png" alt="Diorama feature overview: sprites, rendering, depth and shadows, 2.5D and parallax, tilemap, animation, lighting, effects, post, camera, gameplay, scripting" width="900">
+  <img src="Docs/images/diorama-features.png" alt="Diorama feature overview: sprites, rendering, depth and shadows, 2.5D and parallax, tilemap, animation, lighting, effects, post, camera, gameplay, scripting, determinism, grid intelligence, audio, samples" width="900">
 </p>
 
 ## Feature status
@@ -77,6 +77,9 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Input | Motion inputs (numpad sequences: quarter-circle, dragon-punch) | Working |
 | Gameplay | 2.5D brawler depth lanes (depth lift/sort + depth-aware combat) | Working |
 | Gameplay | Grid intelligence cores: FOV/fog, movement range, A* pathfinding | Working |
+| Simulation | Fixed-step 2D Simulation Clock (`OnSimTick`, pause/single-step) + seeded RNG | Working |
+| Simulation | Snapshot/restore with state hash + slots (rollback-ready; CI determinism proof) | Working |
+| Simulation | Per-sim-frame input ring: frame queries + `InjectActionState` (replays, bots, rollback) | Working |
 | 2.5D | Parallax background layers | Working |
 | Camera | 2D camera controller (follow, deadzone, bounds, shake) | Working |
 | Camera | Versus framing (two-target midpoint) + distance zoom/dolly | Working |

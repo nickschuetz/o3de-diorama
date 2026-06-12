@@ -1,6 +1,9 @@
 # Design: deterministic fixed-tick simulation and rollback-ready state
 
-Status: **design approved, not started.** Companion doc:
+Status: **shipped** (phases A-D, PRs #112/#115/#114; see
+[howto/30-deterministic-sim.md](../howto/30-deterministic-sim.md)). The named
+follow-up is migrating the render-tick components (bullet emitter, hitbox rig,
+sprite/Aseprite animation) onto the sim clock. Companion doc:
 [2d-box-interactions.md](2d-box-interactions.md) (typed boxes + attack payloads).
 Driver: competitive fighting games of the SF6 / GGST class, which all ship rollback
 netcode. Rollback has three prerequisites that must be designed into the simulation

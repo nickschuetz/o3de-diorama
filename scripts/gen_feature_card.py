@@ -14,7 +14,7 @@ SANS = "/usr/share/fonts/liberation-sans-fonts/LiberationSans-%s.ttf"
 def mono(sz): return ImageFont.truetype(MONO % "Bold", sz)
 def sans(sz): return ImageFont.truetype(SANS % "Regular", sz)
 
-W, H = 1600, 1080
+W, H = 1600, 1240
 img = Image.new("RGBA", (W, H), (6, 6, 9, 255))     # near-black arcade field
 d = ImageDraw.Draw(img)
 
@@ -46,8 +46,12 @@ TILES = [
     ("CAMERA", (90, 200, 255), "Follow, deadzone, bounds, shake; versus framing + auto-zoom; ortho / pixel-perfect."),
     ("GAMEPLAY", (140, 230, 130), "2D collision (colliders, triggers, queries, pushbox), frame-data hitboxes, and rebindable input with motion sequences, from game scripts."),
     ("SCRIPTING", (255, 210, 90), "Typed per-feature request buses, usable from Lua, Python, and Script Canvas."),
+    ("DETERMINISM", (110, 240, 190), "Fixed-step sim clock, seeded RNG, snapshot/restore + state hash, per-frame input ring; rollback-ready, proven in CI."),
+    ("GRID INTEL", (255, 170, 90), "A* pathfinding, movement range, and shadowcast field of view over any tile grid."),
+    ("AUDIO", (150, 200, 255), "One-shot and ambience conveniences over MiniAudio, on the same typed buses."),
+    ("SAMPLES", (240, 120, 200), "Shmup, brawler, platformer, and fighting slices, each with a how-to, plus per-feature demos."),
 ]
-cols, rows = 4, 3
+cols, rows = 4, 4
 mx, top_y, gx, gy = 40, 30 + lh + 28, 20, 18
 tw = (W - 2 * mx - (cols - 1) * gx) // cols
 th = (H - top_y - 58 - (rows - 1) * gy) // rows
@@ -61,7 +65,7 @@ for i, (title, col, desc) in enumerate(TILES):
         d.text((cx + 18, yy), line, font=dfont, fill=(206, 212, 224, 255)); yy += 27
 
 # footer (no version)
-d.text((mx + 2, H - 44), "Audio via MiniAudio    World-space 2D + 2.5D for the Open 3D Engine    \"New 2.5D Game\" template",
+d.text((mx + 2, H - 44), "World-space 2D + 2.5D for the Open 3D Engine    \"New 2.5D Game\" template    Deterministic when you want it",
        font=sans(21), fill=(120, 150, 185, 255))
 
 # --- CRT scanlines over the whole card, to match the logo ---
