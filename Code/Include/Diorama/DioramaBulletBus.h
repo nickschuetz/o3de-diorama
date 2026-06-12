@@ -67,6 +67,9 @@ namespace Diorama
         virtual void SetSpread(float degrees) = 0;
         //! Spiral rotation added per shot, in degrees (ignored by ring/fan).
         virtual void SetSpin(float degreesPerShot) = 0;
+        //! Muzzle offset from the entity origin (world XY) where bullets spawn, e.g. a
+        //! ship's nose, so the gun does not fire from the body center.
+        virtual void SetMuzzleOffset(float x, float y) = 0;
         //! Resolved emitter state. Safe to poll.
         virtual DioramaBulletInfo GetBulletInfo() = 0;
     };

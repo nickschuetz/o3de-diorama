@@ -57,6 +57,7 @@ namespace Diorama
                 ->Field("fireOnActivate", &DioramaBulletConfig::m_fireOnActivate)
                 ->Field("bulletLifetime", &DioramaBulletConfig::m_bulletLifetime)
                 ->Field("bulletRadius", &DioramaBulletConfig::m_bulletRadius)
+                ->Field("muzzleOffset", &DioramaBulletConfig::m_muzzleOffset)
                 ->Field("gravity", &DioramaBulletConfig::m_gravity)
                 ->Field("drag", &DioramaBulletConfig::m_drag)
                 ->Field("color", &DioramaBulletConfig::m_color)
@@ -111,6 +112,11 @@ namespace Diorama
                         "Bullet Radius",
                         "Collision + render half size")
                     ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaBulletConfig::m_muzzleOffset,
+                        "Muzzle Offset",
+                        "Spawn offset from the entity origin (e.g. a ship's nose)")
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default, &DioramaBulletConfig::m_gravity, "Gravity", "Constant acceleration on every bullet")
                     ->DataElement(
@@ -297,7 +303,9 @@ namespace Diorama
 
         AZ::Vector3 world = AZ::Vector3::CreateZero();
         AZ::TransformBus::EventResult(world, GetEntityId(), &AZ::TransformBus::Events::GetWorldTranslation);
-        const AZ::Vector2 origin(world.GetX(), world.GetY());
+        // Spawn from the muzzle, an offset from the entity origin (e.g. a ship's nose),
+        // so the gun does not fire from the body center.
+        const AZ::Vector2 origin(world.GetX() + m_config.m_muzzleOffset.GetX(), world.GetY() + m_config.m_muzzleOffset.GetY());
         const float life = BulletNonNeg(m_config.m_bulletLifetime);
 
         for (const AZ::Vector2& v : velocities)
@@ -481,6 +489,11 @@ namespace Diorama
     void DioramaBulletEmitterComponent::SetSpin(float degreesPerShot)
     {
         m_config.m_spinPerShotDegrees = degreesPerShot;
+    }
+
+    void DioramaBulletEmitterComponent::SetMuzzleOffset(float x, float y)
+    {
+        m_config.m_muzzleOffset = AZ::Vector2(x, y);
     }
 
     DioramaBulletInfo DioramaBulletEmitterComponent::GetBulletInfo()

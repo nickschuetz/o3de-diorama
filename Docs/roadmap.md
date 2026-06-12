@@ -296,7 +296,24 @@ Missing table-stakes (no design doc yet):
   `SetFacing` mirroring and a read-only `GetHitboxInfo`. Plus motion inputs (above) and
   an impact-effects sample (`hit_response.lua`: hit-spark particle preset + material
   flash + camera trauma). Builds on the existing frame events, versus camera, hit-stop,
-  and pushbox pieces. Charge-motion hold timing and rollback stay game-side.
+  and pushbox pieces. Charge-motion hold timing stays game-side; rollback *readiness*
+  has since moved in-gem as a designed v3 (next bullet).
+- **Fighting building blocks v3: deterministic sim + typed boxes** (L). **Design
+  done**, two companion docs, not started. (1)
+  [design/2d-deterministic-sim.md](design/2d-deterministic-sim.md): an opt-in
+  fixed-tick sim clock (`OnSimTick`, pause/single-step), full snapshot/restore of
+  gem sim state (`CaptureFrame`/`RestoreFrame` + `GetStateHash`), a determinism
+  audit (sorted collision-query results, seeded RNG, per-sim-frame input ring with
+  `InjectFrame`), making the 2D simulation rollback-ready; the netcode itself stays
+  with O3DE Multiplayer / middleware. Also buys deterministic replays, training-mode
+  rewind, and a headless CI determinism test. (2)
+  [design/2d-box-interactions.md](design/2d-box-interactions.md): the hitbox rig
+  grows typed kinds (pushbox, throwbox/throwable, armor, proximity), per-box
+  **attack payloads** (damage, hit/block/hit-stop frames, pushback, guard height,
+  launch, priority) delivered on a new `OnBoxEvent`, a clash/armor/throw resolution
+  matrix (pure core), and a world-space color-coded **box overlay** (the
+  training-mode display + frame-data tuning loop). Genre-neutral internals; the
+  SF6/GGST-class systems (meters, scaling, cancels) stay game-side.
 - **Bullet-pattern emitter (danmaku / shmup).** **Shipped**
   ([howto/24-bullet-patterns.md](howto/24-bullet-patterns.md)): a **2D Bullet Emitter**
   component (`DioramaBulletEmitterComponent`) fires Ring / Fan / Spiral patterns at a

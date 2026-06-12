@@ -198,6 +198,38 @@ namespace Diorama
         listener.Stop();
     }
 
+    TEST_F(DioramaBulletEmitterComponentTest, MuzzleOffsetMovesTheSpawnPoint)
+    {
+        // With a muzzle offset, bullets spawn at origin + offset. A target placed at the
+        // muzzle is hit on the first hit-test step (the bullet spawns inside it), which it
+        // would not be if the bullet spawned at the origin 5 units away.
+        DioramaBulletConfig cfg;
+        cfg.m_pattern = BulletPattern::Kind::Fan;
+        cfg.m_count = 1;
+        cfg.m_speed = 1.0f;
+        cfg.m_aimDegrees = 90.0f; // +Y
+        cfg.m_fireOnActivate = false;
+        cfg.m_bulletLifetime = 100.0f;
+        cfg.m_bulletRadius = 0.25f;
+        cfg.m_targetMask = 1;
+        cfg.m_muzzleOffset = AZ::Vector2(0.0f, 5.0f);
+
+        const AZ::EntityId target = MakeTarget(0.0f, 5.0f, 0.5f);
+        AZ::EntityId emitterId;
+        DioramaBulletEmitterComponent* emitter = MakeEmitter(cfg, emitterId);
+
+        TestBulletHitListener listener;
+        listener.Listen(emitterId);
+
+        emitter->EmitShot(); // bullet spawns at (0, 5), inside the target
+        emitter->StepBullets(0.01f, false); // one tiny step: an origin spawn would be far off
+
+        EXPECT_EQ(listener.m_hitCount, 1);
+        EXPECT_EQ(listener.m_lastTarget, target);
+
+        listener.Stop();
+    }
+
     TEST_F(DioramaBulletEmitterComponentTest, BulletAwayFromTargetDoesNotHit)
     {
         // Same target at (5,0) but the bullet is aimed at -X, so it never overlaps.
