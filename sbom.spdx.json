@@ -2,10 +2,10 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "Diorama-0.2.0",
-  "documentNamespace": "https://github.com/nickschuetz/o3de-diorama/sbom/0.2.0",
+  "name": "Diorama-0.3.0",
+  "documentNamespace": "https://github.com/nickschuetz/o3de-diorama/sbom/0.3.0",
   "creationInfo": {
-    "created": "2026-06-06T03:18:27Z",
+    "created": "2026-06-12T12:44:18Z",
     "creators": [
       "Tool: scripts/gen_sbom.py"
     ],
@@ -15,7 +15,7 @@
     {
       "SPDXID": "SPDXRef-Package-Diorama",
       "name": "Diorama",
-      "versionInfo": "0.2.0",
+      "versionInfo": "0.3.0",
       "downloadLocation": "https://github.com/nickschuetz/o3de-diorama",
       "homepage": "https://github.com/nickschuetz/o3de-diorama",
       "filesAnalyzed": false,
@@ -27,7 +27,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:github/nickschuetz/o3de-diorama@0.2.0"
+          "referenceLocator": "pkg:github/nickschuetz/o3de-diorama@0.3.0"
         }
       ],
       "comment": "World-space 2D/2.5D gem for O3DE. Vendors no third-party code."

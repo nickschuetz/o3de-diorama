@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.3.0-beta] - 2026-06-12
+
 ### Added
 - **Demo backfill: a one-command scene builder for every how-to that lacked one.**
   Ten new self-contained builders under `Docs/examples/` (pixel-art A/B, glow,
@@ -582,6 +586,7 @@ the runtime/editor module split in place. The `gem.json` version tracks the
   AzCore `NameDictionary` existed, causing a SIGSEGV when the test library was
   loaded ahead of engine bootstrap. It is now constructed lazily on first use.
 
-[Unreleased]: https://github.com/nickschuetz/o3de-diorama/compare/v0.2.0-beta...HEAD
+[Unreleased]: https://github.com/nickschuetz/o3de-diorama/compare/v0.3.0-beta...HEAD
+[0.3.0-beta]: https://github.com/nickschuetz/o3de-diorama/releases/tag/v0.3.0-beta
 [0.2.0-beta]: https://github.com/nickschuetz/o3de-diorama/releases/tag/v0.2.0-beta
 [0.1.0-alpha]: https://github.com/nickschuetz/o3de-diorama/releases/tag/v0.1.0-alpha

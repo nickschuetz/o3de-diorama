@@ -1,7 +1,7 @@
 {
     "gem_name": "Diorama",
     "display_name": "Diorama",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "type": "Code",
     "summary": "World-space 2D and 2.5D for O3DE. Diorama renders sprites and tilemaps as world objects through Atom, so flat content lives inside real 3D scenes with lighting, physics, and depth. It is the world-space counterpart to LyShine's screen-space UI, with a lightweight runtime and editor tooling.",
     "canonical_tags": [
