@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Shmup dogfood example** (a playable vertical slice). A small shoot-em-up assembled
+  from the shipped features to integration-test the gem end to end and serve as a worked
+  example: a sprite ship flown by the input map, the **2D Bullet Emitter reused as the
+  ship's gun** (a single bolt, autofire), 2D collision for the hits, a flash-on-hit +
+  destroy combat loop, a parallax starfield, and a camera over the XY play plane. Ships as
+  `Assets/Diorama/Examples/Shmup/player_ship.lua`, procedural art
+  (`Assets/Diorama/Textures/_gen_shmup_textures.py` -> `shmup_*.png`), and a level builder
+  (`Docs/examples/shmup_demo.py`), documented with the gameplay-scripting gotchas it
+  surfaced ([Docs/howto/29-shmup.md](Docs/howto/29-shmup.md)). A noted follow-up adds a
+  muzzle offset to the emitter (fire from the nose, not the ship center), enemy waves, and
+  a score readout.
 - **Day/night cycle** (lighting). A new **Day/Night Cycle** component
   (`DioramaDayNightComponent`) advances a normalized time-of-day clock and drives a target
   Diorama light's color, intensity, and direction over the day, on the pure tested
@@ -157,6 +168,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   Came out of an O3DE community request for explicit nearest-neighbor filtering.
 
 ### Fixed
+- **Sample scripts: broken `Vector3` access idiom.** The `brawler_*.lua` and
+  `platformer_body.lua` examples read/wrote a transform with `pos:GetX()` / `pos:SetX()`,
+  which is **nil** in this engine's Lua (so they failed at runtime, never play-tested).
+  Fixed to property access (`pos.x`) and `Vector3(...)` construction, matching the working
+  `walker.lua`. Surfaced by the shmup dogfood.
 - **Bullet emitter unity-build robustness.** `DioramaBulletEmitterComponent.cpp` serializes
   a `Data::Asset<StreamingImageAsset>` field but was relying on a transitive include of the
   `Data::Asset<T>` serializer from a unity-build neighbor; it now includes

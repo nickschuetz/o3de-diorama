@@ -80,6 +80,7 @@ Each has a written guide and a runnable example.
 | 2.5D brawler (depth lanes + depth-aware combat) | [26-brawler.md](26-brawler.md) | Written |
 | Grid intelligence (FOV, movement range, A* pathfinding) | [27-grid-intelligence.md](27-grid-intelligence.md) | Written |
 | Day/night cycle (time-of-day lighting) | [28-day-night.md](28-day-night.md) | Written |
+| Small shmup (dogfood vertical slice) | [29-shmup.md](29-shmup.md) | Written |
 
 ## Tooling
 
@@ -120,6 +121,7 @@ the design, see:
 | Side-Scroller Slice (integration) | [../examples/sidescroller_demo.py](../examples/sidescroller_demo.py) |
 | 2.5D Quick-Start | [../examples/quickstart_demo.py](../examples/quickstart_demo.py) |
 | Day/Night Cycle | [../examples/daynight_demo.py](../examples/daynight_demo.py) |
+| Small Shmup (dogfood) | [../examples/shmup_demo.py](../examples/shmup_demo.py) |
 
 Run an example in the editor:
 
