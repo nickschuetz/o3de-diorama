@@ -12,7 +12,7 @@ name: build-test
 # Ubuntu runner cannot even load AzTestRunner).
 #
 # Windows (`ci:build` label, or a manual dispatch, which defaults to `windows`)
-# runs on windows-latest and installs the O3DE 26.05 Windows SDK at runtime from
+# runs on the windows-2025-vs2026 image and installs the O3DE 26.05 Windows SDK at runtime from
 # the official installer. Windows is O3DE's primary platform, so it is the gate
 # that confirms the gem builds and tests there.
 #
@@ -82,14 +82,14 @@ jobs:
   build-test-windows:
     name: build and unit test (Windows)
     # Opt-in via the `ci:build` label (or a manual dispatch). Runs on a
-    # GitHub-hosted windows-latest runner and installs the O3DE SDK at runtime,
+    # GitHub-hosted windows-2025-vs2026 runner and installs the O3DE SDK at runtime,
     # so no self-hosted hardware is needed and untrusted PR code stays off local
     # machines. Windows is O3DE's primary platform, so this confirms the gem
     # builds and tests there.
     if: >
       (github.event_name == 'workflow_dispatch' && (inputs.leg == 'both' || inputs.leg == 'windows')) ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:build'))
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v6
 
@@ -97,7 +97,7 @@ jobs:
         id: o3de-cache
         uses: actions/cache@v4
         with:
-          # windows-latest runs as 'runneradmin'. Cache the installed SDK plus the
+          # the windows runner runs as 'runneradmin'. Cache the installed SDK plus the
           # engine's downloaded 3rdParty packages and Python venv, so reruns skip
           # both the ~2.4 GB SDK install and the multi-GB 3rdParty download that
           # configure does otherwise. Bump the key suffix to invalidate.
