@@ -17,7 +17,10 @@ The Diorama request buses (`DioramaSpriteRequestBus`, `DioramaTilemapRequestBus`
 `Diorama2DCollisionRequestBus`, `DioramaAudioRequestBus`,
 `DioramaCRTRequestBus`, `DioramaLookRequestBus`, `DioramaSkeletalRequestBus`,
 `DioramaAsepriteRequestBus`, `DioramaInputRequestBus`,
-`DioramaAnimStateMachineRequestBus`) are the stable, typed, agent-facing API for driving the gem.
+`DioramaAnimStateMachineRequestBus`, `DioramaHitboxRequestBus`,
+`DioramaBulletRequestBus`, `DioramaDepthBodyRequestBus`,
+`DioramaDayNightRequestBus`, `DioramaSimClockRequestBus`,
+`DioramaRandomRequestBus`) are the stable, typed, agent-facing API for driving the gem.
 The Sprite and Tilemap buses are documented in full first; the rest follow the same
 conventions and are listed after. They are a peer of the
 editor Inspector over the same backing configuration (`SpriteComponentConfig`,
@@ -254,7 +257,7 @@ Drives a **2D Parallax Layer** (how-to [05-parallax-layers](../howto/05-parallax
 2D collision for gameplay scripts. There are two request buses plus a
 notification bus.
 
-**`Diorama2DColliderRequestBus`** — per-entity collider config (addressed by entity id):
+**`Diorama2DColliderRequestBus`**: per-entity collider config (addressed by entity id):
 
 | Verb | Signature (after entity id) | Returns | Effect |
 | ---- | --------------------------- | ------- | ------ |
@@ -268,7 +271,7 @@ notification bus.
 | `SetOneWay` | `oneWay: bool` | void | One-way platform: a box lands on the top but passes through from below / the sides (push-out resolves it upward only). |
 | `GetColliderInfo` | (none) | `Collider2DInfo` | Read-only. Safe to poll. |
 
-**`Diorama2DCollisionRequestBus`** — global world queries (Broadcast, no entity id):
+**`Diorama2DCollisionRequestBus`**: global world queries (Broadcast, no entity id):
 
 | Verb | Signature | Returns | Effect |
 | ---- | --------- | ------- | ------ |
@@ -366,6 +369,15 @@ pressed.
 | `GetValue` | `action: string` | `float` | Button 0..1, Axis1D [-1,1], or Axis2D X. |
 | `GetValueY` | `action: string` | `float` | Axis2D Y (0 otherwise). |
 | `WasMotionPerformed` | `motion: string` | `bool` | True while a named directional motion (quarter-circle, dragon-punch) is recognized in the recent direction history; gate it on a button edge. |
+| `WasPressedAtFrame` | `action: string, frame: int` | `bool` | Sim-clock mode: was the action pressed on that simulation frame (false outside the history ring). |
+| `GetValueAtFrame` | `action: string, frame: int` | `float` | Sim-clock mode: the action's X value on that frame. |
+| `GetValueYAtFrame` | `action: string, frame: int` | `float` | Sim-clock mode: the action's Y value on that frame. |
+| `InjectActionState` | `frame: int, action: string, x, y: float, pressed: bool` | void | Sim-clock mode: overwrite a frame's record; used when that frame is simulated or re-simulated (rollback corrections, replays, bots). |
+
+In **Use Simulation Clock** mode the component samples once per fixed step into a
+ring of recent frames (default 120) and, on re-simulation after a state restore,
+replays the recorded frames instead of re-sampling devices (see
+[30-deterministic-sim](../howto/30-deterministic-sim.md)).
 
 `DioramaInputNotificationBus` fires `OnActionPressed(action)` /
 `OnActionReleased(action)` on the edges, plus `OnMotionPerformed(motion)` once the
@@ -407,6 +419,7 @@ plane.
 | `SetAim` | `degrees: float` | void | Base angle (0 = +X, 90 = +Y). |
 | `SetSpread` | `degrees: float` | void | Fan arc width (clamped [0, 360]; ignored by ring). |
 | `SetSpin` | `degreesPerShot: float` | void | Spiral rotation per shot (ignored by ring/fan). |
+| `SetMuzzleOffset` | `x, y: float` | void | Spawn offset from the entity origin (a ship's nose, a turret's barrel). |
 | `GetBulletInfo` | | `DioramaBulletInfo` | Read-only: alive count, max, firing, pattern, fire rate. |
 
 `DioramaBulletNotificationBus` fires `OnBulletHit(target)` on the emitter when a live
@@ -447,6 +460,60 @@ are addressed by the names authored in the Inspector; an unknown name is ignored
 `DioramaAnimStateMachineNotificationBus` fires `OnStateChanged(fromState, toState)`
 on every state entry (`fromState` empty for the initial state), for event-driven
 logic and headless verification.
+
+## DioramaDayNightRequestBus
+
+Drives the **Day/Night Cycle** component: a normalized time-of-day clock that
+animates a target Diorama light's color, intensity, and direction over the day
+(how-to [28-day-night](../howto/28-day-night.md)). Time of day is [0,1): 0 =
+midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset.
+
+| Verb | Signature (after entity id) | Returns | Effect |
+| ---- | --------------------------- | ------- | ------ |
+| `SetTimeOfDay` | `timeOfDay: float` | void | Jump the clock (wrapped into [0,1)); re-lights immediately. |
+| `SetCycleSeconds` | `cycleSeconds: float` | void | Real seconds per full day (clamped >= 0; 0 freezes the clock). |
+| `SetPaused` | `paused: bool` | void | Pause or resume the automatic advance. |
+| `StepHours` | `hours: float` | void | Advance by in-game hours (24 = a full cycle; may be negative). |
+| `GetTimeOfDay` | | `float` | Current normalized time of day. |
+| `GetDayNightInfo` | | `DioramaDayNightInfo` | Read-only: time, resolved sun color/intensity/elevation, daytime flag, paused. |
+
+## Simulation buses (deterministic sim)
+
+The deterministic layer's buses are **Broadcast** (no entity id): one **2D
+Simulation Clock** per level handles them (how-to
+[30-deterministic-sim](../howto/30-deterministic-sim.md)).
+
+**`DioramaSimClockRequestBus`** (Broadcast):
+
+| Verb | Signature | Returns | Effect |
+| ---- | --------- | ------- | ------ |
+| `GetSimFrame` | | `int` | Current simulation frame (monotonic from 0). |
+| `SetPaused` | `paused: bool` | void | Freeze or resume the fixed stepping. |
+| `StepOnce` | | void | Run exactly one step now (training-mode frame advance; the rollback re-simulation primitive). |
+| `SetStepsPerSecond` | `stepsPerSecond: float` | void | Fixed rate (clamped [1, 1000]); deterministic games set it once at startup. |
+| `GetSimClockInfo` | | `DioramaSimClockInfo` | Read-only: frame, rate, paused, RNG draw count. |
+| `GetStateHash` | | `int` | FNV-1a 64 hash of a fresh frame image: the determinism fingerprint. |
+| `SaveToSlot` | `slot: int` | void | Capture the frame image into an internal slot (0..7). |
+| `RestoreFromSlot` | `slot: int` | `bool` | Restore a slot (false if empty/invalid). |
+
+C++ rollback layers additionally use the unreflected `CaptureFrame` /
+`RestoreFrame` buffer verbs on the same bus and keep their own frame history.
+
+**`DioramaRandomRequestBus`** (Broadcast): seeded gameplay randomness; the same
+seed yields the same sequence on every platform, and the sequence position is part
+of every snapshot. Not cryptographic.
+
+| Verb | Signature | Returns | Effect |
+| ---- | --------- | ------- | ------ |
+| `SetSeed` | `seed: int` | void | Reset the sequence (any value; draw count resets). |
+| `RandFloat` | | `float` | Uniform [0, 1). |
+| `RandRange` | `minValue, maxValue: float` | `float` | Uniform [min, max); reversed range returns min. |
+| `RandInt` | `minValue, maxValue: int` | `int` | Uniform [min, max], both inclusive; reversed returns min. |
+| `GetRandomDraws` | | `int` | Values drawn since the last seed (verify-loop readback). |
+
+`DioramaSimTickNotificationBus` (Broadcast) fires `OnSimTick(frame, stepSeconds)`
+once per fixed step: the deterministic heartbeat gameplay subscribes to instead of
+the render tick.
 
 ## Query and verify (the verify loop)
 

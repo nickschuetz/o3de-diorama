@@ -39,7 +39,9 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   gathers scene lights on the CPU into a Diorama-owned SRG and the sprite shader
   loops them against a per-sprite normal map, which avoids Forward+ culling and
   any dependency on Atom pass SRGs being bound to our dynamic draw. Phased
-  directional then point then spot. Implementation pending on-screen verification.
+  directional then point then spot. **Shipped (v1a + v1b)**: directional + point
+  lights modulating sprites, plus per-sprite normal maps for shaped shading,
+  verified on screen ([howto/07-lighting.md](howto/07-lighting.md)).
 - **2D post-processing** (M). Expose Atom's bloom, color grading, vignette, and a
   CRT/scanline option for the 2D scene. Glowing sprites and filmic/retro looks
   mostly for free via Atom passes; the work is a clean, 2D-friendly control
@@ -62,7 +64,8 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
 - **Per-sprite materials / effects** (M). A small material surface for outline,
   flash, dissolve, hue-shift, and additive/blend modes, so common effects are a
   property, not hand-rolled Lua. Outline + flash alone replace a lot of gameplay
-  juice code. **Design done** ([design/2d-materials.md](design/2d-materials.md)):
+  juice code. **Shipped (v1: hit-flash + outline + emissive)**
+  ([design/2d-materials.md](design/2d-materials.md), [howto/10-materials.md](howto/10-materials.md)):
   cheap effects ride the vertex stream to stay batched; richer ones key into the
   batch as variants.
 

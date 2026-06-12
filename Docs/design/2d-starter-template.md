@@ -1,6 +1,6 @@
 # Design: instant-start "New 2.5D Game" template and robustness pass
 
-Status: **shipped** — the `Diorama2DGame` project template (`Templates/Diorama2DGame`)
+Status: **shipped**: the `Diorama2DGame` project template (`Templates/Diorama2DGame`)
 + [how-to 20](../howto/20-template.md).
 
 ## Goal
