@@ -126,14 +126,17 @@ namespace Diorama
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
-            // Version 2 adds the motion-input layer (direction action + motions); the
-            // new fields default to empty so a v1 config keeps its exact behavior.
+            // Version 2 adds the motion-input layer (direction action + motions);
+            // version 3 the sim-clock sampling mode + history ring. New fields default
+            // off/empty so an older config keeps its exact behavior.
             serializeContext->Class<DioramaInputConfig>()
-                ->Version(2)
+                ->Version(3)
                 ->Field("actions", &DioramaInputConfig::m_actions)
                 ->Field("directionAction", &DioramaInputConfig::m_directionAction)
                 ->Field("directionDeadZone", &DioramaInputConfig::m_directionDeadZone)
-                ->Field("motions", &DioramaInputConfig::m_motions);
+                ->Field("motions", &DioramaInputConfig::m_motions)
+                ->Field("useSimClock", &DioramaInputConfig::m_useSimClock)
+                ->Field("historyFrames", &DioramaInputConfig::m_historyFrames);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -153,7 +156,19 @@ namespace Diorama
                         "Stick magnitude below which the direction reads as centered")
                     ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
                     ->Attribute(AZ::Edit::Attributes::Max, 0.99f)
-                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaInputConfig::m_motions, "Motions", "Recognized motions");
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaInputConfig::m_motions, "Motions", "Recognized motions")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaInputConfig::m_useSimClock,
+                        "Use Simulation Clock",
+                        "Sample once per fixed simulation step (needs a 2D Simulation Clock) and keep a per-frame history ring")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaInputConfig::m_historyFrames,
+                        "History Frames",
+                        "Ring capacity in simulation frames (how far back frame queries reach)")
+                    ->Attribute(AZ::Edit::Attributes::Min, 2)
+                    ->Attribute(AZ::Edit::Attributes::Max, 3600);
             }
         }
     }
@@ -251,6 +266,22 @@ namespace Diorama
         m_directionHistory.clear();
         m_directionActionIndex = m_config.m_directionAction.empty() ? -1 : FindAction(m_config.m_directionAction);
 
+        // Sim-clock mode: size the history ring (every slot pre-sized to the action
+        // count so the steady state never allocates) and listen for fixed steps. The
+        // render tick stays connected for the live channel cache; evaluation moves to
+        // OnSimTick.
+        m_ring.clear();
+        if (m_config.m_useSimClock)
+        {
+            const int capacity = m_config.m_historyFrames < 2 ? 2 : m_config.m_historyFrames;
+            m_ring.resize(static_cast<size_t>(capacity));
+            for (FrameRecord& record : m_ring)
+            {
+                record.m_values.assign(m_config.m_actions.size(), InputMap::ActionValue());
+            }
+            DioramaSimTickNotificationBus::Handler::BusConnect();
+        }
+
         DioramaInputRequestBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
         AzFramework::InputChannelEventListener::Connect();
@@ -260,6 +291,10 @@ namespace Diorama
     {
         AzFramework::InputChannelEventListener::Disconnect();
         AZ::TickBus::Handler::BusDisconnect();
+        if (m_config.m_useSimClock)
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
         DioramaInputRequestBus::Handler::BusDisconnect();
     }
 
@@ -281,6 +316,13 @@ namespace Diorama
 
     void DioramaInputComponent::OnTick([[maybe_unused]] float deltaTime, AZ::ScriptTimePoint time)
     {
+        if (m_config.m_useSimClock)
+        {
+            // Sim-clock mode: the render tick only keeps the live channel cache warm
+            // (OnInputChannelEventFiltered); evaluation happens once per fixed step in
+            // OnSimTick so the same frames replay to the same actions.
+            return;
+        }
         const AZStd::span<const float> sources(m_sources.data(), m_sources.size());
         for (size_t i = 0; i < m_definition.m_actions.size() && i < m_values.size(); ++i)
         {
@@ -395,5 +437,145 @@ namespace Diorama
     {
         const int index = FindMotion(motion);
         return (index >= 0 && index < static_cast<int>(m_motionMatched.size())) ? m_motionMatched[index] : false;
+    }
+
+    // ---- Sim-clock mode (deterministic sim phase C) -----------------------------------
+
+    DioramaInputComponent::FrameRecord* DioramaInputComponent::RecordForFrame(AZ::s64 frame)
+    {
+        if (m_ring.empty() || frame < 0)
+        {
+            return nullptr;
+        }
+        FrameRecord& record = m_ring[static_cast<size_t>(frame % static_cast<AZ::s64>(m_ring.size()))];
+        return (record.m_frame == frame) ? &record : nullptr;
+    }
+
+    const InputMap::ActionValue* DioramaInputComponent::ValueAtFrame(const AZStd::string& action, AZ::s64 frame)
+    {
+        const int index = FindAction(action);
+        if (index < 0)
+        {
+            return nullptr;
+        }
+        FrameRecord* record = RecordForFrame(frame);
+        if (record == nullptr || index >= static_cast<int>(record->m_values.size()))
+        {
+            return nullptr;
+        }
+        return &record->m_values[static_cast<size_t>(index)];
+    }
+
+    void DioramaInputComponent::OnSimTick(AZ::s64 frame, float stepSeconds)
+    {
+        if (m_ring.empty())
+        {
+            return;
+        }
+        FrameRecord& record = m_ring[static_cast<size_t>(frame % static_cast<AZ::s64>(m_ring.size()))];
+
+        // Edges derive from the previous FRAME's record (not whatever m_values held),
+        // so they are exact per-step transitions, identical on re-simulation.
+        const FrameRecord* prev = RecordForFrame(frame - 1);
+
+        // A frame that already has a record REPLAYS it (recomputing only the edges):
+        // that is a re-simulation after a rollback restore, where the ring (plus any
+        // injected corrections) is the authoritative input log and the live devices
+        // hold the present, not this frame's past. Only a never-recorded frame
+        // samples the live channel cache.
+        const bool replay = (record.m_frame == frame);
+        const AZStd::span<const float> sources(m_sources.data(), m_sources.size());
+        for (size_t i = 0; i < m_definition.m_actions.size() && i < record.m_values.size(); ++i)
+        {
+            const bool prevPressed = (prev != nullptr && i < prev->m_values.size()) ? prev->m_values[i].m_pressed : false;
+            if (replay)
+            {
+                InputMap::ActionValue& v = record.m_values[i];
+                v.m_pressedThisFrame = v.m_pressed && !prevPressed;
+                v.m_releasedThisFrame = !v.m_pressed && prevPressed;
+            }
+            else
+            {
+                record.m_values[i] = InputMap::EvaluateAction(m_definition.m_actions[i], sources, prevPressed);
+            }
+        }
+        record.m_frame = frame;
+        record.m_injected = false;
+
+        // The live surface (IsPressed / GetValue / edges) mirrors the newest frame.
+        m_values = record.m_values;
+        for (size_t i = 0; i < m_values.size() && i < m_config.m_actions.size(); ++i)
+        {
+            if (m_values[i].m_pressedThisFrame)
+            {
+                DioramaInputNotificationBus::Event(
+                    GetEntityId(), &DioramaInputNotifications::OnActionPressed, m_config.m_actions[i].m_name);
+            }
+            if (m_values[i].m_releasedThisFrame)
+            {
+                DioramaInputNotificationBus::Event(
+                    GetEntityId(), &DioramaInputNotifications::OnActionReleased, m_config.m_actions[i].m_name);
+            }
+        }
+
+        if (m_directionActionIndex >= 0)
+        {
+            // Frame-derived time: exact and identical on every machine and every
+            // re-simulation (wall-clock time is neither). Known limit: the direction
+            // history is not rewound by a rollback restore, so motion recognition
+            // around a rollback converges within one buffer window rather than
+            // replaying exactly; games that need exact motion rollback gate motions
+            // on button edges (which do replay exactly).
+            UpdateMotions(static_cast<float>(frame) * stepSeconds);
+        }
+    }
+
+    bool DioramaInputComponent::WasPressedAtFrame(const AZStd::string& action, AZ::s64 frame)
+    {
+        const InputMap::ActionValue* value = ValueAtFrame(action, frame);
+        return value != nullptr && value->m_pressed;
+    }
+
+    float DioramaInputComponent::GetValueAtFrame(const AZStd::string& action, AZ::s64 frame)
+    {
+        const InputMap::ActionValue* value = ValueAtFrame(action, frame);
+        return value != nullptr ? value->m_x : 0.0f;
+    }
+
+    float DioramaInputComponent::GetValueYAtFrame(const AZStd::string& action, AZ::s64 frame)
+    {
+        const InputMap::ActionValue* value = ValueAtFrame(action, frame);
+        return value != nullptr ? value->m_y : 0.0f;
+    }
+
+    void DioramaInputComponent::InjectActionState(AZ::s64 frame, const AZStd::string& action, float x, float y, bool pressed)
+    {
+        if (m_ring.empty() || frame < 0)
+        {
+            return; // sim-clock mode only
+        }
+        const int index = FindAction(action);
+        if (index < 0)
+        {
+            return;
+        }
+        FrameRecord& record = m_ring[static_cast<size_t>(frame % static_cast<AZ::s64>(m_ring.size()))];
+        if (record.m_frame != frame || !record.m_injected)
+        {
+            // Claiming the slot for a new injected frame: start every action from a
+            // neutral state so one injected action does not drag along stale values
+            // from whatever old frame occupied the slot.
+            for (InputMap::ActionValue& v : record.m_values)
+            {
+                v = InputMap::ActionValue();
+            }
+            record.m_frame = frame;
+            record.m_injected = true;
+        }
+        InputMap::ActionValue& v = record.m_values[static_cast<size_t>(index)];
+        v.m_x = x;
+        v.m_y = y;
+        v.m_pressed = pressed;
+        // Edges are derived when the frame is simulated (OnSimTick), not here.
     }
 } // namespace Diorama

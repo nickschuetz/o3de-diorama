@@ -24,6 +24,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   xorshift64*, exact integer math, platform-identical) over `DioramaRandomRequestBus`
   (`SetSeed`, `RandFloat`, `RandRange`, `RandInt`, `GetRandomDraws`), so randomness can
   be seeded, replayed, and later snapshotted. Not cryptographic; gameplay only.
+- **Per-sim-frame input ring + determinism proof** (deterministic sim, phases C and
+  D). The **2D Input Actions** component gains a **Use Simulation Clock** mode: input
+  is sampled once per fixed step into a ring of recent frames (default 120), with
+  frame queries (`WasPressedAtFrame`, `GetValueAtFrame`, `GetValueYAtFrame`) and
+  **`InjectActionState(frame, action, x, y, pressed)`**, which overwrites a frame's
+  record so a rollback layer can apply corrected remote inputs, a replay can play
+  back, and a bot can drive a fighter through the exact pipeline a human uses. On
+  re-simulation after a restore the ring **replays** recorded frames instead of
+  re-sampling live devices, and it deliberately survives a restore (the input log
+  lives outside the state, the standard rollback model); press/release edges derive
+  per sim frame, and motion windows use frame-derived time. Phase D ships the
+  acceptance proof in the normal test suite (`DeterminismTest.cpp`: a scripted run
+  replays from a restored snapshot to bit-identical per-frame hashes, and a mid-run
+  rollback re-advances to the exact end hash, so every PR re-proves determinism), a
+  **rewind sample** (`Assets/Diorama/Examples/Simulation/rewind_demo.lua`: rotating
+  autosave slots + a rewind key), and the how-to
+  ([Docs/howto/30-deterministic-sim.md](Docs/howto/30-deterministic-sim.md)) with an
+  honest current-limits list (render-tick components' sim-clock migration is the
+  noted follow-up).
 - **Simulation snapshot/restore** (deterministic sim, phase B infrastructure). The
   clock gains frame capture: a new **Simulation State** marker component
   (`DioramaSimStateComponent`, no configuration) enrolls an entity, and the marker

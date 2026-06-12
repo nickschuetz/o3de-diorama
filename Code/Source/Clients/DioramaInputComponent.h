@@ -10,6 +10,7 @@
 #include <Clients/InputActionMap.h>
 #include <Clients/MotionInput.h>
 #include <Diorama/DioramaInputBus.h>
+#include <Diorama/DioramaSimClockBus.h>
 
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
@@ -88,6 +89,15 @@ namespace Diorama
         float m_directionDeadZone = 0.4f;
         //! Motions recognized from the direction history.
         AZStd::vector<DioramaMotionData> m_motions;
+
+        //! Sample input once per fixed simulation step (the 2D Simulation Clock's
+        //! OnSimTick) instead of per render tick, recording each frame's action states
+        //! into a ring so the recent history is queryable and injectable by frame
+        //! (deterministic sim phase C). Requires a 2D Simulation Clock in the level.
+        bool m_useSimClock = false;
+        //! Ring capacity in simulation frames (how far back WasPressedAtFrame reads
+        //! and how far ahead InjectActionState writes). 120 at 60 steps/s = 2 seconds.
+        int m_historyFrames = 120;
     };
 
     //! Resolve the authored, channel-name-based config into the pure InputMap actions
@@ -110,6 +120,7 @@ namespace Diorama
         : public AZ::Component
         , protected AZ::TickBus::Handler
         , protected DioramaInputRequestBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
         , public AzFramework::InputChannelEventListener
     {
     public:
@@ -139,6 +150,13 @@ namespace Diorama
         float GetValue(const AZStd::string& action) override;
         float GetValueY(const AZStd::string& action) override;
         bool WasMotionPerformed(const AZStd::string& motion) override;
+        bool WasPressedAtFrame(const AZStd::string& action, AZ::s64 frame) override;
+        float GetValueAtFrame(const AZStd::string& action, AZ::s64 frame) override;
+        float GetValueYAtFrame(const AZStd::string& action, AZ::s64 frame) override;
+        void InjectActionState(AZ::s64 frame, const AZStd::string& action, float x, float y, bool pressed) override;
+
+        // DioramaSimTickNotifications (sim-clock mode: one input sample per fixed step)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
 
     private:
         //! Index of an action by name, or -1.
@@ -159,5 +177,22 @@ namespace Diorama
         AZStd::vector<MotionInput::Sample> m_directionHistory; //!< Recent directions, oldest first.
         AZStd::vector<bool> m_motionMatched; //!< Per-motion match state last tick (edge detection).
         int m_directionActionIndex = -1; //!< Cached index of m_config.m_directionAction, or -1.
+
+        //! One simulation frame's recorded action states (sim-clock mode). A slot is
+        //! valid for frame f only when m_frame == f (the ring reuses slots).
+        struct FrameRecord
+        {
+            AZ::s64 m_frame = -1;
+            bool m_injected = false; //!< Pre-written by InjectActionState; do not sample over it.
+            AZStd::vector<InputMap::ActionValue> m_values; //!< Aligned to m_config.m_actions.
+        };
+        //! The input ring (sim-clock mode): m_ring[frame % capacity]. Deliberately NOT
+        //! part of the snapshot/restore image: rollback restores state and then
+        //! re-simulates USING this history (plus injected corrections), so the ring
+        //! must survive a restore (the input log lives outside the state).
+        AZStd::vector<FrameRecord> m_ring;
+        //! Ring slot for a frame, or nullptr when that frame's record is absent.
+        FrameRecord* RecordForFrame(AZ::s64 frame);
+        const InputMap::ActionValue* ValueAtFrame(const AZStd::string& action, AZ::s64 frame);
     };
 } // namespace Diorama

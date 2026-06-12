@@ -21,6 +21,8 @@ set(FILES
     Tests/Clients/DayNightCycleTest.cpp
     Tests/Clients/SimClockTest.cpp
     Tests/Clients/SimStateTest.cpp
+    Tests/Clients/SimInputRingTest.cpp
+    Tests/Clients/DeterminismTest.cpp
     Tests/Clients/AnimStateMachineTest.cpp
     Tests/Clients/DioramaTestMain.cpp
 )

@@ -48,6 +48,26 @@ namespace Diorama
         //! gameplay gates it with a button edge, e.g. WasMotionPerformed("qcf") &&
         //! WasPressedThisFrame("punch"). Unknown motion names read false.
         virtual bool WasMotionPerformed(const AZStd::string& motion) = 0;
+
+        // Per-sim-frame input history (deterministic sim phase C). Available when the
+        // component's Use Simulation Clock mode is on: input is sampled once per fixed
+        // simulation step into a ring of recent frames, so the same frames replay to
+        // the same actions. Out-of-window frames (older than the ring, or not yet
+        // simulated) read as zero / not pressed.
+
+        //! Was the action pressed on a specific simulation frame.
+        virtual bool WasPressedAtFrame(const AZStd::string& action, AZ::s64 frame) = 0;
+        //! The action's primary value (X) on a specific simulation frame.
+        virtual float GetValueAtFrame(const AZStd::string& action, AZ::s64 frame) = 0;
+        //! The action's Y value on a specific simulation frame.
+        virtual float GetValueYAtFrame(const AZStd::string& action, AZ::s64 frame) = 0;
+        //! Overwrite one action's state for a simulation frame (current or future).
+        //! When that frame is simulated (or re-simulated after a rollback restore),
+        //! the injected state is used instead of sampling the live devices; press and
+        //! release edges are derived against the prior frame's record. This is how a
+        //! rollback layer feeds corrected remote inputs, how a replay is played back,
+        //! and how a bot drives a fighter through the exact pipeline a human does.
+        virtual void InjectActionState(AZ::s64 frame, const AZStd::string& action, float x, float y, bool pressed) = 0;
     };
 
     using DioramaInputRequestBus = AZ::EBus<DioramaInputRequests>;
