@@ -352,7 +352,10 @@ namespace Diorama
         query.m_shape.m_type = Collision2D::ShapeType::Box;
         query.m_shape.m_halfExtents = AZ::Vector2(halfWidth < 0.0f ? 0.0f : halfWidth, halfHeight < 0.0f ? 0.0f : halfHeight);
 
-        AZ::Vector2 total(0.0f, 0.0f);
+        // Accumulate in sorted entity-id order: float addition is not associative,
+        // so summing in unordered_map iteration order would make the result differ
+        // across runs in the low bits (a replay/rollback divergence seed).
+        m_pushScratch.clear();
         for (const auto& entry : m_colliders)
         {
             if (entry.first == exclude)
@@ -364,16 +367,36 @@ namespace Diorama
             {
                 continue;
             }
+            m_pushScratch.push_back({ entry.first, &c });
+        }
+        AZStd::sort(
+            m_pushScratch.begin(),
+            m_pushScratch.end(),
+            [](const auto& a, const auto& b)
+            {
+                return a.first < b.first;
+            });
+
+        AZ::Vector2 total(0.0f, 0.0f);
+        for (const auto& [id, collider] : m_pushScratch)
+        {
+            const Collision2D::Collider& c = *collider;
             total += c.m_oneWay ? Collision2D::OneWayPushOut(query, c) : Collision2D::MinimumTranslation(query, c);
         }
-        // Push out of static tilemap geometry too.
+        // Push out of static tilemap geometry too, owners visited in sorted order
+        // for the same reason (each owner's own boxes are already a stable vector).
+        m_staticOrderScratch.clear();
         for (const auto& set : m_staticSets)
         {
-            if (set.first == exclude)
+            if (set.first != exclude)
             {
-                continue;
+                m_staticOrderScratch.push_back(set.first);
             }
-            for (const Collision2D::Collider& c : set.second)
+        }
+        AZStd::sort(m_staticOrderScratch.begin(), m_staticOrderScratch.end());
+        for (const AZ::EntityId& owner : m_staticOrderScratch)
+        {
+            for (const Collision2D::Collider& c : m_staticSets[owner])
             {
                 if (!c.m_enabled || (layerMask != 0u && (c.m_layer & layerMask) == 0u))
                 {

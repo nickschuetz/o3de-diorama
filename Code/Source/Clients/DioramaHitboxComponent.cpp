@@ -14,6 +14,7 @@
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
+#include <AzCore/std/sort.h>
 
 namespace Diorama
 {
@@ -143,12 +144,14 @@ namespace Diorama
 
         DioramaHitboxRequestBus::Handler::BusConnect(GetEntityId());
         DioramaSpriteNotificationBus::Handler::BusConnect(GetEntityId());
+        DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
     }
 
     void DioramaHitboxComponent::Deactivate()
     {
         AZ::TickBus::Handler::BusDisconnect();
+        DioramaSimStateParticipantBus::Handler::BusDisconnect();
         DioramaSpriteNotificationBus::Handler::BusDisconnect();
         DioramaHitboxRequestBus::Handler::BusDisconnect();
         if (auto* world = Collision2DWorld::Get())
@@ -290,5 +293,86 @@ namespace Diorama
         info.m_activeHitboxes = m_activeHitboxes;
         info.m_activeHurtboxes = m_activeHurtboxes;
         return info;
+    }
+
+    // ---- Snapshot / restore (design phase B) -----------------------------------------
+    // Chunk payload: frame (s64), facing (u8: 1 = +X), box count (u32), then per box
+    // wasActive (u8) + already-hit count (u32) + that many entity ids (u64), written in
+    // ascending id order so the image is canonical (the live set is unordered).
+
+    void DioramaHitboxComponent::SaveSimState(SimState::Writer& writer)
+    {
+        const size_t sizePos = writer.BeginChunk(HitboxChunkTag);
+        writer.S64(m_frame);
+        writer.U8(m_config.m_facing < 0 ? 0 : 1);
+        writer.U32(static_cast<AZ::u32>(m_boxState.size()));
+        AZStd::vector<AZ::u64> ids;
+        for (const BoxState& state : m_boxState)
+        {
+            writer.U8(state.m_wasActive ? 1 : 0);
+            ids.clear();
+            ids.reserve(state.m_alreadyHit.size());
+            for (const AZ::EntityId& hit : state.m_alreadyHit)
+            {
+                ids.push_back(static_cast<AZ::u64>(hit));
+            }
+            AZStd::sort(ids.begin(), ids.end());
+            writer.U32(static_cast<AZ::u32>(ids.size()));
+            for (AZ::u64 id : ids)
+            {
+                writer.U64(id);
+            }
+        }
+        writer.EndChunk(sizePos);
+    }
+
+    bool DioramaHitboxComponent::TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload)
+    {
+        if (tag != HitboxChunkTag)
+        {
+            return false;
+        }
+        AZ::s64 frame = 0;
+        AZ::u8 facing = 1;
+        AZ::u32 boxCount = 0;
+        if (!payload.S64(frame) || !payload.U8(facing) || !payload.U32(boxCount))
+        {
+            return false;
+        }
+        if (boxCount != m_boxState.size())
+        {
+            // The rig was re-authored since this image was taken: apply the scalar
+            // state and reset the per-box bookkeeping to a known-fresh state rather
+            // than misalign windows across a different box set.
+            m_frame = static_cast<int>(frame);
+            m_config.m_facing = (facing != 0) ? 1 : -1;
+            m_boxState.assign(m_boxState.size(), BoxState());
+            return true;
+        }
+        // Parse into scratch first so a truncated payload cannot half-apply.
+        AZStd::vector<BoxState> restored(boxCount);
+        for (AZ::u32 i = 0; i < boxCount; ++i)
+        {
+            AZ::u8 wasActive = 0;
+            AZ::u32 hitCount = 0;
+            if (!payload.U8(wasActive) || !payload.U32(hitCount) || hitCount > payload.Remaining() / 8)
+            {
+                return false;
+            }
+            restored[i].m_wasActive = wasActive != 0;
+            for (AZ::u32 h = 0; h < hitCount; ++h)
+            {
+                AZ::u64 raw = 0;
+                if (!payload.U64(raw))
+                {
+                    return false;
+                }
+                restored[i].m_alreadyHit.insert(AZ::EntityId(raw));
+            }
+        }
+        m_frame = static_cast<int>(frame);
+        m_config.m_facing = (facing != 0) ? 1 : -1;
+        m_boxState = AZStd::move(restored);
+        return true;
     }
 } // namespace Diorama

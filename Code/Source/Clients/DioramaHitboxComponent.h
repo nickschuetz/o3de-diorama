@@ -9,6 +9,7 @@
 
 #include <Clients/Collider2DComponent.h> // CollisionPlane
 #include <Clients/HitboxFrames.h>
+#include <Clients/SimStateBus.h>
 #include <Diorama/DioramaHitboxBus.h>
 #include <Diorama/SpriteBus.h>
 
@@ -79,9 +80,13 @@ namespace Diorama
         , protected AZ::TickBus::Handler
         , protected DioramaSpriteNotificationBus::Handler
         , protected DioramaHitboxRequestBus::Handler
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaHitboxComponent, DioramaHitboxComponentTypeId);
+
+        //! Chunk tag for the rig's frame/facing/per-box window state.
+        static constexpr AZ::u32 HitboxChunkTag = 0x584F4248; // 'HBOX' little-endian
 
         static void Reflect(AZ::ReflectContext* context);
 
@@ -109,6 +114,12 @@ namespace Diorama
         int GetFacing() override;
         void SetFrame(int frame) override;
         DioramaHitboxInfo GetHitboxInfo() override;
+
+        // DioramaSimStateParticipants (rollback snapshot: frame, facing, and each
+        // box's active-window bookkeeping, so a restored swing re-resolves hits
+        // exactly as the original did)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
 
     private:
         //! Project the entity's world translation onto the configured collision plane.

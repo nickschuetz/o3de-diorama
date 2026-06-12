@@ -145,6 +145,11 @@ namespace Diorama
 
         // Per-step scratch, reused so the step does no steady-state allocation.
         AZStd::vector<Collision2D::Collider> m_scratchColliders;
+        //! Reused by ComputeBoxPushOut: (id, collider) pairs accumulated in sorted
+        //! entity-id order, so the float MTV sum is deterministic (addition order
+        //! would otherwise follow unordered_map iteration).
+        AZStd::vector<AZStd::pair<AZ::EntityId, const Collision2D::Collider*>> m_pushScratch;
+        AZStd::vector<AZ::EntityId> m_staticOrderScratch;
         AZStd::vector<Collision2D::PairKey> m_currentPairs;
         AZStd::vector<Collision2D::PairKey> m_began;
         AZStd::vector<Collision2D::PairKey> m_ended;

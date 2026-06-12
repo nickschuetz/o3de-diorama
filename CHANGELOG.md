@@ -29,8 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   (`DioramaSimStateComponent`, no configuration) enrolls an entity, and the marker
   itself snapshots/restores the entity's **world translation** (the bulk of sim state
   in transform-driven Diorama gameplay); snapshot-capable components contribute their
-  own tagged chunks through an internal participant bus (component coverage lands
-  next). Capture writes a canonical little-endian image on the pure tested `SimState`
+  own tagged chunks through an internal participant bus. First component coverage
+  ships with it: the **2D Frame-Data Hitboxes** rig (current frame, facing, and each
+  box's active-window bookkeeping including its already-hit set, so a restored swing
+  re-resolves hits exactly as the original did) and the **2D Bullet Emitter** (the
+  live bullet pool with full per-bullet kinematics plus the spiral angle and fire
+  state, so a restored frame replays the exact bullet field). Capture writes a
+  canonical little-endian image on the pure tested `SimState`
   writer/reader core (participants sorted by entity id, so the image and its hash are
   run-independent); **restore treats the buffer as untrusted** (bounds-checked reads,
   magic/version/range validation, malformed input rejected, chunks for missing
@@ -194,6 +199,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   hit" could differ between runs of the same scene: visible to any script that indexes
   the result list, and a blocker for replay/rollback determinism
   ([Docs/design/2d-deterministic-sim.md](Docs/design/2d-deterministic-sim.md)).
+- **Deterministic push-out accumulation.** `ComputeBoxPushOut` now sums per-collider
+  push vectors in sorted entity-id order (dynamic colliders and static-set owners
+  both). Float addition is not associative, so summing in hash-map iteration order
+  could differ across runs in the low bits: harmless to the eye, but a divergence
+  seed for replays and rollback.
 - **Bullet emitter unity-build robustness.** `DioramaBulletEmitterComponent.cpp` serializes
   a `Data::Asset<StreamingImageAsset>` field but was relying on a transitive include of the
   `Data::Asset<T>` serializer from a unity-build neighbor; it now includes

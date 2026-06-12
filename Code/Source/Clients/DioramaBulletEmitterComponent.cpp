@@ -176,11 +176,13 @@ namespace Diorama
         QueueTextureLoad();
         AZ::TickBus::Handler::BusConnect();
         DioramaBulletRequestBus::Handler::BusConnect(GetEntityId());
+        DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
         TryAcquireFeatureProcessor();
     }
 
     void DioramaBulletEmitterComponent::Deactivate()
     {
+        DioramaSimStateParticipantBus::Handler::BusDisconnect();
         DioramaBulletRequestBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
         AZ::Data::AssetBus::Handler::BusDisconnect();
@@ -492,5 +494,77 @@ namespace Diorama
         info.m_pattern = static_cast<int>(m_config.m_pattern);
         info.m_fireRate = m_config.m_fireRate;
         return info;
+    }
+
+    // ---- Snapshot / restore (design phase B) -----------------------------------------
+    // Chunk payload: spiral angle (f32), fire accumulator (f32), firing (u8), bullet
+    // count (u32), then per live bullet the full particle: position, velocity (2x f32
+    // each), rotation, angular velocity, age, lifetime (f32 each). The pool is dense
+    // (live bullets only), so the image is canonical as captured.
+
+    void DioramaBulletEmitterComponent::SaveSimState(SimState::Writer& writer)
+    {
+        const size_t sizePos = writer.BeginChunk(BulletChunkTag);
+        writer.F32(m_spiralAngleDegrees);
+        writer.F32(m_fireAccumulator);
+        writer.U8(m_firing ? 1 : 0);
+        writer.U32(static_cast<AZ::u32>(m_bullets.size()));
+        for (const Particles2D::Particle& b : m_bullets)
+        {
+            writer.F32(b.m_position.GetX());
+            writer.F32(b.m_position.GetY());
+            writer.F32(b.m_velocity.GetX());
+            writer.F32(b.m_velocity.GetY());
+            writer.F32(b.m_rotation);
+            writer.F32(b.m_angularVelocity);
+            writer.F32(b.m_age);
+            writer.F32(b.m_lifetime);
+        }
+        writer.EndChunk(sizePos);
+    }
+
+    bool DioramaBulletEmitterComponent::TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload)
+    {
+        if (tag != BulletChunkTag)
+        {
+            return false;
+        }
+        float spiral = 0.0f;
+        float accumulator = 0.0f;
+        AZ::u8 firing = 0;
+        AZ::u32 count = 0;
+        if (!payload.F32(spiral) || !payload.F32(accumulator) || !payload.U8(firing) || !payload.U32(count))
+        {
+            return false;
+        }
+        // Each bullet is 8 floats; cap by the configured pool so a hostile count
+        // cannot grow the pool past its fixed capacity.
+        if (count > payload.Remaining() / 32 || count > static_cast<AZ::u32>(m_config.m_maxBullets))
+        {
+            return false;
+        }
+        AZStd::vector<Particles2D::Particle> restored;
+        restored.reserve(count);
+        for (AZ::u32 i = 0; i < count; ++i)
+        {
+            float px = 0.0f;
+            float py = 0.0f;
+            float vx = 0.0f;
+            float vy = 0.0f;
+            Particles2D::Particle b;
+            if (!payload.F32(px) || !payload.F32(py) || !payload.F32(vx) || !payload.F32(vy) || !payload.F32(b.m_rotation) ||
+                !payload.F32(b.m_angularVelocity) || !payload.F32(b.m_age) || !payload.F32(b.m_lifetime))
+            {
+                return false;
+            }
+            b.m_position = AZ::Vector2(px, py);
+            b.m_velocity = AZ::Vector2(vx, vy);
+            restored.push_back(b);
+        }
+        m_spiralAngleDegrees = spiral;
+        m_fireAccumulator = accumulator;
+        m_firing = firing != 0;
+        m_bullets = AZStd::move(restored);
+        return true;
     }
 } // namespace Diorama

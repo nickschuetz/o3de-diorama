@@ -9,6 +9,7 @@
 
 #include <Clients/BulletPattern.h>
 #include <Clients/Particles2D.h>
+#include <Clients/SimStateBus.h>
 #include <Diorama/DioramaBulletBus.h>
 #include <Diorama/SpriteComponentConfig.h>
 
@@ -84,9 +85,13 @@ namespace Diorama
         , protected AZ::TickBus::Handler
         , protected DioramaBulletRequestBus::Handler
         , protected AZ::Data::AssetBus::Handler
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaBulletEmitterComponent, DioramaBulletEmitterComponentTypeId);
+
+        //! Chunk tag for the live-bullet pool + fire state.
+        static constexpr AZ::u32 BulletChunkTag = 0x544C4C42; // 'BLLT' little-endian
 
         static void Reflect(AZ::ReflectContext* context);
         static void GetRequiredServices(AZ::ComponentDescriptor::DependencyArrayType& required);
@@ -118,6 +123,11 @@ namespace Diorama
         void SetSpread(float degrees) override;
         void SetSpin(float degreesPerShot) override;
         DioramaBulletInfo GetBulletInfo() override;
+
+        // DioramaSimStateParticipants (rollback snapshot: the live bullet pool and
+        // the fire state, so a restored frame replays the exact danmaku field)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
 
     public:
         //! Run one emission shot now: compute the pattern velocities and spawn a bullet
