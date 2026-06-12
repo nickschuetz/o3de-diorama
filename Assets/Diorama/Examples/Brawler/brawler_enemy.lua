@@ -40,11 +40,12 @@ function BrawlerEnemy:OnTick(deltaTime, timePoint)
     -- Close the horizontal gap until within StopDistance.
     local myPos = TransformBus.Event.GetWorldTranslation(id)
     local targetPos = TransformBus.Event.GetWorldTranslation(target)
-    local dx = targetPos:GetX() - myPos:GetX()
+    -- Read the Vector3 by property (.x); pos:GetX() is nil in this engine's Lua.
+    local dx = targetPos.x - myPos.x
     if math.abs(dx) > self.Properties.StopDistance then
         local dir = dx > 0.0 and 1.0 or -1.0
-        myPos:SetX(myPos:GetX() + dir * self.Properties.MoveSpeed * deltaTime)
-        TransformBus.Event.SetWorldTranslation(id, myPos)
+        local nx = myPos.x + dir * self.Properties.MoveSpeed * deltaTime
+        TransformBus.Event.SetWorldTranslation(id, Vector3(nx, myPos.y, myPos.z))
         DioramaSpriteRequestBus.Event.SetFlip(id, dir < 0.0, false)
     else
         -- In range and (after MoveDepthToward) on the lane: a real game triggers the

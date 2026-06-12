@@ -6,12 +6,18 @@
  */
 
 #include <Clients/DioramaSimClockComponent.h>
+<<<<<<< HEAD
 #include <Clients/SimState.h>
 #include <Clients/SimStateBus.h>
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/std/sort.h>
+=======
+
+#include <AzCore/Serialization/EditContext.h>
+#include <AzCore/Serialization/SerializeContext.h>
+>>>>>>> origin/main
 
 namespace Diorama
 {
@@ -197,6 +203,7 @@ namespace Diorama
     {
         return 1.0f / m_config.m_stepsPerSecond;
     }
+<<<<<<< HEAD
 
     // ---- Snapshot / restore (design phase B) -----------------------------------------
     //
@@ -360,4 +367,6 @@ namespace Diorama
         }
         return RestoreFrame(m_slots[slot]);
     }
+=======
+>>>>>>> origin/main
 } // namespace Diorama

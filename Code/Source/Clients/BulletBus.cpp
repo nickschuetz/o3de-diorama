@@ -63,6 +63,10 @@ namespace Diorama
             ->Event("SetAim", &DioramaBulletRequestBus::Events::SetAim, { { { "degrees", "Base angle (0 = +X, 90 = +Y)." } } })
             ->Event("SetSpread", &DioramaBulletRequestBus::Events::SetSpread, { { { "degrees", "Fan arc width." } } })
             ->Event("SetSpin", &DioramaBulletRequestBus::Events::SetSpin, { { { "degreesPerShot", "Spiral rotation per shot." } } })
+            ->Event(
+                "SetMuzzleOffset",
+                &DioramaBulletRequestBus::Events::SetMuzzleOffset,
+                { { { "x", "Muzzle X offset from the entity origin." }, { "y", "Muzzle Y offset." } } })
             ->Event("GetBulletInfo", &DioramaBulletRequestBus::Events::GetBulletInfo);
 
         behaviorContext->EBus<DioramaBulletNotificationBus>("DioramaBulletNotificationBus")
