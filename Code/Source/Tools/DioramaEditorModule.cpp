@@ -17,13 +17,13 @@
 #include <Tools/EditorDioramaCRTComponent.h>
 #include <Tools/EditorDioramaCamera2DComponent.h>
 #include <Tools/EditorDioramaDayNightComponent.h>
-#include <Tools/EditorDioramaSimClockComponent.h>
 #include <Tools/EditorDioramaDepthBodyComponent.h>
 #include <Tools/EditorDioramaHitboxComponent.h>
 #include <Tools/EditorDioramaInputComponent.h>
 #include <Tools/EditorDioramaLightComponent.h>
 #include <Tools/EditorDioramaLookComponent.h>
 #include <Tools/EditorDioramaParallaxComponent.h>
+#include <Tools/EditorDioramaSimClockComponent.h>
 #include <Tools/EditorDioramaSkeletalClipComponent.h>
 #include <Tools/EditorParticleEmitterComponent.h>
 #include <Tools/EditorSpriteComponent.h>

@@ -24,8 +24,8 @@
 #include <Clients/DioramaLightComponent.h>
 #include <Clients/DioramaLookComponent.h>
 #include <Clients/DioramaParallaxComponent.h>
-#include <Clients/DioramaSkeletalClipComponent.h>
 #include <Clients/DioramaSimClockComponent.h>
+#include <Clients/DioramaSkeletalClipComponent.h>
 #include <Clients/DioramaSystemComponent.h>
 #include <Clients/ParticleEmitterComponent.h>
 #include <Clients/SpriteComponent.h>
