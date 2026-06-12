@@ -14,7 +14,7 @@ SANS = "/usr/share/fonts/liberation-sans-fonts/LiberationSans-%s.ttf"
 def mono(sz): return ImageFont.truetype(MONO % "Bold", sz)
 def sans(sz): return ImageFont.truetype(SANS % "Regular", sz)
 
-W, H = 1600, 1240
+W, H = 1600, 1320
 img = Image.new("RGBA", (W, H), (6, 6, 9, 255))     # near-black arcade field
 d = ImageDraw.Draw(img)
 
@@ -38,18 +38,18 @@ TILES = [
     ("RENDERING", (255, 150, 52), "Batched feature processor (texture + sort-layer); camera-distance depth sort; off-screen culling."),
     ("DEPTH+SHADOW", (90, 210, 255), "2.5D draw order by world depth, plus soft ground shadows under billboarded sprites."),
     ("2.5D+PARALLAX", (120, 235, 150), "Depth-sorted layers, parallax backgrounds, and a tilted 2.5D camera."),
-    ("TILEMAP", (90, 225, 210), "Atlas tilemaps: 4-bit / 47-blob / custom rule-tile autotiling, in-editor paint, multi-layer .dtilemap / Tiled .tmj."),
-    ("ANIMATION", (200, 150, 255), "Sprite-sheet flipbook + frame events; skeletal cutout with clip cross-fade; native .aseprite import; parameter-driven state machine."),
+    ("TILEMAP", (90, 225, 210), "Atlas tilemaps: autotiling (4-bit, 47-blob, custom rules), in-editor paint, Tiled .tmj import."),
+    ("ANIMATION", (200, 150, 255), "Flipbook + frame events; skeletal cutout + cross-fade; .aseprite import; state machine."),
     ("LIGHTING", (255, 224, 110), "Gem-native 2D point + directional lights; normal-mapped sprites for shaped shading."),
     ("EFFECTS", (255, 96, 150), "2D particles; per-sprite flash, outline, emissive; hit-stop / slow-motion time-scale."),
     ("POST", (180, 130, 255), "Bloom + vignette via a 2D Look component, plus a retro CRT scanline pass."),
     ("CAMERA", (90, 200, 255), "Follow, deadzone, bounds, shake; versus framing + auto-zoom; ortho / pixel-perfect."),
-    ("GAMEPLAY", (140, 230, 130), "2D collision (colliders, triggers, queries, pushbox), frame-data hitboxes, and rebindable input with motion sequences, from game scripts."),
+    ("GAMEPLAY", (140, 230, 130), "2D collision (triggers, queries, pushbox), frame-data hitboxes, rebindable input + motions."),
     ("SCRIPTING", (255, 210, 90), "Typed per-feature request buses, usable from Lua, Python, and Script Canvas."),
-    ("DETERMINISM", (110, 240, 190), "Fixed-step sim clock, seeded RNG, snapshot/restore + state hash, per-frame input ring; rollback-ready, proven in CI."),
+    ("DETERMINISM", (110, 240, 190), "Fixed-step clock, seeded RNG, snapshot/restore + state hash, input ring; rollback-ready, CI-proven."),
     ("GRID INTEL", (255, 170, 90), "A* pathfinding, movement range, and shadowcast field of view over any tile grid."),
     ("AUDIO", (150, 200, 255), "One-shot and ambience conveniences over MiniAudio, on the same typed buses."),
-    ("SAMPLES", (240, 120, 200), "Shmup, brawler, platformer, and fighting slices, each with a how-to, plus per-feature demos."),
+    ("SAMPLES", (240, 120, 200), "Shmup, brawler, platformer, and fighting slices with how-tos, plus per-feature demos."),
 ]
 cols, rows = 4, 4
 mx, top_y, gx, gy = 40, 30 + lh + 28, 20, 18
@@ -61,7 +61,10 @@ for i, (title, col, desc) in enumerate(TILES):
     d.rounded_rectangle([cx, cy, cx + tw, cy + th], radius=10, fill=(13, 13, 19, 255), outline=col + (255,), width=2)
     neon_text((cx + 18, cy + 16), title, tfont, col, glow=6)
     yy = cy + 60
-    for line in textwrap.wrap(desc, width=33):
+    lines = textwrap.wrap(desc, width=33)
+    max_lines = (th - 60 - 14) // 27  # text area below the title, 14px bottom pad
+    assert len(lines) <= max_lines, f"{title}: {len(lines)} lines > {max_lines} (tile overflow)"
+    for line in lines:
         d.text((cx + 18, yy), line, font=dfont, fill=(206, 212, 224, 255)); yy += 27
 
 # footer (no version)
