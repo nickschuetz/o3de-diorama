@@ -353,8 +353,11 @@ Missing table-stakes (no design doc yet):
   ships (above). What is still missing is a region/grid paging layer on top of the
   spawnable system (stream prefabs and tilemap chunks by camera proximity), so an
   open 2.5D world with thousands of entities (grass, trees, walls all as entities,
-  per the *Edentopia* approach) stays affordable. A natural complementary gem rather than
-  core, but worth a design once a concrete world size/shape is in hand.
+  per the *Edentopia* approach) stays affordable. **Intentionally deferred / out of
+  scope for Diorama**: streaming is the spawnable/prefab system's job, so a paging layer
+  belongs in a separate complementary gem, not in this one. Revisit only if a concrete
+  world size/shape demands it; until then Diorama leans on the engine's streaming and the
+  off-screen culling it already ships.
 
 Recommended order (closes gaps, then leans into the differentiators): audio ->
 post-processing (already designed, biggest "looks AAA" payoff) -> animation depth
