@@ -61,10 +61,23 @@ for i, (title, col, desc) in enumerate(TILES):
     d.rounded_rectangle([cx, cy, cx + tw, cy + th], radius=10, fill=(13, 13, 19, 255), outline=col + (255,), width=2)
     neon_text((cx + 18, cy + 16), title, tfont, col, glow=6)
     yy = cy + 60
-    lines = textwrap.wrap(desc, width=33)
+    # Pixel-measured wrap: character counts lie (glyph widths vary), so accumulate
+    # words against the actual rendered width inside the tile padding.
+    text_w = tw - 36  # 18px padding each side
+    lines, cur = [], ""
+    for word in desc.split():
+        trial = word if not cur else cur + " " + word
+        if dfont.getlength(trial) <= text_w:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
     max_lines = (th - 60 - 14) // 27  # text area below the title, 14px bottom pad
     assert len(lines) <= max_lines, f"{title}: {len(lines)} lines > {max_lines} (tile overflow)"
     for line in lines:
+        assert dfont.getlength(line) <= text_w, f"{title}: line wider than tile: {line!r}"
         d.text((cx + 18, yy), line, font=dfont, fill=(206, 212, 224, 255)); yy += 27
 
 # footer (no version)
