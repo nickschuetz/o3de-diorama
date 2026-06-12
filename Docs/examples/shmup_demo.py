@@ -5,11 +5,13 @@ Builds the playable scene in its own level:
 - a player fighter (Sprite + 2D Input Actions + 2D Bullet Emitter as the gun + 2D
   Collider + the player_ship.lua behaviour),
 - a parallax starfield (dim star sprites at a back sort),
-- a stand-in enemy the player's shots can hit,
+- a descending enemy wave: small fighters plus two bigger Odie (the O3DE mascot),
 - a camera looking down -Z at the XY play plane.
 
-The player ship moves with the "move" action and fires with "fire"; its gun is the
-danmaku bullet emitter reused (one bolt, aimed up), configured by the script at runtime.
+The player ship moves with the "move" action and autofires up; its gun is the danmaku
+bullet emitter reused (one bolt, aimed up, fire-on-activate), authored in patch_prefab.
+The two Odie are drawn larger, so the player script makes them tougher and a bigger
+target on its own (it reads each enemy's sprite width); no per-enemy tuning.
 
 This is the dogfood from the gem's own roadmap: assemble the shipped features into a
 real game, find the integration bugs unit tests miss, and produce a shareable showcase.
@@ -19,10 +21,10 @@ Run in the editor:
     --project-path=/path/to/DioramaSandbox \
     --runpython /path/to/o3de-diorama/Docs/examples/shmup_demo.py
 
-Two manual clicks after it builds (same as anim_input_demo, the editor cannot set a
-script asset or activate a camera from script):
-  1. Player -> Lua Script -> Script = diorama/examples/shmup/player_ship.lua
-  2. ShmupCamera -> Be this camera, then Ctrl+G. Move with WASD/arrows, hold Space to fire.
+patch_prefab wires the input map, the gun, the camera rotation, and the Lua scripts
+(player_ship on the Player, enemy_wave on each enemy). One manual step remains, since a
+camera cannot be made active from a build script:
+  ShmupCamera -> Be this camera, then Ctrl+G. Move with WASD/arrows, hold Space to fire.
 """
 import json
 
@@ -39,9 +41,26 @@ diorama = azlmbr.diorama
 LEVEL_NAME = "DioramaShmup"
 PLAYER_TEXTURE = "diorama/textures/shmup_player.png"
 ENEMY_TEXTURE = "diorama/textures/shmup_enemy.png"
+ODIE_TEXTURE = "diorama/textures/o3de_mascot.png"  # the O3DE mascot, as a bigger/tougher enemy
 STAR_TEXTURE = "diorama/textures/shmup_star.png"
 SHOT_PRODUCT = "diorama/textures/shmup_shot.png.streamingimage"
-LUA_SCRIPT = "diorama/examples/shmup/player_ship.lua"
+PLAYER_SCRIPT_PRODUCT = "diorama/examples/shmup/player_ship.luac"
+ENEMY_SCRIPT_PRODUCT = "diorama/examples/shmup/enemy_wave.luac"
+
+# The enemy wave: a row of descenders (enemy_wave.lua makes them fall and recycle).
+# Most are the small fighter; two are Odie (the O3DE mascot), drawn bigger so the
+# player script scales them to a couple more hits and a larger hitbox, automatically
+# (it reads each enemy's sprite width). (x, topY, is_odie).
+NORMAL_SIZE = (1.6, 1.6)
+ODIE_SIZE = (2.2, 2.83)  # mascot art is ~0.78 aspect; ~1.4x a normal enemy
+WAVE = [
+    (-6.0, 5.5, False),
+    (-3.5, 6.5, True),
+    (-1.0, 5.5, False),
+    (1.5, 6.5, False),
+    (4.0, 5.5, True),
+    (6.0, 6.5, False),
+]
 
 # Enum fields serialize as ints: InputMap::ActionKind Button=0, Axis1D=1, Axis2D=2;
 # Axis X=0, Y=1.
@@ -139,10 +158,39 @@ def set_prop(comp, path, value):
     editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", comp, path, value)
 
 
+_next_cid = [990000000001]
+
+
+def cid():
+    _next_cid[0] += 1
+    return _next_cid[0]
+
+
+def resolve_script(product_path):
+    """Resolve a compiled-script (.luac) product to its prefab asset-ref dict. A .luac is
+    assigned a source GUID by the AssetProcessor (not a path-derived one), so it must be
+    resolved at runtime; returns None if it has not been processed yet."""
+    aid = azlmbr.asset.AssetCatalogRequestBus(bus.Broadcast, "GetAssetIdByPath", product_path, math.Uuid(), False)
+    s = aid.to_string() if hasattr(aid, "to_string") else ""
+    guid, _sep, sub_hex = s.partition(":")
+    if not guid.startswith("{") or guid == "{00000000-0000-0000-0000-000000000000}":
+        return None
+    sub = int(sub_hex, 16) if sub_hex else 0
+    return {"assetId": {"guid": guid, "subId": sub}, "assetHint": product_path}
+
+
+def script_component(ref):
+    """A fresh ScriptEditorComponent block referencing a compiled Lua script."""
+    return {"$type": "ScriptEditorComponent", "Id": cid(),
+            "ScriptComponent": {"Properties": {"Properties": []}, "Script": ref},
+            "ScriptAsset": ref}
+
+
 def patch_prefab():
-    """Bake the input config + camera rotation into the saved prefab, then reopen. The
-    nested action list cannot be set through the component API, and a runtime transform
-    set does not persist; the same approach anim_input_demo.py / quickstart_demo.py use."""
+    """Bake into the saved prefab the things a build script cannot set live, then reopen:
+    the input action map (nested list, not settable through the component API), the gun
+    config, the camera rotation (a runtime transform set does not persist), and the Lua
+    script assets (resolved by path). Same approach anim_input_demo.py / solar use."""
     try:
         proj = str(azlmbr.paths.projectroot)
     except Exception as e:
@@ -162,10 +210,17 @@ def patch_prefab():
     gun = {"pattern": 1, "count": 1, "speed": 18.0, "fireRate": 8.0, "aimDegrees": 90.0,
            "spreadDegrees": 0.0, "bulletLifetime": 3.0, "bulletRadius": 0.3, "fireOnActivate": True,
            "muzzleOffset": [0.0, 0.9]}  # fire from the ship's nose, not its center
-    inp, cam, emit = 0, 0, 0
+
+    # The Lua script assets the editor cannot set from a build script: the player
+    # behaviour on the Player, and the wave behaviour on each Wave* enemy.
+    player_ref = resolve_script(PLAYER_SCRIPT_PRODUCT)
+    enemy_ref = resolve_script(ENEMY_SCRIPT_PRODUCT)
+
+    inp, cam, emit, scr = 0, 0, 0, 0
     for entity in doc.get("Entities", {}).values():
-        name = entity.get("Name")
-        for comp in entity.get("Components", {}).values():
+        name = entity.get("Name") or ""
+        comps = entity.get("Components", {})
+        for comp in comps.values():
             ctype = comp.get("$type", "")
             if "EditorDioramaInputComponent" in ctype:
                 comp["Config"] = INPUT_CONFIG
@@ -176,12 +231,26 @@ def patch_prefab():
             elif name == "ShmupCamera" and "TransformComponent" in ctype:
                 comp.setdefault("Transform Data", {})["Rotate"] = [-90.0, 0.0, 0.0]
                 cam += 1
+
+        ref = player_ref if name == "Player" else (enemy_ref if name.startswith("Wave") else None)
+        if ref is not None:
+            existing = next((c for c in comps.values() if "ScriptEditorComponent" in c.get("$type", "")), None)
+            if existing is not None:  # a Lua Script component was already added; wire its asset
+                existing.setdefault("ScriptComponent", {})["Script"] = ref
+                existing["ScriptAsset"] = ref
+            else:  # the wave enemies have no script component yet; add one
+                comps["Script_" + name] = script_component(ref)
+            scr += 1
+
     try:
         with open(pf, "w") as f:
             json.dump(doc, f, indent=4)
         general.open_level_no_prompt(LEVEL_NAME)
         general.idle_wait_frames(20)
-        log("Prefab patched: input config={}, gun={}, camera={}.".format(inp, emit, cam))
+        log("Prefab patched: input={}, gun={}, camera={}, scripts={}.".format(inp, emit, cam, scr))
+        if player_ref is None or enemy_ref is None:
+            log("NOTE: a Lua script was not processed yet; reprocess assets and re-run, "
+                "or assign player_ship.lua / enemy_wave.lua by hand.")
     except Exception as e:
         log("prefab patch failed ({}); set the input config by hand".format(e))
 
@@ -216,11 +285,16 @@ def main():
         diorama.DioramaSpriteRequestBus(bus.Event, "SetTint", eid, 0.7, 0.8, 1.0, 0.8)
         diorama.DioramaSpriteRequestBus(bus.Event, "SetSortOffset", eid, -10.0)
 
-    # Stand-in enemy the player's shots can hit (default collision layer 0x0001).
-    enemy, _ = make_entity("Enemy", math.Vector3(0.0, 4.0, 1.0), [sprite, collider])
-    diorama.DioramaSpriteRequestBus(bus.Event, "SetTextureByPath", enemy, ENEMY_TEXTURE)
-    diorama.DioramaSpriteRequestBus(bus.Event, "SetSize", enemy, 1.8, 1.8)
-    diorama.DioramaSpriteRequestBus(bus.Event, "SetBillboard", enemy, True)
+    # The enemy wave: a row of descenders on the default collision layer (0x0001).
+    # enemy_wave.lua (baked in patch_prefab) makes each fall and recycle to the top; two
+    # are Odie (the mascot), drawn bigger so the player script makes them tougher and a
+    # larger target on its own. The collider auto-sizes to the sprite on the first tick.
+    for i, (ex, _topy, odie) in enumerate(WAVE):
+        eid, _ = make_entity("Wave{}".format(i), math.Vector3(float(ex), float(_topy), 1.0), [sprite, collider])
+        tex, (w, h) = (ODIE_TEXTURE, ODIE_SIZE) if odie else (ENEMY_TEXTURE, NORMAL_SIZE)
+        diorama.DioramaSpriteRequestBus(bus.Event, "SetTextureByPath", eid, tex)
+        diorama.DioramaSpriteRequestBus(bus.Event, "SetSize", eid, w, h)
+        diorama.DioramaSpriteRequestBus(bus.Event, "SetBillboard", eid, True)
 
     # Player: sprite + input + the gun (bullet emitter) + collider + the behaviour script.
     ptypes = [sprite, inp, emitter, collider]
@@ -249,10 +323,10 @@ def main():
             log("save_level raised: {}".format(e))
 
     log("Shmup scene built in level '{}'.".format(LEVEL_NAME))
-    log("MANUAL: (1) Player -> Lua Script -> Script = {}".format(LUA_SCRIPT))
-    log("MANUAL: (2) ShmupCamera -> Be this camera, then Ctrl+G.")
-    log("EXPECT: WASD/arrows fly the ship; hold Space to fire bolts up; bolts hit the enemy")
-    log("        (Console logs the hit). Stars sit behind as the field.")
+    log("MANUAL: ShmupCamera -> Be this camera, then Ctrl+G. (Scripts are wired by patch_prefab;")
+    log("        if it warned a script was unprocessed, assign player_ship/enemy_wave by hand.)")
+    log("EXPECT: WASD/arrows fly the ship; it autofires up; bolts kill the small fighters in 5")
+    log("        and the two big Odie in ~7; ram an enemy to lose a life. Stars sit behind.")
     log("done")
 
 

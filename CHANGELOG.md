@@ -18,14 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 - **Shmup dogfood example** (a playable vertical slice). A small shoot-em-up assembled
   from the shipped features to integration-test the gem end to end and serve as a worked
   example: a sprite ship flown by the input map, the **2D Bullet Emitter reused as the
-  ship's gun** (a single bolt, autofire), 2D collision for the hits, a flash-on-hit +
-  destroy combat loop, a parallax starfield, and a camera over the XY play plane. Ships as
-  `Assets/Diorama/Examples/Shmup/player_ship.lua`, procedural art
-  (`Assets/Diorama/Textures/_gen_shmup_textures.py` -> `shmup_*.png`), and a level builder
-  (`Docs/examples/shmup_demo.py`), documented with the gameplay-scripting gotchas it
-  surfaced ([Docs/howto/29-shmup.md](Docs/howto/29-shmup.md)). A noted follow-up adds a
-  muzzle offset to the emitter (fire from the nose, not the ship center), enemy waves, and
-  a score readout.
+  ship's gun** (a single bolt, autofire, firing from the nose via the muzzle offset), 2D
+  collision for the hits, a flash-and-knockback combat loop, a descending **enemy wave**
+  that recycles to the top (no spawnables) with two bigger, tougher **Odie** (the O3DE
+  mascot, scaled from sprite width so no per-enemy tuning is needed), **lives** with a ram
+  cost, a game-over freeze and a Space restart, a parallax starfield, and a camera over the
+  XY play plane. Ships as `Assets/Diorama/Examples/Shmup/{player_ship,enemy_wave}.lua`,
+  procedural art (`Assets/Diorama/Textures/_gen_shmup_textures.py` -> `shmup_*.png`), and a
+  level builder (`Docs/examples/shmup_demo.py`) that wires the scene and Lua scripts,
+  documented with the gameplay-scripting gotchas it surfaced
+  ([Docs/howto/29-shmup.md](Docs/howto/29-shmup.md)).
 - **Day/night cycle** (lighting). A new **Day/Night Cycle** component
   (`DioramaDayNightComponent`) advances a normalized time-of-day clock and drives a target
   Diorama light's color, intensity, and direction over the day, on the pure tested

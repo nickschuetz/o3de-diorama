@@ -17,23 +17,35 @@ Run the scene builder against your host project:
 ```
 
 It creates the **DioramaShmup** level: a Player (Sprite + 2D Input Actions + 2D Bullet
-Emitter + 2D Collider + the `player_ship.lua` behaviour), a stand-in Enemy, a star field,
-and a camera. Two manual clicks remain (the editor cannot set a script asset or activate a
-camera from a build script): assign `diorama/examples/shmup/player_ship.lua` to the
-Player's Lua Script, select **ShmupCamera -> Be this camera**, then **Ctrl+G**.
+Emitter + 2D Collider + the `player_ship.lua` behaviour), a descending enemy wave, a star
+field, and a camera. The builder wires the input map, the gun, the camera rotation, and
+the Lua scripts for you (in `patch_prefab`). One manual step remains, since a camera
+cannot be made active from a build script: select **ShmupCamera -> Be this camera**, then
+**Ctrl+G**.
 
 Fly with **WASD / arrows / left stick**; the ship autofires straight up; line up under an
-enemy to destroy it (5 hits), and the Console logs the kill.
+enemy to destroy it, and the Console logs the kill. The small fighters take 5 hits; the
+two bigger **Odie** (the O3DE mascot) take ~7. Ram an enemy and you lose a life; at zero
+lives the wreck blinks red and **Space** restarts.
 
 ## How it is wired
 
 - **Gun = the danmaku emitter, reused.** The player's weapon is a 2D Bullet Emitter
-  authored as a single bolt (`Pattern` Fan, `Count` 1, `Spread` 0, `Aim` 90 = up) with
-  **Fire On Activate**. The emitter pools, moves, and hit-tests the bolts.
+  authored as a single bolt (`Count` 1, `Spread` 0, `Aim` 90 = up) with **Fire On
+  Activate** and a **Muzzle Offset** to the nose. The emitter pools, moves, and hit-tests
+  the bolts.
 - **Combat lives on the player.** The emitter reports hits to *its own* entity, so
   `player_ship.lua` handles `OnBulletHit(target)`: it flashes the struck enemy
-  (`DioramaSpriteRequestBus.SetFlash`), counts hits, and after a few destroys it
-  (`GameEntityContextRequestBus.DestroyGameEntity`).
+  (`DioramaSpriteRequestBus.SetFlash`), nudges it back for impact, counts hits, and after
+  enough **recycles** it to the top of the field at a new X (endless waves, no spawnables).
+- **Bigger enemies are tougher, from one rule.** On a bolt's first hit the player reads
+  the enemy's sprite width (`GetSpriteInfo().width`) and scales the hit count by it
+  relative to a normal enemy. An Odie is just a larger sprite, so it soaks ~7 instead of 5
+  and (because `enemy_wave.lua` sizes each collider to its sprite) presents a bigger
+  target. No per-enemy property, no special-case.
+- **The wave** is a fixed pool of enemies running `enemy_wave.lua`: each descends and, when
+  it falls past the bottom, wraps back to the top at a new X. Game over freezes the wave
+  through a shared `ShmupRunning` flag the player script flips.
 - **Movement** reads the `move` Axis2D action and clamps the ship to the play field.
 
 ## Gotchas this slice taught (read before scripting gameplay)
@@ -55,8 +67,12 @@ These are O3DE/Lua behaviors, not Diorama bugs, but they bite every game script:
 
 ## Where it stops (and what is next)
 
-This slice is the core loop (move, autofire, hit, kill). The gun fires from the ship's
-**nose** via the emitter's **Muzzle Offset** (a general spawn offset from the entity
-origin, added to the 2D Bullet Emitter for this dogfood), which also avoids point-blank
-ram-kills. A full game still adds enemy **waves** (several descending, recycling), a
-world-space score readout, and player death.
+The slice now runs a full loop: move, autofire, hit, recycle, a descending **wave** (with
+two tougher Odie), **knockback** on hit, **lives** with a ram cost, a game-over freeze, and
+a **Space** restart. The gun fires from the ship's **nose** via the emitter's **Muzzle
+Offset** (a general spawn offset from the entity origin, added to the 2D Bullet Emitter for
+this dogfood), which also avoids point-blank ram-kills.
+
+What a fuller game would still add: a world-space score readout (a label pinned to a world
+entity, not screen-space HUD; that stays LyShine's job), enemies that fire back, and a
+difficulty ramp.
