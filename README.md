@@ -187,6 +187,11 @@ The new project ships with Diorama enabled, 2.5D starter assets, and a
 - **A path designed to scale.** Rendering goes through a batched Atom feature
   processor: sprites and tilemap tiles that share a texture collapse into one
   draw call, so a busy scene stays cheap.
+- **Deterministic when you want it.** An opt-in fixed-step simulation clock with
+  seeded randomness, full state snapshot/restore (with a verifiable state hash),
+  and a per-frame input ring make the same inputs replay to the same result:
+  the foundation for replays, training-mode rewind, and rollback netcode
+  readiness, proven by a determinism test that runs in CI on every change.
 
 For the full design with diagrams (module split, data model, persistence, and
 the render path) see [Docs/architecture.md](Docs/architecture.md). In-depth
@@ -201,8 +206,10 @@ The learning ladder is complete through the current feature set: the step-by-ste
 [how-to guides](Docs/howto/) (full outline in
 [Docs/examples-outline.md](Docs/examples-outline.md)) run from Hello Sprite up
 through animation, atlases, tilemaps + autotiling, parallax, lighting, camera,
-particles, materials, post, audio, and the project template -- matching the
-feature table above.
+particles, materials, post, audio, the project template, genre building blocks
+(fighting, bullet patterns, platforming, brawler, shmup), day/night, grid
+intelligence, and the deterministic simulation layer -- matching the feature
+table above.
 
 A first sample showcase is the **cartoon solar-system diorama**
 (`DioramaSolarSystem`): a layered 2.5D scene that exercises much of the stack at
