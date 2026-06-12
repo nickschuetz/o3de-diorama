@@ -11,6 +11,7 @@
 
 #include <AzCore/Math/Vector2.h>
 #include <AzCore/Serialization/SerializeContext.h>
+#include <AzCore/std/sort.h>
 
 namespace Diorama
 {
@@ -316,6 +317,11 @@ namespace Diorama
                 }
             }
         }
+        // Deterministic result order: the collider store is an unordered_map, so the
+        // iteration (and therefore result) order depends on hash-map history. Sort by
+        // entity id so "the first hit" is the same entity on every run, which scripted
+        // gameplay relies on and rollback/replay determinism requires.
+        AZStd::sort(result.begin(), result.end());
         return result;
     }
 
@@ -407,7 +413,11 @@ namespace Diorama
                 continue;
             }
             float t = 0.0f;
-            if (Collision2D::RaycastCollider(origin, dir, maxDistance, c, t) && (!found || t < bestT))
+            // Tie-break equal distances on the lower entity id: the collider store is
+            // an unordered_map, so without it the winner of an exact tie would depend
+            // on hash-map iteration order (nondeterministic across runs).
+            if (Collision2D::RaycastCollider(origin, dir, maxDistance, c, t) &&
+                (!found || t < bestT || (t == bestT && entry.first < bestEntity)))
             {
                 found = true;
                 bestT = t;
@@ -424,7 +434,8 @@ namespace Diorama
                     continue;
                 }
                 float t = 0.0f;
-                if (Collision2D::RaycastCollider(origin, dir, maxDistance, c, t) && (!found || t < bestT))
+                if (Collision2D::RaycastCollider(origin, dir, maxDistance, c, t) &&
+                    (!found || t < bestT || (t == bestT && set.first < bestEntity)))
                 {
                     found = true;
                     bestT = t;

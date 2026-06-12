@@ -24,4 +24,6 @@ set(FILES
     Include/Diorama/DioramaDayNightBus.h
     Include/Diorama/DioramaAnimStateMachineBus.h
     Include/Diorama/DioramaAsepriteBus.h
+    Include/Diorama/DioramaSimClockBus.h
+    Include/Diorama/DioramaRandomBus.h
 )

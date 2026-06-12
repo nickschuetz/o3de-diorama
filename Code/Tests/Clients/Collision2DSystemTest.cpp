@@ -271,6 +271,35 @@ namespace Diorama
         EXPECT_TRUE(hits.empty());
     }
 
+    TEST_F(Collision2DSystemTest, OverlapQuery_ResultsSortedByEntityId)
+    {
+        // The collider store is an unordered_map, so without an explicit sort the
+        // result ORDER would depend on hash-map history (nondeterministic across
+        // runs). Scripts take "the first hit", so the order is contract: ascending
+        // entity id, regardless of registration order.
+        AZStd::vector<AZ::EntityId> made;
+        for (int i = 0; i < 8; ++i)
+        {
+            const AZ::EntityId id = MakeCollider("Cluster");
+            SetPos(id, 0.0f, 0.0f); // all overlapping the same spot
+            made.push_back(id);
+        }
+
+        AZStd::vector<AZ::EntityId> hits;
+        Diorama2DCollisionRequestBus::BroadcastResult(hits, &Diorama2DCollisionRequests::OverlapBox, 0.0f, 0.0f, 1.0f, 1.0f, AZ::u32(0));
+
+        ASSERT_EQ(hits.size(), made.size());
+        for (size_t i = 1; i < hits.size(); ++i)
+        {
+            EXPECT_LT(hits[i - 1], hits[i]); // strictly ascending: sorted and unique
+        }
+
+        // And stable: a second identical query returns the identical sequence.
+        AZStd::vector<AZ::EntityId> again;
+        Diorama2DCollisionRequestBus::BroadcastResult(again, &Diorama2DCollisionRequests::OverlapBox, 0.0f, 0.0f, 1.0f, 1.0f, AZ::u32(0));
+        EXPECT_TRUE(hits == again);
+    }
+
     TEST_F(Collision2DSystemTest, Raycast2DQuery_HitsCollider)
     {
         const AZ::EntityId a = MakeCollider("A");

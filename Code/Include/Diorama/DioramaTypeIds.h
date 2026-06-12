@@ -189,4 +189,14 @@ namespace Diorama
     inline constexpr const char* EditorDioramaDayNightComponentTypeId = "{8394A5B6-C7D8-49E0-F1A2-B3C4D5E6F7A9}";
     inline constexpr const char* DioramaDayNightRequestsTypeId = "{94A5B6C7-D8E9-40F1-A2B3-C4D5E6F7A8BA}";
     inline constexpr const char* DioramaDayNightInfoTypeId = "{A5B6C7D8-E9F0-41A2-B3C4-D5E6F7A8B9CB}";
+
+    // 2D simulation clock TypeIds (fixed-step deterministic heartbeat + seeded RNG over
+    // the SimClock / SimRandom cores; see Docs/design/2d-deterministic-sim.md)
+    inline constexpr const char* DioramaSimClockConfigTypeId = "{F84758AD-0C0E-4C34-8A31-184837509942}";
+    inline constexpr const char* DioramaSimClockComponentTypeId = "{54207C00-E7B1-4BB3-B78F-EBA7FC0D44BC}";
+    inline constexpr const char* EditorDioramaSimClockComponentTypeId = "{659E834D-DF81-4E87-ACE5-A4EEFE233C3E}";
+    inline constexpr const char* DioramaSimClockRequestsTypeId = "{4E79F97F-C5A7-4623-B4E5-68BC63C963BC}";
+    inline constexpr const char* DioramaSimTickNotificationsTypeId = "{6CF083AB-B466-4BFF-9BF7-79267ED56A36}";
+    inline constexpr const char* DioramaSimClockInfoTypeId = "{98F1EAE2-365A-47E2-BBDB-C19596E362D2}";
+    inline constexpr const char* DioramaRandomRequestsTypeId = "{B0E25564-5A2A-4A35-8252-4B26ED38D9DF}";
 } // namespace Diorama

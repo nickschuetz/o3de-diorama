@@ -80,6 +80,11 @@ set(FILES
     Source/Clients/DioramaDayNightComponent.cpp
     Source/Clients/DioramaDayNightComponent.h
     Source/Clients/DayNightBus.cpp
+    Source/Clients/SimClock.h
+    Source/Clients/SimRandom.h
+    Source/Clients/DioramaSimClockComponent.cpp
+    Source/Clients/DioramaSimClockComponent.h
+    Source/Clients/SimClockBus.cpp
     Source/Clients/AnimStateMachine.h
     Source/Clients/DioramaAnimStateMachineComponent.cpp
     Source/Clients/DioramaAnimStateMachineComponent.h

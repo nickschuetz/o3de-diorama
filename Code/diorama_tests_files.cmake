@@ -19,6 +19,7 @@ set(FILES
     Tests/Clients/DepthLaneTest.cpp
     Tests/Clients/GridIntelligenceTest.cpp
     Tests/Clients/DayNightCycleTest.cpp
+    Tests/Clients/SimClockTest.cpp
     Tests/Clients/AnimStateMachineTest.cpp
     Tests/Clients/DioramaTestMain.cpp
 )
