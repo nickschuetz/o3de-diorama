@@ -45,12 +45,14 @@ screenshot.
 
 ### 1. Sim clock (opt-in)
 
-A `Diorama2DSimClock` system component, **off by default** (zero cost and zero
-behavior change for existing projects):
+A **2D Simulation Clock** component, placeable (one per level): adding it is the
+opt-in, every knob gets Inspector parity like the rest of the gem, and projects
+that do not add it see zero cost and zero behavior change:
 
-- Accumulates render delta time and emits `DioramaSimTickBus::OnSimTick(frame)` at a
-  fixed step (default 1/60 s, configurable), with a max catch-up step count per
-  render frame to bound spiral-of-death.
+- Accumulates render delta time and emits
+  `DioramaSimTickNotificationBus::OnSimTick(frame, stepSeconds)` at a fixed step
+  (default 1/60 s, configurable), with a max catch-up step count per render frame
+  to bound spiral-of-death.
 - `GetSimFrame()` (monotonic frame counter), `SetPaused(bool)`, `StepOnce()`
   (training-mode single step, also the re-simulation primitive for rollback).
 - Hit-stop and slow motion in deterministic games are expressed in **sim frames**
@@ -148,7 +150,7 @@ public surface above.
   per-frame heap work.
 - **Efficiency:** strictly opt-in; with the clock absent, every component runs
   exactly today's path.
-- **Ease of use:** one system component + one marker component + one toggle per
+- **Ease of use:** one clock component + one marker component + one toggle per
   component; every knob on a typed bus and in the Inspector; `GetSimFrame` /
   `GetStateHash` give agents and CI a no-viewport verify loop.
 
