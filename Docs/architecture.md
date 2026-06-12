@@ -338,6 +338,11 @@ a `Common`-scoped request bus at AI/human parity. The full catalog:
 | CRT overlay | `DioramaCRTComponent` | `DioramaCRTRequestBus` | [16](howto/16-crt.md) |
 | Skeletal animation | `DioramaSkeletalClipComponent` | `DioramaSkeletalRequestBus` | [18](howto/18-skeletal.md) |
 | Aseprite animation | `DioramaAsepriteComponent` | `DioramaAsepriteRequestBus` | [19](howto/19-aseprite.md) |
+| Animation state machine | `DioramaAnimStateMachineComponent` | `DioramaAnimStateMachineRequestBus` | [22](howto/22-anim-state-machine.md) |
+| Input actions + motions | `DioramaInputComponent` | `DioramaInputRequestBus` | [23](howto/23-input-actions.md) |
+| Day/night cycle | `DioramaDayNightComponent` | `DioramaDayNightRequestBus` | [28](howto/28-day-night.md) |
+| 2D simulation clock | `DioramaSimClockComponent` | `DioramaSimClockRequestBus` / `DioramaRandomRequestBus` | [30](howto/30-deterministic-sim.md) |
+| Simulation state marker | `DioramaSimStateComponent` | (enrolls the entity; no script verbs) | [30](howto/30-deterministic-sim.md) |
 
 Each effect-style feature (light, particle, look, CRT) embeds its own presenter or
 applies to the scene's Atom feature processor; the data-style features (skeletal,
@@ -349,8 +354,9 @@ Look and Skeletal twins add **edit-mode previews** (bloom A/B, pose scrubbing).
 
 The pure, engine-free cores that back these (`SpriteBatchPlan`, `SpriteCull`,
 `Collision2D`, `Camera2D`, `Particles2D`, `TilemapPaint`, `SkeletalClip`,
-`AsepriteImport`, `MotionInput`, `HitboxFrames`, `BulletPattern`, `SlopeCollision`,
-`DepthLane`, `Pathfinding`, `MovementRange`, `FieldOfView`, `DayNightCycle`) are header/`.cpp` pairs unit-tested on their own, the same way the
+`AsepriteImport`, `InputActionMap`, `MotionInput`, `HitboxFrames`, `BulletPattern`,
+`SlopeCollision`, `DepthLane`, `Pathfinding`, `MovementRange`, `FieldOfView`,
+`DayNightCycle`, `SimClock`, `SimRandom`, `SimState`) are header/`.cpp` pairs unit-tested on their own, the same way the
 config helpers are. `SpriteCull` is the off-screen reject: the feature processor
 builds the view frustum once per frame and skips packing/drawing any sprite whose
 bounding sphere is fully outside the side planes (conservative, so it never hides a
@@ -387,6 +393,71 @@ The gem ships an O3DE project template, `Diorama2DGame` (under `Templates/`), bu
 on the engine's stock project template with the Diorama gem enabled and 2.5D starter
 content added. `o3de create-project --template-name Diorama2DGame` scaffolds a
 ready-to-build 2.5D project. See [How-To: the template](howto/20-template.md).
+
+## The deterministic simulation layer
+
+Everything above runs on the render tick. The deterministic layer (opt-in: add a
+**2D Simulation Clock** to the level) re-bases gameplay on fixed steps, so the same
+inputs replay to the same result on any machine running the same build: the
+foundation for replays, training-mode rewind, and rollback netcode readiness
+([design](design/2d-deterministic-sim.md), [how-to 30](howto/30-deterministic-sim.md)).
+The netcode itself stays with O3DE Multiplayer or middleware; the gem owns the
+simulation contract.
+
+```mermaid
+flowchart LR
+    subgraph clock [2D Simulation Clock]
+        TICK[render tick dt] --> ACC[SimClock accumulator]
+        ACC -->|whole fixed steps| SIM[OnSimTick frame, stepSeconds]
+        RNG[SimRandom seeded RNG]
+    end
+
+    SIM --> GP[gameplay scripts]
+    SIM --> RING[input ring per-frame records]
+    INJ[InjectActionState] --> RING
+    RING -->|replay on re-simulation| GP
+
+    subgraph snapshot [frame image]
+        CAP[CaptureFrame] --> REG[registry: Simulation State markers]
+        REG -->|SaveSimState chunks| BUF[canonical LE buffer]
+        BUF --> HASH[GetStateHash FNV-1a]
+        BUF --> SLOTS[slots 0-7]
+        SLOTS --> RES[RestoreFrame]
+        RES -->|TryRestoreChunk| COMP[hitbox rig, bullet pool, translation]
+    end
+
+    clock --> snapshot
+```
+
+Three contracts make it hold together:
+
+1. **The heartbeat.** The clock turns variable render time into whole fixed steps
+   (catch-up capped, backlog dropped) and broadcasts `OnSimTick` once per step.
+   Gameplay that advances there, drawing randomness from the clock's seeded RNG,
+   simulates in exact frames.
+2. **The frame image.** Entities carrying the **Simulation State** marker enroll in
+   `CaptureFrame`: each snapshot-capable component appends tagged chunks (the
+   marker itself contributes the world translation; the hitbox rig and bullet pool
+   contribute their combat state) into a canonical little-endian buffer, ordered by
+   entity id so the image and its `GetStateHash` are run-independent. Restore
+   treats the buffer as untrusted: bounds-checked reads, version checks, hostile
+   sizes rejected, chunks for vanished entities skipped. Scripts use the eight
+   snapshot slots; a C++ rollback layer keeps its own buffer history.
+3. **The input log.** In sim-clock mode the input component samples once per fixed
+   step into a ring of recent frames, queryable by frame and overwritable through
+   `InjectActionState`. On re-simulation after a restore the ring **replays**
+   recorded frames rather than re-sampling devices, and the ring deliberately
+   survives the restore: state rolls back, the input log does not, which is
+   exactly the shape a rollback loop needs (restore, inject the late inputs,
+   step back to the present).
+
+The determinism audit that came with the layer also fixed real ordering bugs in
+the shared systems: collision query results and push-out accumulation now iterate
+in sorted entity-id order instead of hash-map order. A headless determinism proof
+(`DeterminismTest.cpp`) runs in the normal suite, so every PR re-proves that a
+scripted run replays from a restored snapshot to bit-identical per-frame hashes.
+The named follow-up is migrating the render-tick components (bullet emitter,
+hitbox evaluation, sprite animation) onto the sim clock.
 
 ## Extending the gem
 
