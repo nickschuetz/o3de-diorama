@@ -46,6 +46,10 @@ namespace Diorama
                 ->Field("TrailStartAlpha", &SpriteComponentConfig::m_trailStartAlpha)
                 ->Field("TrailFade", &SpriteComponentConfig::m_trailFade)
                 ->Field("TrailTint", &SpriteComponentConfig::m_trailTint)
+                ->Field("PaletteStrength", &SpriteComponentConfig::m_paletteStrength)
+                ->Field("PaletteShadow", &SpriteComponentConfig::m_paletteShadow)
+                ->Field("PaletteMid", &SpriteComponentConfig::m_paletteMid)
+                ->Field("PaletteHighlight", &SpriteComponentConfig::m_paletteHighlight)
                 ->Field("AnimEnabled", &SpriteComponentConfig::m_animEnabled)
                 ->Field("FrameColumns", &SpriteComponentConfig::m_frameColumns)
                 ->Field("FrameRows", &SpriteComponentConfig::m_frameRows)
@@ -197,6 +201,27 @@ namespace Diorama
                         &SpriteComponentConfig::m_trailTint,
                         "Trail Tint",
                         "Color the ghosts are drawn in (white shows the sprite faded)")
+                    ->ClassElement(AZ::Edit::ClassElements::Group, "Palette Recolor")
+                    ->Attribute(AZ::Edit::Attributes::AutoExpand, false)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Slider,
+                        &SpriteComponentConfig::m_paletteStrength,
+                        "Palette Strength",
+                        "Blend the sprite toward the ramp below (0 = off; team / alt colors on one sheet)")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->Attribute(AZ::Edit::Attributes::Max, 1.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Color,
+                        &SpriteComponentConfig::m_paletteShadow,
+                        "Palette Shadow",
+                        "Ramp color for the darkest pixels")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Color, &SpriteComponentConfig::m_paletteMid, "Palette Mid", "Ramp color for the midtones")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Color,
+                        &SpriteComponentConfig::m_paletteHighlight,
+                        "Palette Highlight",
+                        "Ramp color for the brightest pixels")
                     ->ClassElement(AZ::Edit::ClassElements::Group, "Animation")
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, false)
                     ->DataElement(

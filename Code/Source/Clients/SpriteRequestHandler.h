@@ -60,6 +60,10 @@ namespace Diorama
         void SetUseSimClock(bool enabled) override;
         void SetTrail(int count, float intervalSeconds, float startAlpha, float fade) override;
         void SetTrailTint(float r, float g, float b, float a) override;
+        void SetPaletteStrength(float strength) override;
+        void SetPaletteColors(
+            float shadowR, float shadowG, float shadowB, float midR, float midG, float midB, float highR, float highG, float highB)
+            override;
         void PlaySpriteSheet(int columns, int rows, int frameCount, float framesPerSecond, bool loop) override;
         SpriteInfo GetSpriteInfo() override;
 

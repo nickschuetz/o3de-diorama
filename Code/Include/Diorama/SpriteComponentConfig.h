@@ -136,6 +136,15 @@ namespace Diorama
         //! Color the ghosts are drawn in (white shows the sprite's own texture faded).
         AZ::Color m_trailTint = AZ::Color(1.0f, 1.0f, 1.0f, 1.0f);
 
+        //! Palette recolor (team / alt colors): blend the sprite's albedo toward a
+        //! three-stop color ramp (shadow -> mid -> highlight) keyed off its luminance,
+        //! by m_paletteStrength. 0 = off (the sprite keeps its own colors). Swapping
+        //! the ramp gives P1 / P2 variants on one sprite sheet, no special art needed.
+        float m_paletteStrength = 0.0f;
+        AZ::Color m_paletteShadow = AZ::Color(0.10f, 0.10f, 0.20f, 1.0f);
+        AZ::Color m_paletteMid = AZ::Color(0.50f, 0.50f, 0.60f, 1.0f);
+        AZ::Color m_paletteHighlight = AZ::Color(1.0f, 1.0f, 1.0f, 1.0f);
+
         //! Play frames from a sprite sheet on a timer. When false the sprite is
         //! static and the animation fields below are ignored.
         bool m_animEnabled = false;

@@ -58,10 +58,13 @@ namespace Diorama
         // so fractional layers stay distinct.
         SpriteBatchPlan::BatchKey MakeBatchKey(const SpriteComponentConfig& config)
         {
-            return SpriteBatchPlan::BatchKey{ config.m_texture.GetId(),      config.m_sortOffset,         config.m_normalMap.GetId(),
-                                              config.m_flashAmount,          config.m_flashColor.ToU32(), config.m_outlineThickness,
-                                              config.m_outlineColor.ToU32(), config.m_emissiveIntensity,  config.m_emissiveColor.ToU32(),
-                                              config.m_pointFilter };
+            return SpriteBatchPlan::BatchKey{ config.m_texture.GetId(),       config.m_sortOffset,
+                                              config.m_normalMap.GetId(),     config.m_flashAmount,
+                                              config.m_flashColor.ToU32(),    config.m_outlineThickness,
+                                              config.m_outlineColor.ToU32(),  config.m_emissiveIntensity,
+                                              config.m_emissiveColor.ToU32(), config.m_pointFilter,
+                                              config.m_paletteStrength,       config.m_paletteShadow.ToU32(),
+                                              config.m_paletteMid.ToU32(),    config.m_paletteHighlight.ToU32() };
         }
     } // namespace
 
@@ -335,7 +338,11 @@ namespace Diorama
         const AZ::Color& outlineColor,
         const AZ::Color& emissiveColor,
         float emissiveIntensity,
-        bool pointFilter)
+        bool pointFilter,
+        float paletteStrength,
+        const AZ::Color& paletteShadow,
+        const AZ::Color& paletteMid,
+        const AZ::Color& paletteHighlight)
     {
         // Billboard tangent basis: right and up are the camera's, the face normal is
         // their cross product (pointing toward the camera). This matches AppendQuad's
@@ -374,6 +381,31 @@ namespace Diorama
         {
             drawSrg->SetConstant(
                 outlineIdx, AZ::Vector4(outlineColor.GetR(), outlineColor.GetG(), outlineColor.GetB(), outlineColor.GetA()));
+        }
+        // Palette recolor (team / alt colors): the shader remaps the albedo's luminance
+        // through the shadow/mid/highlight ramp, blended by strength (0 = off).
+        const float palette = paletteStrength < 0.0f ? 0.0f : (paletteStrength > 1.0f ? 1.0f : paletteStrength);
+        const AZ::RHI::ShaderInputConstantIndex paletteIdx = drawSrg->FindShaderInputConstantIndex(AZ::Name{ "m_paletteParams" });
+        if (paletteIdx.IsValid())
+        {
+            drawSrg->SetConstant(paletteIdx, AZ::Vector4(palette, 0.0f, 0.0f, 0.0f));
+        }
+        const AZ::RHI::ShaderInputConstantIndex paletteShadowIdx = drawSrg->FindShaderInputConstantIndex(AZ::Name{ "m_paletteShadow" });
+        if (paletteShadowIdx.IsValid())
+        {
+            drawSrg->SetConstant(paletteShadowIdx, AZ::Vector4(paletteShadow.GetR(), paletteShadow.GetG(), paletteShadow.GetB(), 1.0f));
+        }
+        const AZ::RHI::ShaderInputConstantIndex paletteMidIdx = drawSrg->FindShaderInputConstantIndex(AZ::Name{ "m_paletteMid" });
+        if (paletteMidIdx.IsValid())
+        {
+            drawSrg->SetConstant(paletteMidIdx, AZ::Vector4(paletteMid.GetR(), paletteMid.GetG(), paletteMid.GetB(), 1.0f));
+        }
+        const AZ::RHI::ShaderInputConstantIndex paletteHighlightIdx =
+            drawSrg->FindShaderInputConstantIndex(AZ::Name{ "m_paletteHighlight" });
+        if (paletteHighlightIdx.IsValid())
+        {
+            drawSrg->SetConstant(
+                paletteHighlightIdx, AZ::Vector4(paletteHighlight.GetR(), paletteHighlight.GetG(), paletteHighlight.GetB(), 1.0f));
         }
         const AZ::RHI::ShaderInputConstantIndex rightIdx = drawSrg->FindShaderInputConstantIndex(AZ::Name{ "m_camBasisRight" });
         if (rightIdx.IsValid())
@@ -576,7 +608,11 @@ namespace Diorama
             AZ::Color(1.0f, 1.0f, 1.0f, 1.0f),
             AZ::Color(1.0f, 1.0f, 1.0f, 1.0f),
             0.0f,
-            false);
+            false,
+            0.0f, // ground shadows are flat black; no palette recolor
+            AZ::Color(0.0f, 0.0f, 0.0f, 1.0f),
+            AZ::Color(0.0f, 0.0f, 0.0f, 1.0f),
+            AZ::Color(0.0f, 0.0f, 0.0f, 1.0f));
         drawSrg->Compile();
 
         m_dynamicDraw->SetSortKey(sortKey);
@@ -741,7 +777,11 @@ namespace Diorama
                 first->m_config.m_outlineColor,
                 first->m_config.m_emissiveColor,
                 first->m_config.m_emissiveIntensity,
-                first->m_config.m_pointFilter);
+                first->m_config.m_pointFilter,
+                first->m_config.m_paletteStrength,
+                first->m_config.m_paletteShadow,
+                first->m_config.m_paletteMid,
+                first->m_config.m_paletteHighlight);
             drawSrg->Compile();
 
             // Pack all quads in this batch into one vertex/index stream. 32-bit

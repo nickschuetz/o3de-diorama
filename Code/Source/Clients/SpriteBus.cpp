@@ -219,6 +219,22 @@ namespace Diorama
                     { "b", "Trail blue, clamped 0..1." },
                     { "a", "Trail alpha multiplier, clamped 0..1." } } })
             ->Event(
+                "SetPaletteStrength",
+                &DioramaSpriteRequestBus::Events::SetPaletteStrength,
+                { { { "strength", "Blend toward the three-stop color ramp, 0..1 (0 = off; the quick P2-color switch)." } } })
+            ->Event(
+                "SetPaletteColors",
+                &DioramaSpriteRequestBus::Events::SetPaletteColors,
+                { { { "shadowR", "Shadow ramp red, 0..1." },
+                    { "shadowG", "Shadow ramp green, 0..1." },
+                    { "shadowB", "Shadow ramp blue, 0..1." },
+                    { "midR", "Mid ramp red, 0..1." },
+                    { "midG", "Mid ramp green, 0..1." },
+                    { "midB", "Mid ramp blue, 0..1." },
+                    { "highR", "Highlight ramp red, 0..1." },
+                    { "highG", "Highlight ramp green, 0..1." },
+                    { "highB", "Highlight ramp blue, 0..1." } } })
+            ->Event(
                 "PlaySpriteSheet",
                 &DioramaSpriteRequestBus::Events::PlaySpriteSheet,
                 { { { "columns", "Number of columns in the sprite sheet grid." },

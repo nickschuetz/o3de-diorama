@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Sprite palette recolor (team / alt colors).** A sprite can be recolored by remapping
+  its luminance through a three-stop color ramp (shadow -> mid -> highlight) blended by a
+  strength - so one sprite sheet yields P1 / P2 / alt-color variants by swapping the ramp,
+  no index-encoded art needed. The recolor lives in Diorama's own sprite shader (added
+  alongside the existing flash / outline / emissive material effects, with a pure
+  `SpritePalette.h` CPU mirror so the mapping is unit tested). Author it in the Inspector
+  (**Palette Strength**, **Palette Shadow / Mid / Highlight**) or drive it at runtime with
+  **`SetPaletteStrength`** / **`SetPaletteColors`** (AI/human parity). Off by default
+  (strength 0 leaves the sprite's own colors), and the palette is part of the batch key so
+  differently-colored sprites still batch correctly. `SpritePaletteTest` covers the ramp.
 - **Sprite afterimage trails.** A sprite can now draw a configurable number of fading
   ghost copies of its recent poses behind itself - the classic dash / super-activation
   trail. The presenter captures the pose (transform + current animation frame) on a set

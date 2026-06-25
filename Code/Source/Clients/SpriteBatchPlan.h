@@ -46,6 +46,12 @@ namespace Diorama::SpriteBatchPlan
         //! is selected per draw (m_material.w in the shader), so a point-filtered
         //! sprite must not share a batch with a linear-filtered one. Default = linear.
         bool m_pointFilter = false;
+        //! Palette recolor (team / alt colors), bound per draw, so sprites that differ
+        //! in palette must not share a batch. Default 0 strength = no recolor.
+        float m_paletteStrength = 0.0f;
+        AZ::u32 m_paletteShadow = 0u;
+        AZ::u32 m_paletteMid = 0u;
+        AZ::u32 m_paletteHighlight = 0u;
 
         bool operator==(const BatchKey& other) const
         {
@@ -53,7 +59,9 @@ namespace Diorama::SpriteBatchPlan
                 m_flashAmount == other.m_flashAmount && m_flashColor == other.m_flashColor &&
                 m_outlineThickness == other.m_outlineThickness && m_outlineColor == other.m_outlineColor &&
                 m_emissiveIntensity == other.m_emissiveIntensity && m_emissiveColor == other.m_emissiveColor &&
-                m_pointFilter == other.m_pointFilter;
+                m_pointFilter == other.m_pointFilter && m_paletteStrength == other.m_paletteStrength &&
+                m_paletteShadow == other.m_paletteShadow && m_paletteMid == other.m_paletteMid &&
+                m_paletteHighlight == other.m_paletteHighlight;
         }
         bool operator!=(const BatchKey& other) const
         {

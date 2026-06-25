@@ -54,6 +54,14 @@ ShaderResourceGroup SpriteSrg : SRG_PerDraw
     // through Atom's post-process pass. (0,0,0) = no emissive.
     float4 m_emissiveColor;
 
+    // Palette recolor (team / alt colors): remap the albedo's luminance through a
+    // three-stop ramp (shadow -> mid -> highlight) before lighting. m_paletteParams.x
+    // is the blend strength (0 = off, the sprite keeps its own colors); .yzw spare.
+    float4 m_paletteParams;
+    float4 m_paletteShadow;
+    float4 m_paletteMid;
+    float4 m_paletteHighlight;
+
     Sampler m_sampler
     {
         MinFilter = Linear;
@@ -118,6 +126,18 @@ PSOutput MainPS(VSOutput input)
     bool pointFilter = SpriteSrg::m_material.w > 0.5;
     float4 sampled = pointFilter ? SpriteSrg::m_texture.Sample(SpriteSrg::m_pointSampler, input.m_uv)
                                  : SpriteSrg::m_texture.Sample(SpriteSrg::m_sampler, input.m_uv);
+
+    // Palette recolor (team / alt colors): remap the albedo's luminance through the
+    // three-stop ramp, blended by strength, before lighting modulates it. Strength 0
+    // leaves the look unchanged. The CPU mirror is SpritePalette.h (RampChannel).
+    float paletteStrength = saturate(SpriteSrg::m_paletteParams.x);
+    if (paletteStrength > 0.0)
+    {
+        float luma = dot(sampled.rgb, float3(0.299, 0.587, 0.114));
+        float3 ramp = luma < 0.5 ? lerp(SpriteSrg::m_paletteShadow.rgb, SpriteSrg::m_paletteMid.rgb, luma * 2.0)
+                                 : lerp(SpriteSrg::m_paletteMid.rgb, SpriteSrg::m_paletteHighlight.rgb, (luma - 0.5) * 2.0);
+        sampled.rgb = lerp(sampled.rgb, ramp, paletteStrength);
+    }
 
     // v1 lighting: distance-attenuated colored fill, no normal map yet. The CPU
     // forces ambient = 1 and count = 0 for unlit scenes, so this collapses to the

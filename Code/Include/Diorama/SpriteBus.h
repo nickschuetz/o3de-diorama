@@ -136,6 +136,14 @@ namespace Diorama
         //! Color the trail ghosts are drawn in (white shows the sprite faded). Channels
         //! clamped to 0..1.
         virtual void SetTrailTint(float r, float g, float b, float a) = 0;
+        //! Palette recolor strength (0..1): blend the sprite toward its three-stop color
+        //! ramp keyed off luminance. 0 = off (the sprite keeps its own colors). The
+        //! quick way to switch a fighter to its P2 colors.
+        virtual void SetPaletteStrength(float strength) = 0;
+        //! The recolor ramp: the shadow, mid, and highlight colors (each rgb, channels
+        //! clamped 0..1) the sprite's dark, mid, and bright pixels map to.
+        virtual void SetPaletteColors(
+            float shadowR, float shadowG, float shadowB, float midR, float midG, float midB, float highR, float highG, float highB) = 0;
         //! Convenience: set the grid, set playback, and enable animation in one
         //! call (the common "play this sheet" intent).
         virtual void PlaySpriteSheet(int columns, int rows, int frameCount, float framesPerSecond, bool loop) = 0;

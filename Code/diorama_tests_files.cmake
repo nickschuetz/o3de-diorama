@@ -9,6 +9,7 @@ set(FILES
     Tests/Clients/Particles2DTest.cpp
     Tests/Clients/SpriteCullTest.cpp
     Tests/Clients/SpriteTrailTest.cpp
+    Tests/Clients/SpritePaletteTest.cpp
     Tests/Clients/AsepriteBinaryTest.cpp
     Tests/Clients/TilemapV2Test.cpp
     Tests/Clients/InputActionMapTest.cpp

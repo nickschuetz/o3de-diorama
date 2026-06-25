@@ -314,6 +314,33 @@ namespace Diorama
         NotifyChanged();
     }
 
+    void SpriteRequestHandler::SetPaletteStrength(float strength)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_paletteStrength = AZ::GetClamp(strength, 0.0f, 1.0f);
+        NotifyChanged();
+    }
+
+    void SpriteRequestHandler::SetPaletteColors(
+        float shadowR, float shadowG, float shadowB, float midR, float midG, float midB, float highR, float highG, float highB)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        const auto channel = [](float v)
+        {
+            return AZ::GetClamp(v, 0.0f, 1.0f);
+        };
+        m_config->m_paletteShadow = AZ::Color(channel(shadowR), channel(shadowG), channel(shadowB), 1.0f);
+        m_config->m_paletteMid = AZ::Color(channel(midR), channel(midG), channel(midB), 1.0f);
+        m_config->m_paletteHighlight = AZ::Color(channel(highR), channel(highG), channel(highB), 1.0f);
+        NotifyChanged();
+    }
+
     void SpriteRequestHandler::SetStartFrame(int frame)
     {
         if (m_config == nullptr)

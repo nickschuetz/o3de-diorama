@@ -97,6 +97,31 @@ simulation clock, costs the renderer nothing when off (Trail Ghosts = 0), and st
 world-space. For a fighter, flip it on at the start of a dash or super and off in
 recovery.
 
+## Palette recolor (team / alt colors)
+
+The same sprite sheet can wear different color schemes - P1 vs P2, team colors, a
+hit-flash variant - without separate art. The shader remaps each pixel's brightness
+through a **three-stop color ramp** (a shadow color for the darks, a mid color, a
+highlight color for the brights) and blends the sprite toward it by a strength. Author
+it on the Sprite component's **Palette Recolor** group (**Palette Strength** = how much
+to apply, plus the three ramp colors) or from script:
+
+```lua
+-- Switch this fighter to its red P2 scheme.
+DioramaSpriteRequestBus.Event.SetPaletteColors(
+    p2,
+    0.25, 0.02, 0.02,  -- shadow (dark red)
+    0.80, 0.15, 0.15,  -- mid    (red)
+    1.00, 0.70, 0.60)  -- highlight (warm white)
+DioramaSpriteRequestBus.Event.SetPaletteStrength(p2, 1.0)  -- 0 = original colors
+```
+
+Because it keys off luminance, it recolors any sprite (it does not need index-encoded
+art); pick ramps with enough contrast between the three stops to keep the shape
+readable. Strength 0 is off (the sprite keeps its own colors), and the palette is part
+of the draw batch key, so two differently-colored copies of the same sheet still batch
+efficiently.
+
 ## How it works
 
 A flashing sprite carries its flash color + amount in its batch key, so it draws
