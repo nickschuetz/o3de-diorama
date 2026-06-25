@@ -128,6 +128,14 @@ namespace Diorama
             SimClock::Advance(m_clock, static_cast<double>(deltaTime), static_cast<double>(StepSeconds()), m_config.m_maxCatchUpSteps);
         for (int i = 0; i < steps; ++i)
         {
+            // Super-freeze: a whole step's worth of real time still elapses, but the
+            // step is not run, so the sim frame holds and no OnSimTick consumer
+            // advances. After the countdown, automatic stepping resumes on its own.
+            if (m_freezeFramesRemaining > 0)
+            {
+                --m_freezeFramesRemaining;
+                continue;
+            }
             RunStep();
         }
     }
@@ -152,6 +160,11 @@ namespace Diorama
         m_config.m_stepsPerSecond = ClampStepsPerSecond(stepsPerSecond);
     }
 
+    void DioramaSimClockComponent::FreezeFor(AZ::s64 frames)
+    {
+        m_freezeFramesRemaining = frames > 0 ? frames : 0;
+    }
+
     DioramaSimClockInfo DioramaSimClockComponent::GetSimClockInfo()
     {
         DioramaSimClockInfo info;
@@ -159,6 +172,8 @@ namespace Diorama
         info.m_stepsPerSecond = m_config.m_stepsPerSecond;
         info.m_paused = m_paused;
         info.m_randomDraws = static_cast<AZ::s64>(m_random.m_draws);
+        info.m_freezeFramesRemaining = m_freezeFramesRemaining;
+        info.m_frozen = m_freezeFramesRemaining > 0;
         return info;
     }
 
@@ -202,13 +217,14 @@ namespace Diorama
     //
     // Frame image layout (all little-endian through SimState::Writer):
     //   u32  magic 'DSS1'
-    //   u8   version (1)
+    //   u8   version (2)
     //   s64  clock frame
     //   f64  clock accumulator
     //   u8   paused
     //   u64  rng state
     //   u64  rng draws
     //   f32  steps per second
+    //   s64  super-freeze frames remaining (version 2+)
     //   u32  participant count
     //   per participant (sorted by entity id for a canonical, hash-stable image):
     //     u64  entity id
@@ -218,7 +234,7 @@ namespace Diorama
     namespace
     {
         constexpr AZ::u32 FrameMagic = 0x31535344; // 'DSS1'
-        constexpr AZ::u8 FrameVersion = 1;
+        constexpr AZ::u8 FrameVersion = 2;
     } // namespace
 
     void DioramaSimClockComponent::CaptureFrame(AZStd::vector<AZ::u8>& out)
@@ -233,6 +249,7 @@ namespace Diorama
         writer.U64(m_random.m_state);
         writer.U64(m_random.m_draws);
         writer.F32(m_config.m_stepsPerSecond);
+        writer.S64(m_freezeFramesRemaining);
 
         // Enumerate enrolled entities and capture in entity-id order, so the image
         // (and therefore the state hash) is canonical regardless of activation order.
@@ -282,13 +299,14 @@ namespace Diorama
         AZ::u64 rngState = 0;
         AZ::u64 rngDraws = 0;
         float stepsPerSecond = 0.0f;
+        AZ::s64 freezeFramesRemaining = 0;
         AZ::u32 participantCount = 0;
         if (!reader.S64(frame) || !reader.F64(accumulator) || !reader.U8(paused) || !reader.U64(rngState) || !reader.U64(rngDraws) ||
-            !reader.F32(stepsPerSecond) || !reader.U32(participantCount))
+            !reader.F32(stepsPerSecond) || !reader.S64(freezeFramesRemaining) || !reader.U32(participantCount))
         {
             return false;
         }
-        if (rngState == 0 || !(stepsPerSecond >= 1.0f && stepsPerSecond <= 1000.0f))
+        if (rngState == 0 || !(stepsPerSecond >= 1.0f && stepsPerSecond <= 1000.0f) || freezeFramesRemaining < 0)
         {
             return false; // invalid by construction: never produced by CaptureFrame
         }
@@ -299,6 +317,7 @@ namespace Diorama
         m_random.m_state = rngState;
         m_random.m_draws = rngDraws;
         m_config.m_stepsPerSecond = stepsPerSecond;
+        m_freezeFramesRemaining = freezeFramesRemaining;
 
         // Apply participant blocks. An entity that no longer exists (no handler) has
         // its block skipped; an unrecognized chunk within a block is skipped too, so

@@ -75,6 +75,7 @@ namespace Diorama
         void SetPaused(bool paused) override;
         void StepOnce() override;
         void SetStepsPerSecond(float stepsPerSecond) override;
+        void FreezeFor(AZ::s64 frames) override;
         DioramaSimClockInfo GetSimClockInfo() override;
         void CaptureFrame(AZStd::vector<AZ::u8>& out) override;
         bool RestoreFrame(const AZStd::vector<AZ::u8>& buffer) override;
@@ -101,6 +102,9 @@ namespace Diorama
         SimClock::State m_clock;
         SimRandom::State m_random;
         bool m_paused = false;
+        //! Super-freeze countdown: while > 0 the automatic tick consumes whole steps
+        //! without running them, holding every OnSimTick consumer. StepOnce bypasses it.
+        AZ::s64 m_freezeFramesRemaining = 0;
         //! Script-facing snapshot slots (SaveToSlot / RestoreFromSlot).
         AZStd::array<AZStd::vector<AZ::u8>, SlotCount> m_slots;
         //! Reused by GetStateHash so steady-state hashing allocates nothing.

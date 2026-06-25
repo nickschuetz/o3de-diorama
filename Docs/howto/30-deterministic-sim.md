@@ -55,6 +55,26 @@ fixed step, so hits resolve once per frame in deterministic order. A fighter bui
 from these pieces (state machine picking clips, clips driving `OnAnimationFrame`,
 frames driving hitbox windows) steps frame-exactly under `StepOnce`.
 
+## Super-freeze (the cinematic pause)
+
+`FreezeFor(frames)` suppresses the clock's automatic stepping for that many fixed
+steps, then resumes on its own. Because every gameplay system advances on `OnSimTick`,
+they all hold for the duration with no extra wiring (the clock just stops ticking
+them) - the super-flash / dramatic-pause effect. `GetSimClockInfo` reports `frozen`
+and `freezeFramesRemaining`; a non-positive count clears an active freeze.
+
+```lua
+DioramaSimClockRequestBus.Broadcast.FreezeFor(36)  -- ~0.6s at 60 steps/sec
+```
+
+Two notes keep it clean. **To keep the attacker moving through the freeze**, drive its
+super animation on the **render tick** (Use Simulation Clock off for that sprite) so it
+advances while the sim world is held. **`StepOnce` ignores the freeze** - it always
+forces a step - so rollback re-simulation and training-mode frame advance are
+unaffected, and the freeze countdown is part of the snapshot so it rewinds correctly.
+A darken scrim is a sample-side touch (a translucent world quad you tint for the
+freeze); see `Assets/Diorama/Examples/Fighting/super_freeze.lua`.
+
 ## Seeded randomness
 
 The clock hosts a deterministic RNG on `DioramaRandomRequestBus` (`SetSeed`,

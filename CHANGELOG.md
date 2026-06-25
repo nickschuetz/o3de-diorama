@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Super-freeze (cinematic time-control) on the 2D Simulation Clock.** A new
+  **`FreezeFor(frames)`** verb suppresses the clock's automatic stepping for a set
+  number of fixed steps, then resumes on its own - the super-flash / dramatic pause.
+  Because every gameplay system advances on `OnSimTick`, they all hold for the duration
+  with no per-component coupling (the clock simply stops ticking them); to keep the
+  attacker moving through the freeze, drive its super animation on the render tick (an
+  un-sim-clocked sprite). **`StepOnce`** still forces a step, so rollback re-simulation
+  and training-mode frame advance are unaffected, and the freeze countdown is part of
+  the clock snapshot (frame image version 2), so it rewinds correctly. `GetSimClockInfo`
+  reports `frozen` and `freezeFramesRemaining`. New `SimClockFreezeTest`. A darken scrim
+  during the freeze is a sample-side technique (a translucent world quad), keeping the
+  gem a thin primitive.
 - **Sprite palette recolor (team / alt colors).** A sprite can be recolored by remapping
   its luminance through a three-stop color ramp (shadow -> mid -> highlight) blended by a
   strength - so one sprite sheet yields P1 / P2 / alt-color variants by swapping the ramp,

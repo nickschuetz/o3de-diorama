@@ -507,7 +507,8 @@ Simulation Clock** per level handles them (how-to
 | `SetPaused` | `paused: bool` | void | Freeze or resume the fixed stepping. |
 | `StepOnce` | | void | Run exactly one step now (training-mode frame advance; the rollback re-simulation primitive). |
 | `SetStepsPerSecond` | `stepsPerSecond: float` | void | Fixed rate (clamped [1, 1000]); deterministic games set it once at startup. |
-| `GetSimClockInfo` | | `DioramaSimClockInfo` | Read-only: frame, rate, paused, RNG draw count. |
+| `FreezeFor` | `frames: int` | void | Super-freeze: suppress automatic stepping for `frames` fixed steps, then resume (the super-flash pause); every `OnSimTick` consumer holds. 0 or less clears it. `StepOnce` still forces a step. Drive the attacker on the render tick to keep it moving. |
+| `GetSimClockInfo` | | `DioramaSimClockInfo` | Read-only: frame, rate, paused, RNG draw count, frozen, freeze frames remaining. |
 | `GetStateHash` | | `int` | FNV-1a 64 hash of a fresh frame image: the determinism fingerprint. |
 | `SaveToSlot` | `slot: int` | void | Capture the frame image into an internal slot (0..7). |
 | `RestoreFromSlot` | `slot: int` | `bool` | Restore a slot (false if empty/invalid). |

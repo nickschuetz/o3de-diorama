@@ -33,6 +33,8 @@ namespace Diorama
         float m_stepsPerSecond = 60.0f;
         bool m_paused = false;
         AZ::s64 m_randomDraws = 0; //!< Values drawn from the seeded RNG since its last seed.
+        bool m_frozen = false; //!< A timed super-freeze is suppressing automatic stepping.
+        AZ::s64 m_freezeFramesRemaining = 0; //!< Frozen steps left before stepping resumes.
     };
 
     //! Global (broadcast) control of the level's 2D simulation clock; handled by the
@@ -63,6 +65,15 @@ namespace Diorama
         //! changes what the same wall-clock time simulates to, so deterministic games
         //! set it once at startup.
         virtual void SetStepsPerSecond(float stepsPerSecond) = 0;
+        //! Super-freeze: suppress automatic stepping for `frames` fixed steps, then
+        //! resume on its own. Every OnSimTick consumer (animation, hitboxes, bullets,
+        //! gameplay scripts) holds while frozen, since the clock simply stops ticking
+        //! them. The cinematic super-flash / dramatic pause. To keep the attacker
+        //! moving through the freeze, drive its super animation on the render tick (an
+        //! un-sim-clocked sprite) so it advances while the sim world is held. 0 or a
+        //! negative count clears any active freeze. StepOnce still forces a step, so a
+        //! rollback re-simulation is unaffected.
+        virtual void FreezeFor(AZ::s64 frames) = 0;
         //! Resolved clock state. Safe to poll.
         virtual DioramaSimClockInfo GetSimClockInfo() = 0;
 
