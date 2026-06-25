@@ -1,9 +1,9 @@
 # Design: typed interaction boxes with attack payloads
 
-Status: **in progress; phases A (pure core), B (component, OnBoxEvent, pushbox
-separation), and C (world-space box overlay) shipped; sample (D) remains.** The
-overlay is runtime-only (game mode + launcher), matching the component's existing
-no-editor-preview stance. Companion doc:
+Status: **shipped (all phases A-D).** A pure core (kinds + payload + `Resolve`
+matrix), the component (authoring, `OnBoxEvent`, pushbox separation), the world-space
+box overlay (runtime-only, matching the component's no-editor-preview stance), and the
+fighting sample (`fighting_demo.py` typed-box rig + `box_combat.lua` receiver). Companion doc:
 [2d-deterministic-sim.md](2d-deterministic-sim.md) (fixed-tick sim + rollback-ready
 state). Driver: fighting games of the SF6 / GGST class. The shipped frame-data rig
 (`DioramaHitboxComponent`, [howto/21-fighting.md](../howto/21-fighting.md)) proved

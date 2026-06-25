@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Typed interaction boxes, phase D (sample) - the feature is complete.** The
+  fighting demo builder (`Docs/examples/fighting_demo.py`) now authors a full typed-box
+  rig on each fighter - hurtbox, throwable, and pushbox bodies, a proximity box, a
+  punch hitbox (frames 2-4) carrying a real attack payload (damage, hitstun/hitstop
+  frames, pushback, clash priority), a throwbox (6-8), and an armor window (10-14) -
+  and turns the **box overlay** on so the kinds are visible in game mode. A new
+  receiving sample, `Assets/Diorama/Examples/Fighting/box_combat.lua`, reads
+  `OnBoxEvent` and branches on every result kind: it applies the authored damage and a
+  hit-stop freeze on a Hit, sparks at the contact point, reads an armor Absorb, enters
+  a thrown state on a Throw, and takes a proximity-guard hint. How-to 21 grows the
+  typed-box, overlay, and `OnBoxEvent` sections. This closes
+  [2d-box-interactions.md](Docs/design/2d-box-interactions.md) (all phases A-D shipped).
 - **Typed interaction boxes, phase C (box overlay).** The **2D Frame-Data Hitboxes**
   component can draw its live boxes as world-space translucent quads, color-coded by
   kind (hurt green, hit red, push yellow, throw purple, armor blue, proximity gray) -

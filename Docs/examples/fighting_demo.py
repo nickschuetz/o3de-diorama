@@ -186,17 +186,40 @@ INPUT_CONFIG = {
 
 
 def hitbox_rig(doc):
-    """Bake a minimal frame-data rig into both fighters: a full-time hurtbox plus a
-    punch hitbox live on animation frames 2-4 (kind 0 = hurtbox, 1 = hitbox)."""
+    """Bake a typed-box frame-data rig into both fighters and turn the training-mode
+    overlay on so the boxes are visible in game mode. Box kinds: 0 hurtbox, 1 hitbox,
+    2 pushbox, 3 throwbox, 4 throwable, 5 armor, 6 proximity. The punch hitbox carries
+    an attack payload (damage, hitstun/hitstop frames, pushback, clash priority) the
+    rig delivers on OnBoxEvent; box_combat.lua reads it. The body is always a hurtbox
+    + a throwable + a pushbox (on its own push layer); a proximity box reaches ahead;
+    a punch hitbox is live on frames 2-4 and a throwbox on frames 6-8; an armor window
+    covers frames 10-14 (a hyper-armor move)."""
     boxes = [
         {"kind": 0, "offset": [0.0, 0.0], "halfExtents": [0.7, 1.2], "startFrame": 0, "endFrame": 9999},
-        {"kind": 1, "offset": [1.1, 0.4], "halfExtents": [0.5, 0.3], "startFrame": 2, "endFrame": 4},
+        {"kind": 4, "offset": [0.0, 0.0], "halfExtents": [0.7, 1.2], "startFrame": 0, "endFrame": 9999},
+        {"kind": 2, "offset": [0.0, 0.0], "halfExtents": [0.6, 1.1], "startFrame": 0, "endFrame": 9999},
+        {"kind": 6, "offset": [1.6, 0.4], "halfExtents": [0.9, 0.6], "startFrame": 0, "endFrame": 9999},
+        {
+            "kind": 1, "offset": [1.1, 0.4], "halfExtents": [0.5, 0.3], "startFrame": 2, "endFrame": 4,
+            "hit": {
+                "damage": 9.0, "hitstunFrames": 16, "hitstopFrames": 6,
+                "pushback": [2.5, 0.0], "guardHeight": 1, "priority": 1, "customId": 1001,
+            },
+        },
+        {
+            "kind": 3, "offset": [0.9, 0.0], "halfExtents": [0.5, 0.6], "startFrame": 6, "endFrame": 8,
+            "hit": {"damage": 14.0, "hitstunFrames": 22, "hitstopFrames": 8, "customId": 2001},
+        },
+        {"kind": 5, "offset": [0.0, 0.4], "halfExtents": [0.8, 1.0], "startFrame": 10, "endFrame": 14},
     ]
     for entity in doc.get("Entities", {}).values():
         if entity.get("Name") in ("FighterOne", "FighterTwo"):
             for comp in entity.get("Components", {}).values():
                 if "EditorDioramaHitboxComponent" in comp.get("$type", ""):
-                    comp.setdefault("Config", {})["boxes"] = boxes
+                    cfg = comp.setdefault("Config", {})
+                    cfg["boxes"] = boxes
+                    cfg["pushLayer"] = 512      # 0x0200, distinct from the hurt layer (0x0100)
+                    cfg["showOverlay"] = True   # training-mode box display, visible in game mode
 
 
 def main():
@@ -230,7 +253,17 @@ def main():
     if general.get_current_level_name() == LEVEL_NAME:
         try:
             general.save_level()
-            patch_prefab(LEVEL_NAME, {'FighterOne': ['diorama/examples/fighting/motion_special.luac']}, input_config=INPUT_CONFIG, extra=hitbox_rig)
+            patch_prefab(
+                LEVEL_NAME,
+                {
+                    'FighterOne': [
+                        'diorama/examples/fighting/motion_special.luac',
+                        'diorama/examples/fighting/box_combat.luac',
+                    ],
+                    'FighterTwo': ['diorama/examples/fighting/box_combat.luac'],
+                },
+                input_config=INPUT_CONFIG,
+                extra=hitbox_rig)
         except Exception as e:
             log("save_level raised: {}".format(e))
     else:
@@ -238,9 +271,13 @@ def main():
             general.get_current_level_name(), LEVEL_NAME))
 
     log("Fighting demo built in " + LEVEL_NAME)
-    log("MANUAL: camera -> Be this camera, game mode: tap 236 (S, S+D, D) then J for")
-    log("        the qcf special (Console logs it); each fighter has a hurtbox plus a")
-    log("        punch hitbox live on frames 2-4, firing OnHit/OnHurt on overlap.")
+    log("MANUAL: camera -> Be this camera, then enter game mode. Each fighter carries a")
+    log("        typed-box rig with the overlay ON, so you see the boxes color-coded by")
+    log("        kind (hurt green, hit red, push yellow, throw purple, armor blue,")
+    log("        proximity gray). The punch hitbox (frames 2-4) carries a damage payload")
+    log("        box_combat.lua reads on OnBoxEvent; a throwbox (6-8) and an armor window")
+    log("        (10-14) demonstrate the other kinds. Tap 236 (S, S+D, D) then J for the")
+    log("        qcf special. To toggle the overlay from the console: d_dioramaHitboxOverlay 1.")
     log("done")
 
 

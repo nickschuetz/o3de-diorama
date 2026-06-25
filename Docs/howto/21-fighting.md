@@ -103,12 +103,18 @@ function Fighter:OnBoxEvent(e)
     if e.result == 1 and e.defender == self.entityId then -- Hit: I got struck
         self.health = self.health - e.damage
         self.hitstun = e.hitstunFrames
-        DioramaParticleRequestBus.Event.BurstAt(self.fxId, e.contactX, e.contactY)
+        TransformBus.Event.SetWorldTranslation(self.spark, Vector3(e.contactX, e.contactY, 1.0))
+        DioramaParticleRequestBus.Event.Burst(self.spark) -- spark at the contact point
     elseif e.result == 5 and e.defender == self.entityId then -- Throw: I got grabbed
         self:EnterThrown(e.attacker)
     end
 end
 ```
+
+The full payload-driven receiver is
+`Assets/Diorama/Examples/Fighting/box_combat.lua`: it branches on every result kind
+(hit, armor absorb, throw, proximity, clash), applies the authored damage and a
+hit-stop freeze, and sparks at the contact point.
 
 When two active hitboxes overlap, the **priority** on each box decides it: equal
 priority is a **Clash** to both sides; otherwise the higher scores a **Hit** and the
