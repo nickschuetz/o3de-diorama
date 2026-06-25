@@ -290,6 +290,30 @@ namespace Diorama
         NotifyChanged();
     }
 
+    void SpriteRequestHandler::SetTrail(int count, float intervalSeconds, float startAlpha, float fade)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_trailCount = AZ::GetMax(0, count);
+        m_config->m_trailInterval = AZ::GetMax(0.0f, intervalSeconds);
+        m_config->m_trailStartAlpha = AZ::GetClamp(startAlpha, 0.0f, 1.0f);
+        m_config->m_trailFade = AZ::GetClamp(fade, 0.0f, 1.0f);
+        NotifyChanged();
+    }
+
+    void SpriteRequestHandler::SetTrailTint(float r, float g, float b, float a)
+    {
+        if (m_config == nullptr)
+        {
+            return;
+        }
+        m_config->m_trailTint =
+            AZ::Color(AZ::GetClamp(r, 0.0f, 1.0f), AZ::GetClamp(g, 0.0f, 1.0f), AZ::GetClamp(b, 0.0f, 1.0f), AZ::GetClamp(a, 0.0f, 1.0f));
+        NotifyChanged();
+    }
+
     void SpriteRequestHandler::SetStartFrame(int frame)
     {
         if (m_config == nullptr)

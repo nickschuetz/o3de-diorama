@@ -16,6 +16,7 @@
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/Component/TransformBus.h>
 #include <AzCore/Math/Transform.h>
+#include <AzCore/std/containers/vector.h>
 
 namespace Diorama
 {
@@ -90,6 +91,18 @@ namespace Diorama
 
         void QueueTextureLoad();
         void Push();
+        //! Build the config to draw this frame: the base config, or (when animating)
+        //! a copy with the current frame's UV region. Shared by Push and trail capture.
+        SpriteComponentConfig BuildFrameConfig() const;
+
+        //! True when an afterimage trail is configured (one or more ghosts).
+        bool TrailEnabled() const;
+        //! Advance the afterimage trail by `deltaSeconds`: capture a ghost pose on the
+        //! interval and redraw the ghost quads with their fading alpha. Acquires the
+        //! ghost handles on first use and releases them when the trail is turned off.
+        void UpdateTrail(float deltaSeconds);
+        //! Release the trail's renderer handles and clear its captured poses.
+        void ReleaseTrail();
 
         //! Connect or disconnect the tick bus to match current needs: a sprite
         //! ticks if it is animating, or if it has not yet acquired a feature
@@ -129,5 +142,18 @@ namespace Diorama
         SpriteFeatureProcessor* m_featureProcessor = nullptr;
         AZ::u32 m_handle = 0; // SpriteFeatureProcessor::InvalidHandle
         bool m_connected = false;
+
+        // Afterimage trail: one renderer handle per ghost plus a ring of recent poses
+        // (transform + frame config), captured on the configured interval and drawn
+        // with a fading alpha behind the live sprite. Held only while a trail is
+        // configured, so a sprite with no trail costs the renderer nothing.
+        struct TrailGhost
+        {
+            AZ::Transform m_transform = AZ::Transform::CreateIdentity();
+            SpriteComponentConfig m_config;
+        };
+        AZStd::vector<AZ::u32> m_trailHandles;
+        AZStd::vector<TrailGhost> m_trailGhosts; //!< front = freshest capture
+        float m_trailAccumulator = 0.0f;
     };
 } // namespace Diorama

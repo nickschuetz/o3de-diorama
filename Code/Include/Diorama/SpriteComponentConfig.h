@@ -122,6 +122,20 @@ namespace Diorama
         //! without moving them in depth.
         float m_sortOffset = 0.0f;
 
+        //! Afterimage trail: number of fading ghost copies of recent poses drawn
+        //! behind the sprite (0 = off). The classic dash / super-activation trail.
+        //! Ghosts are captured on m_trailInterval and drawn through the sprite batch
+        //! path, behind the live sprite, each fainter than the last.
+        int m_trailCount = 0;
+        //! Seconds between captured ghost poses (the spacing of the trail).
+        float m_trailInterval = 0.05f;
+        //! Alpha of the freshest ghost (0..1); older ghosts fall off by m_trailFade.
+        float m_trailStartAlpha = 0.5f;
+        //! Geometric alpha falloff applied per older ghost (0..1).
+        float m_trailFade = 0.6f;
+        //! Color the ghosts are drawn in (white shows the sprite's own texture faded).
+        AZ::Color m_trailTint = AZ::Color(1.0f, 1.0f, 1.0f, 1.0f);
+
         //! Play frames from a sprite sheet on a timer. When false the sprite is
         //! static and the animation fields below are ignored.
         bool m_animEnabled = false;

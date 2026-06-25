@@ -41,6 +41,11 @@ namespace Diorama
                 ->Field("FlipVertical", &SpriteComponentConfig::m_flipVertical)
                 ->Field("Transpose", &SpriteComponentConfig::m_transpose)
                 ->Field("SortOffset", &SpriteComponentConfig::m_sortOffset)
+                ->Field("TrailCount", &SpriteComponentConfig::m_trailCount)
+                ->Field("TrailInterval", &SpriteComponentConfig::m_trailInterval)
+                ->Field("TrailStartAlpha", &SpriteComponentConfig::m_trailStartAlpha)
+                ->Field("TrailFade", &SpriteComponentConfig::m_trailFade)
+                ->Field("TrailTint", &SpriteComponentConfig::m_trailTint)
                 ->Field("AnimEnabled", &SpriteComponentConfig::m_animEnabled)
                 ->Field("FrameColumns", &SpriteComponentConfig::m_frameColumns)
                 ->Field("FrameRows", &SpriteComponentConfig::m_frameRows)
@@ -159,6 +164,39 @@ namespace Diorama
                         &SpriteComponentConfig::m_sortOffset,
                         "Sort Offset",
                         "Transparent draw-order bias; larger draws on top")
+                    ->ClassElement(AZ::Edit::ClassElements::Group, "Afterimage Trail")
+                    ->Attribute(AZ::Edit::Attributes::AutoExpand, false)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SpriteComponentConfig::m_trailCount,
+                        "Trail Ghosts",
+                        "Number of fading ghost copies drawn behind the sprite (0 = off); the dash / super trail")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SpriteComponentConfig::m_trailInterval,
+                        "Trail Interval",
+                        "Seconds between captured ghost poses (the spacing of the trail)")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Slider,
+                        &SpriteComponentConfig::m_trailStartAlpha,
+                        "Trail Start Alpha",
+                        "Alpha of the freshest ghost")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->Attribute(AZ::Edit::Attributes::Max, 1.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Slider,
+                        &SpriteComponentConfig::m_trailFade,
+                        "Trail Fade",
+                        "Geometric alpha falloff per older ghost")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
+                    ->Attribute(AZ::Edit::Attributes::Max, 1.0f)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Color,
+                        &SpriteComponentConfig::m_trailTint,
+                        "Trail Tint",
+                        "Color the ghosts are drawn in (white shows the sprite faded)")
                     ->ClassElement(AZ::Edit::ClassElements::Group, "Animation")
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, false)
                     ->DataElement(

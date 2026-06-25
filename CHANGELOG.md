@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Sprite afterimage trails.** A sprite can now draw a configurable number of fading
+  ghost copies of its recent poses behind itself - the classic dash / super-activation
+  trail. The presenter captures the pose (transform + current animation frame) on a set
+  interval into a small ring and draws each ghost through the existing sprite batch
+  path, behind the live sprite, with a geometric alpha falloff and an optional tint.
+  Author it in the Inspector (**Trail Ghosts**, **Trail Interval**, **Trail Start
+  Alpha**, **Trail Fade**, **Trail Tint**) or drive it at runtime with **`SetTrail`** /
+  **`SetTrailTint`** (AI/human parity). Off by default and zero-cost when off (no
+  renderer handles held); works on static and animated sprites, and under the
+  simulation clock (the trail is purely visual, so it follows the render tick). Pure
+  fade/spacing math in `SpriteTrail.h` with `SpriteTrailTest`.
 - **Typed interaction boxes, phase D (sample) - the feature is complete.** The
   fighting demo builder (`Docs/examples/fighting_demo.py`) now authors a full typed-box
   rig on each fighter - hurtbox, throwable, and pushbox bodies, a proximity box, a

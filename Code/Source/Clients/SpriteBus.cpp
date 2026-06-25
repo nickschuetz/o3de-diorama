@@ -205,6 +205,20 @@ namespace Diorama
                       "Advance playback on the 2D Simulation Clock's fixed steps instead of the render tick; "
                       "with no clock in the level the render tick still advances." } } })
             ->Event(
+                "SetTrail",
+                &DioramaSpriteRequestBus::Events::SetTrail,
+                { { { "count", "Number of fading ghost copies behind the sprite (0 = off); the dash / super trail." },
+                    { "intervalSeconds", "Seconds between captured ghost poses (clamped >= 0)." },
+                    { "startAlpha", "Alpha of the freshest ghost, 0..1." },
+                    { "fade", "Geometric alpha falloff per older ghost, 0..1." } } })
+            ->Event(
+                "SetTrailTint",
+                &DioramaSpriteRequestBus::Events::SetTrailTint,
+                { { { "r", "Trail red, clamped 0..1." },
+                    { "g", "Trail green, clamped 0..1." },
+                    { "b", "Trail blue, clamped 0..1." },
+                    { "a", "Trail alpha multiplier, clamped 0..1." } } })
+            ->Event(
                 "PlaySpriteSheet",
                 &DioramaSpriteRequestBus::Events::PlaySpriteSheet,
                 { { { "columns", "Number of columns in the sprite sheet grid." },

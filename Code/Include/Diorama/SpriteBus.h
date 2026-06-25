@@ -128,6 +128,14 @@ namespace Diorama
         //! render tick (deterministic playback, snapshot/rewind friendly). With no
         //! clock in the level the render tick still advances as before.
         virtual void SetUseSimClock(bool enabled) = 0;
+        //! Afterimage trail: draw `count` fading ghost copies of recent poses behind
+        //! the sprite (0 = off), captured every `intervalSeconds`, the freshest at
+        //! `startAlpha` and each older ghost scaled by `fade`. The dash / super trail.
+        //! Values are clamped (count >= 0, interval/alpha/fade >= 0).
+        virtual void SetTrail(int count, float intervalSeconds, float startAlpha, float fade) = 0;
+        //! Color the trail ghosts are drawn in (white shows the sprite faded). Channels
+        //! clamped to 0..1.
+        virtual void SetTrailTint(float r, float g, float b, float a) = 0;
         //! Convenience: set the grid, set playback, and enable animation in one
         //! call (the common "play this sheet" intent).
         virtual void PlaySpriteSheet(int columns, int rows, int frameCount, float framesPerSecond, bool loop) = 0;

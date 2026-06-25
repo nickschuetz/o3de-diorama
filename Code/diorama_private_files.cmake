@@ -29,6 +29,7 @@ set(FILES
     Source/Clients/Camera2D.h
     Source/Clients/Particles2D.h
     Source/Clients/SpriteCull.h
+    Source/Clients/SpriteTrail.h
     Source/Clients/SpriteFeatureProcessor.cpp
     Source/Clients/SpriteFeatureProcessor.h
     Source/Clients/SpritePresenter.cpp

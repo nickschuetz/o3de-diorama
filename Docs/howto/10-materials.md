@@ -73,6 +73,30 @@ thickness stays roughly constant on screen). The demo gives its first target a
 cyan outline directly from the bus. Outline works on any sprite that has a
 transparent margin around its art.
 
+## Afterimage trail (dash / super ghosts)
+
+A sprite can leave a trail of fading ghost copies of its recent poses behind it, the
+classic dash and super-activation effect. Author it on the Sprite component's
+**Afterimage Trail** group (**Trail Ghosts** = how many ghosts, **Trail Interval** =
+seconds between them, **Trail Start Alpha**, **Trail Fade** = falloff per older ghost,
+**Trail Tint**) or drive it from script to switch it on for a move and off again:
+
+```lua
+-- Turn on a 6-ghost trail spaced 40ms apart, freshest at 0.6 alpha, each older one
+-- 0.6x fainter; tint it cyan for a super flash.
+DioramaSpriteRequestBus.Event.SetTrail(player, 6, 0.04, 0.6, 0.6)
+DioramaSpriteRequestBus.Event.SetTrailTint(player, 0.4, 0.9, 1.0, 1.0)
+-- ...later, end the move:
+DioramaSpriteRequestBus.Event.SetTrail(player, 0, 0.04, 0.6, 0.6)  -- 0 ghosts = off
+```
+
+The presenter captures the pose (transform + the current animation frame) on the
+interval and draws each ghost through the sprite batch path, behind the live sprite,
+each fainter than the last. It works on static and animated sprites and under the
+simulation clock, costs the renderer nothing when off (Trail Ghosts = 0), and stays
+world-space. For a fighter, flip it on at the start of a dash or super and off in
+recovery.
+
 ## How it works
 
 A flashing sprite carries its flash color + amount in its batch key, so it draws

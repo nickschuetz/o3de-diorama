@@ -7,6 +7,7 @@
 
 #include <Clients/SpriteFeatureProcessor.h>
 #include <Clients/SpritePresenter.h>
+#include <Clients/SpriteTrail.h>
 #include <Diorama/SpriteBus.h>
 
 #include <Atom/RPI.Public/Scene.h>
@@ -88,6 +89,7 @@ namespace Diorama
         AZ::Data::AssetBus::MultiHandler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
 
+        ReleaseTrail();
         if (m_featureProcessor != nullptr && m_handle != 0)
         {
             m_featureProcessor->ReleaseSprite(m_handle);
@@ -179,18 +181,20 @@ namespace Diorama
             return;
         }
 
-        // Static sprite: send the configuration as-is, no copy.
+        m_featureProcessor->UpdateSprite(m_handle, m_worldTransform, BuildFrameConfig());
+    }
+
+    SpriteComponentConfig SpritePresenter::BuildFrameConfig() const
+    {
+        // Static sprite: the configuration as-is. Animated: override the UV region
+        // with the current frame's cell (flips still apply through GetCornerUVs).
         if (!m_config.m_animEnabled)
         {
-            m_featureProcessor->UpdateSprite(m_handle, m_worldTransform, m_config);
-            return;
+            return m_config;
         }
-
-        // Animated sprite: override the UV region with the current frame's cell.
-        // Flips still apply on top through the renderer's GetCornerUVs.
         SpriteComponentConfig frameConfig = m_config;
         m_config.GetFrameUVRegion(m_frameState.m_frame, frameConfig.m_uvMin, frameConfig.m_uvMax);
-        m_featureProcessor->UpdateSprite(m_handle, m_worldTransform, frameConfig);
+        return frameConfig;
     }
 
     void SpritePresenter::OnTick(float deltaTime, AZ::ScriptTimePoint /*time*/)
@@ -208,19 +212,18 @@ namespace Diorama
             return;
         }
 
-        if (!NeedsAnimationTick())
+        // Advance the animation unless a running simulation clock owns it (then
+        // OnSimTick does). A non-animating sprite skips this but still updates its
+        // afterimage trail below, so a static sprite can leave a dash trail.
+        const bool simOwnsAdvance = m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers();
+        if (NeedsAnimationTick() && !simOwnsAdvance)
         {
-            return;
+            AdvanceAnimation(deltaTime);
         }
 
-        // Use Simulation Clock mode: while a clock is running, the fixed sim tick
-        // owns the advance (OnSimTick); the render tick stands down. With no clock
-        // (editor preview, a level without one) the render tick advances as before.
-        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
-        {
-            return;
-        }
-        AdvanceAnimation(deltaTime);
+        // The trail is purely visual (not snapshotted), so it follows the render tick
+        // at render rate regardless of sim-clock mode.
+        UpdateTrail(deltaTime);
     }
 
     void SpritePresenter::RefreshSimClockConnection()
@@ -284,9 +287,9 @@ namespace Diorama
 
     void SpritePresenter::RefreshTickConnection()
     {
-        // Tick while animating, or while still waiting to acquire a feature
-        // processor (so OnTick can retry the scene lookup).
-        const bool shouldTick = m_connected && (NeedsAnimationTick() || m_handle == 0);
+        // Tick while animating, while a trail needs capturing, or while still waiting
+        // to acquire a feature processor (so OnTick can retry the scene lookup).
+        const bool shouldTick = m_connected && (NeedsAnimationTick() || TrailEnabled() || m_handle == 0);
         const bool isTicking = AZ::TickBus::Handler::BusIsConnected();
 
         if (shouldTick && !isTicking)
@@ -297,6 +300,94 @@ namespace Diorama
         {
             AZ::TickBus::Handler::BusDisconnect();
         }
+    }
+
+    bool SpritePresenter::TrailEnabled() const
+    {
+        return m_config.m_trailCount > 0;
+    }
+
+    void SpritePresenter::UpdateTrail(float deltaSeconds)
+    {
+        if (!TrailEnabled() || m_handle == 0 || m_featureProcessor == nullptr)
+        {
+            ReleaseTrail();
+            return;
+        }
+
+        // Acquire one ghost handle per configured ghost (re-acquire if the count
+        // changed at runtime).
+        const size_t ghostCount = static_cast<size_t>(m_config.m_trailCount);
+        if (m_trailHandles.size() != ghostCount)
+        {
+            ReleaseTrail();
+            m_trailHandles.reserve(ghostCount);
+            for (size_t i = 0; i < ghostCount; ++i)
+            {
+                m_trailHandles.push_back(m_featureProcessor->AcquireSprite());
+            }
+        }
+
+        // Capture the current pose on the configured interval (catch-up capped at the
+        // ghost count, since older captures fall off the ring anyway).
+        const int captures =
+            SpriteTrail::CapturesDue(m_trailAccumulator, deltaSeconds, m_config.m_trailInterval, static_cast<int>(ghostCount));
+        for (int c = 0; c < captures; ++c)
+        {
+            TrailGhost ghost;
+            ghost.m_transform = m_worldTransform;
+            ghost.m_config = BuildFrameConfig();
+            m_trailGhosts.insert(m_trailGhosts.begin(), AZStd::move(ghost));
+        }
+        if (m_trailGhosts.size() > ghostCount)
+        {
+            m_trailGhosts.resize(ghostCount);
+        }
+
+        // Draw each ghost behind the live sprite with its fading alpha; hide handles
+        // with no captured pose yet (early in the trail's life).
+        for (size_t i = 0; i < m_trailHandles.size(); ++i)
+        {
+            if (m_trailHandles[i] == 0)
+            {
+                continue;
+            }
+            if (i >= m_trailGhosts.size())
+            {
+                SpriteComponentConfig hidden;
+                hidden.m_size = AZ::Vector2(0.0f, 0.0f);
+                m_featureProcessor->UpdateSprite(m_trailHandles[i], AZ::Transform::CreateIdentity(), hidden);
+                continue;
+            }
+            SpriteComponentConfig ghostConfig = m_trailGhosts[i].m_config;
+            const float alpha = m_config.m_trailTint.GetA() *
+                SpriteTrail::GhostAlpha(m_config.m_trailStartAlpha, m_config.m_trailFade, static_cast<int>(i));
+            ghostConfig.m_tint = AZ::Color(m_config.m_trailTint.GetR(), m_config.m_trailTint.GetG(), m_config.m_trailTint.GetB(), alpha);
+            // Ghosts never cast their own afterimages or carry a flash/outline.
+            ghostConfig.m_trailCount = 0;
+            ghostConfig.m_flashAmount = 0.0f;
+            ghostConfig.m_outlineThickness = 0.0f;
+            // Sit just behind the live sprite so the trail reads under it.
+            ghostConfig.m_sortOffset = m_config.m_sortOffset - 0.01f * static_cast<float>(i + 1);
+            m_featureProcessor->UpdateSprite(m_trailHandles[i], m_trailGhosts[i].m_transform, ghostConfig);
+        }
+    }
+
+    void SpritePresenter::ReleaseTrail()
+    {
+        if (m_featureProcessor != nullptr)
+        {
+            for (AZ::u32 handle : m_trailHandles)
+            {
+                if (handle != 0)
+                {
+                    m_featureProcessor->ReleaseSprite(handle);
+                }
+            }
+        }
+        m_trailHandles.clear();
+        m_trailGhosts.clear();
+        m_trailAccumulator = 0.0f;
     }
 
     void SpritePresenter::ResetAnimation()
