@@ -397,11 +397,21 @@ live only on an animation-frame window, over the 2D collision world (how-to
 | `GetFacing` | | `int` | Current facing (+1 or -1). |
 | `SetFrame` | `frame: int` | void | Override the activation frame (for rigs not driven by the sprite player). |
 | `SetUseSimClock` | `enabled: bool` | void | Evaluate overlaps on the 2D Simulation Clock's fixed steps instead of the render tick (deterministic hit order; no clock: render tick still evaluates). |
-| `GetHitboxInfo` | | `DioramaHitboxInfo` | Read-only: current frame, facing, active hitbox/hurtbox counts. |
+| `SetAutoSeparate` | `enabled: bool` | void | Apply half the computed pushbox push-out to this entity each evaluation (pairs split the separation and converge); off (default) only reports it in `GetHitboxInfo`. |
+| `GetHitboxInfo` | | `DioramaHitboxInfo` | Read-only: current frame, facing, per-kind active counts, pending pushbox push-out. |
+
+Author each box's **Kind** (Hurtbox, Hitbox, Pushbox, Throwbox, Throwable, Armor,
+Proximity) and its **Attack Payload** (damage, hitstun/blockstun/hitstop frames,
+pushback, guard height, launch, clash priority, opaque `customId`) on the component;
+the gem delivers the payload but never applies it.
 
 `DioramaHitboxNotificationBus` fires `OnHit(target)` on the attacker and
 `OnHurt(attacker)` on the target when a live hitbox overlaps a live hurtbox, once per
-opponent per active window.
+opponent per active window (these keep their v1 strike-only meaning). It also fires
+`OnBoxEvent(boxEvent)` on **both** parties for every typed interaction (Hit, Clash,
+Beaten, Absorbed, Throw, Proximity), carrying the attacker/defender ids and box
+indices, an approximate world contact point, and the attacking box's payload (see
+DioramaBoxEvent fields below).
 
 ## DioramaBulletRequestBus
 
@@ -532,6 +542,24 @@ streamed in; `visible` is whether the renderer is actually drawing it;
 `currentFrame` is the frame on screen now; `filledTileCount` is how many cells
 are actually non-empty. This is what lets an agent confirm an action took effect
 **without a screenshot**.
+
+### DioramaBoxEvent fields
+
+Reflected read-only properties (delivered by `OnBoxEvent`):
+
+| Property | Type | Meaning |
+| -------- | ---- | ------- |
+| `result` | int | 1 Hit, 2 Clash, 3 Beaten, 4 Absorbed, 5 Throw, 6 Proximity. |
+| `attacker`, `defender` | EntityId | The two rigs in the interaction. |
+| `attackerBoxIndex`, `defenderBoxIndex` | int | Which authored box on each side. |
+| `contactX`, `contactY` | float | Approximate world contact point (center of the boxes' overlap; spark placement). |
+| `damage` | float | Authored on the attacking box. |
+| `hitstunFrames`, `blockstunFrames`, `hitstopFrames` | int | Authored sim-frame counts. |
+| `pushbackX`, `pushbackY` | float | Pushback to apply to the defender (game-side). |
+| `guardHeight` | int | 0 any, 1 high, 2 low, 3 unblockable. |
+| `launchX`, `launchY` | float | Launch vector; zero means a grounded reaction. |
+| `priority` | int | Clash rank of the attacking box. |
+| `customId` | int | Opaque game key authored on the box (move id, sound key). |
 
 ### SpriteInfo fields
 

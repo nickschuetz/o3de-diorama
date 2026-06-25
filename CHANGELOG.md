@@ -21,6 +21,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   silent-pair sweep; new payload fields default to v1 behavior
   ([design](Docs/design/2d-box-interactions.md)). Component authoring, events, the
   box overlay, and samples follow in phases B-D.
+- **Typed interaction boxes, phase B (component).** The **2D Frame-Data Hitboxes**
+  component now authors the new box kinds and attack payload per box in the
+  Inspector, resolves the typed-box matrix between rigs each evaluation, and fires
+  **`OnBoxEvent(boxEvent)`** on both parties with the result (Hit / Clash / Beaten /
+  Absorbed / Throw / Proximity), attacker / defender ids and box indices, an
+  approximate world contact point, and the attacking box's payload. The v1
+  `OnHit` / `OnHurt` keep firing only on a real strike, so existing scripts are
+  untouched. Hit-vs-hit contests resolve once per pair by clash priority (equal =
+  Clash both sides, else Hit / Beaten); armor shadows a hurtbox (Absorbed instead of
+  Hit); throwboxes grab throwable boxes; proximity boxes signal over hurtboxes.
+  Pushboxes separate positionally through the existing minimum-translation path, with
+  an opt-in **Auto Separate** that applies half the push-out so an overlapping pair
+  converges (or read `pushOutX/Y` off `GetHitboxInfo` and apply it game-side).
+  `GetHitboxInfo` reports the active count of every box kind; `DioramaBoxEvent` is
+  reflected read-only to Lua / Script Canvas / Python, and the rig snapshot now
+  rewinds the per-box contest bookkeeping alongside the hit set. Integration tests
+  cover payload delivery, contact point, each interaction kind, the priority contest,
+  and opposite-direction pushbox separation. The overlay and sample land in phases
+  C-D.
 - **Sim-clock migration: the five render-tick gameplay components can now advance
   on the 2D Simulation Clock's fixed steps.** The Sprite sheet playback, the
   Aseprite player, the 2D Animation State Machine, the 2D Frame-Data Hitboxes,

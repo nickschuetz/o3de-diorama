@@ -33,6 +33,45 @@ namespace Diorama
         int m_facing = 1; //!< +1 faces +X, -1 mirrors hitbox/hurtbox X offsets.
         int m_activeHitboxes = 0; //!< Active attacking boxes this frame.
         int m_activeHurtboxes = 0; //!< Active vulnerable boxes this frame.
+        int m_activePushboxes = 0; //!< Active body-volume boxes this frame.
+        int m_activeThrowboxes = 0; //!< Active grabbing boxes this frame.
+        int m_activeThrowableBoxes = 0; //!< Active grabbable boxes this frame.
+        int m_activeArmorBoxes = 0; //!< Active hit-absorbing boxes this frame.
+        int m_activeProximityBoxes = 0; //!< Active presence-signal boxes this frame.
+        float m_pushOutX = 0.0f; //!< In-plane push-out to separate this rig's pushboxes.
+        float m_pushOutY = 0.0f; //!< (full vector; halved per step when auto-separate is on).
+    };
+
+    //! One resolved box interaction, delivered on OnBoxEvent to both the attacker and
+    //! the defender entity. Flat scalars throughout (no math types), like every
+    //! Diorama event payload: readable from Lua / Script Canvas / Python as-is. The
+    //! gem fills the attack payload from the attacking box and never interprets it;
+    //! applying damage, stun, or pushback is the receiving combat script's decision.
+    struct DioramaBoxEvent
+    {
+        AZ_TYPE_INFO(Diorama::DioramaBoxEvent, DioramaBoxEventTypeId);
+        static void Reflect(AZ::ReflectContext* context);
+
+        int m_result = 0; //!< 1 Hit, 2 Clash, 3 Beaten (attacker's side), 4 Absorbed, 5 Throw, 6 Proximity.
+        AZ::EntityId m_attacker; //!< Rig whose attacking box drove the interaction.
+        AZ::EntityId m_defender; //!< Rig whose receiving box was contacted.
+        int m_attackerBoxIndex = 0; //!< Index into the attacker rig's authored boxes.
+        int m_defenderBoxIndex = 0; //!< Index into the defender rig's authored boxes.
+        float m_contactX = 0.0f; //!< Approximate world contact point in the rig plane
+        float m_contactY = 0.0f; //!< (center of the boxes' overlap; spark placement).
+
+        // The attacking box's authored attack payload (HitProperties), flattened.
+        float m_damage = 0.0f;
+        int m_hitstunFrames = 0;
+        int m_blockstunFrames = 0;
+        int m_hitstopFrames = 0;
+        float m_pushbackX = 0.0f;
+        float m_pushbackY = 0.0f;
+        int m_guardHeight = 0; //!< 0 any, 1 high, 2 low, 3 unblockable.
+        float m_launchX = 0.0f;
+        float m_launchY = 0.0f;
+        int m_priority = 0;
+        AZ::u32 m_customId = 0; //!< Opaque game key authored on the box (move id, sound key).
     };
 
     //! Per-entity control of a frame-data hitbox rig, addressed by the entity id.
@@ -58,6 +97,11 @@ namespace Diorama
         //! render tick (deterministic hit order, snapshot/rewind friendly). With no
         //! clock in the level the render tick still evaluates as before.
         virtual void SetUseSimClock(bool enabled) = 0;
+        //! When true, the rig applies half its computed pushbox push-out to its own
+        //! translation each evaluation (overlapping pairs split the separation evenly
+        //! and converge). When false (default) the push-out is only reported in
+        //! GetHitboxInfo for the game to apply.
+        virtual void SetAutoSeparate(bool enabled) = 0;
         //! Resolved hitbox state. Safe to poll.
         virtual DioramaHitboxInfo GetHitboxInfo() = 0;
     };
@@ -85,6 +129,14 @@ namespace Diorama
         {
             AZ_UNUSED(attacker);
         }
+        //! A typed box interaction this entity took part in (as attacker or defender):
+        //! Hit / Clash / Beaten / Absorbed / Throw / Proximity, with the attacking
+        //! box's payload and an approximate contact point. Hits also fire the simpler
+        //! OnHit / OnHurt above, which keep their v1 behavior.
+        virtual void OnBoxEvent(const DioramaBoxEvent& boxEvent)
+        {
+            AZ_UNUSED(boxEvent);
+        }
     };
 
     using DioramaHitboxNotificationBus = AZ::EBus<DioramaHitboxNotifications>;
@@ -97,7 +149,7 @@ namespace Diorama
     {
     public:
         AZ_EBUS_BEHAVIOR_BINDER(
-            DioramaHitboxNotificationHandler, "{7A1B2C3D-4E5F-4061-9273-8495A6B7C8D9}", AZ::SystemAllocator, OnHit, OnHurt);
+            DioramaHitboxNotificationHandler, "{7A1B2C3D-4E5F-4061-9273-8495A6B7C8D9}", AZ::SystemAllocator, OnHit, OnHurt, OnBoxEvent);
 
         void OnHit(AZ::EntityId target) override
         {
@@ -106,6 +158,10 @@ namespace Diorama
         void OnHurt(AZ::EntityId attacker) override
         {
             Call(FN_OnHurt, attacker);
+        }
+        void OnBoxEvent(const DioramaBoxEvent& boxEvent) override
+        {
+            Call(FN_OnBoxEvent, boxEvent);
         }
     };
 

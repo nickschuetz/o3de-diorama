@@ -7,8 +7,11 @@
 
 #pragma once
 
+#include <AzCore/Math/MathUtils.h>
 #include <AzCore/Math/Vector2.h>
 #include <AzCore/base.h>
+
+#include <cmath>
 
 // Pure, header-only core for frame-data hitboxes/hurtboxes: a box is active only on a
 // window of animation frames (startup -> active -> recovery). Given the frame on
@@ -74,6 +77,26 @@ namespace Diorama::HitboxFrames
     inline bool IsActiveAt(const Box& box, int frame)
     {
         return box.m_endFrame >= box.m_startFrame && frame >= box.m_startFrame && frame <= box.m_endFrame;
+    }
+
+    //! Axis-aligned overlap test between two plane boxes (touching edges count).
+    inline bool BoxesOverlap(const AZ::Vector2& centerA, const AZ::Vector2& halfA, const AZ::Vector2& centerB, const AZ::Vector2& halfB)
+    {
+        return std::fabs(centerA.GetX() - centerB.GetX()) <= halfA.GetX() + halfB.GetX() &&
+            std::fabs(centerA.GetY() - centerB.GetY()) <= halfA.GetY() + halfB.GetY();
+    }
+
+    //! Center of the intersection rectangle of two overlapping boxes: the approximate
+    //! contact point delivered with a box event (spark placement). Only meaningful
+    //! when BoxesOverlap is true.
+    inline AZ::Vector2 OverlapCenter(
+        const AZ::Vector2& centerA, const AZ::Vector2& halfA, const AZ::Vector2& centerB, const AZ::Vector2& halfB)
+    {
+        const float minX = AZ::GetMax(centerA.GetX() - halfA.GetX(), centerB.GetX() - halfB.GetX());
+        const float maxX = AZ::GetMin(centerA.GetX() + halfA.GetX(), centerB.GetX() + halfB.GetX());
+        const float minY = AZ::GetMax(centerA.GetY() - halfA.GetY(), centerB.GetY() - halfB.GetY());
+        const float maxY = AZ::GetMin(centerA.GetY() + halfA.GetY(), centerB.GetY() + halfB.GetY());
+        return AZ::Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
     }
 
     //! Outcome of one overlapping box pair, per side.

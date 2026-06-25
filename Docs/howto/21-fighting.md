@@ -79,6 +79,48 @@ The full receiving script is `Assets/Diorama/Examples/Fighting/hit_response.lua`
 (The older `frame_hitbox.lua` toggles a single collider child by frame; it still
 works for one-off cases, but the component is the blessed path for a real rig.)
 
+## Typed boxes, attack payloads, and OnBoxEvent
+
+Beyond hit and hurt, a box can be a **pushbox** (body volume), a **throwbox** /
+**throwable**, an **armor** box (absorbs hits in a hyper-armor window), or a
+**proximity** box (a presence signal for proximity guard or spacing AI). Each box
+also carries an **Attack Payload** the rig delivers but never interprets: damage,
+hitstun / blockstun / hitstop frames, pushback, guard height, launch, a clash
+priority, and an opaque `customId` your game keys on (a move id, a sound key). The
+gem stores and ships these numbers; applying them is your combat script's job, so
+meters, scaling, and cancel tables stay game-side.
+
+Every typed interaction fires `OnBoxEvent(boxEvent)` on **both** parties, alongside
+the v1 `OnHit` / `OnHurt` (which still fire only on a real strike, so existing
+scripts keep working). The event reports its `result` (1 Hit, 2 Clash, 3 Beaten,
+4 Absorbed, 5 Throw, 6 Proximity), the attacker / defender ids and box indices, an
+approximate world `contactX/Y` for spark placement, and the attacking box's whole
+payload.
+
+```lua
+self.handler = DioramaHitboxNotificationBus.Connect(self, self.entityId)
+function Fighter:OnBoxEvent(e)
+    if e.result == 1 and e.defender == self.entityId then -- Hit: I got struck
+        self.health = self.health - e.damage
+        self.hitstun = e.hitstunFrames
+        DioramaParticleRequestBus.Event.BurstAt(self.fxId, e.contactX, e.contactY)
+    elseif e.result == 5 and e.defender == self.entityId then -- Throw: I got grabbed
+        self:EnterThrown(e.attacker)
+    end
+end
+```
+
+When two active hitboxes overlap, the **priority** on each box decides it: equal
+priority is a **Clash** to both sides; otherwise the higher scores a **Hit** and the
+lower is **Beaten**. A genuine trade (both connect on the other's hurtbox) needs no
+special case: it is two independent strikes in the same frame.
+
+Pushboxes separate positionally rather than firing an event. Leave **Auto Separate
+Pushboxes** off and read `pushOutX/Y` from `GetHitboxInfo` to apply the separation
+yourself, or turn it on and each rig applies half its own push-out so an overlapping
+pair splits the gap and converges. Put pushboxes on their own **Push Layer**.
+`GetHitboxInfo` now also reports the active count of every box kind.
+
 ## Motion inputs (quarter-circle, dragon-punch, charge sequences)
 
 The **2D Input Actions** component recognizes directional motions. Point its
@@ -157,14 +199,20 @@ their step so the whole character holds.
 
 ## Pushboxes (characters don't overlap)
 
-Give each character a 2D Collider as its pushbox (a box on a dedicated "pushbox"
-layer) and run `Assets/Diorama/Examples/Fighting/pushbox.lua`. Each tick it calls
+The frame-data rig has a **pushbox** kind built in (see "Typed boxes" above): author
+a Pushbox on the rig, put it on a dedicated **Push Layer**, and either turn on
+**Auto Separate Pushboxes** (each rig applies half its own push-out and the pair
+parts naturally) or read `pushOutX/Y` from `GetHitboxInfo` and apply it in your
+movement code. Under the hood it is the same minimum-translation separation as the
+standalone path below.
+
+For a character without a frame-data rig, the standalone path still works: give it a
+2D Collider as its pushbox on a "pushbox" layer and run
+`Assets/Diorama/Examples/Fighting/pushbox.lua`, which each tick calls
 `Diorama2DCollisionRequestBus::ComputeBoxPushOut(x, z, halfW, halfH, layerMask,
-self)` for the net minimum-translation vector to separate from the other pushboxes
-(excluding itself) and nudges the entity by it. When both characters run it, each
-takes its half of the separation and they part naturally. The collision system
-computes the vector; applying it stays a gameplay decision (so it never fights your
-movement code).
+self)` for the net separation vector and nudges the entity by it. Either way the
+collision system computes the vector; applying it stays a gameplay decision so it
+never fights your movement code.
 
 ## Known gaps (today)
 

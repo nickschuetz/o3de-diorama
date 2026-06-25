@@ -59,6 +59,7 @@ set(FILES
     Source/Clients/InputActionMap.h
     Source/Clients/MotionInput.h
     Source/Clients/HitboxFrames.h
+    Source/Clients/HitboxRigBus.h
     Source/Clients/DioramaInputComponent.cpp
     Source/Clients/DioramaInputComponent.h
     Source/Clients/InputBus.cpp
