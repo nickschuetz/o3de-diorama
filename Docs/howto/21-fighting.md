@@ -121,6 +121,18 @@ yourself, or turn it on and each rig applies half its own push-out so an overlap
 pair splits the gap and converges. Put pushboxes on their own **Push Layer**.
 `GetHitboxInfo` now also reports the active count of every box kind.
 
+## Seeing the boxes (training-mode overlay)
+
+Tuning frame data blind is the worst part of building a fighter, so the rig can draw
+its live boxes as world-space translucent quads, color-coded by kind: hurt green, hit
+red, push yellow, throw purple, armor blue, proximity gray. Turn it on per rig with
+the **Show Box Overlay** checkbox (or `SetShowOverlay(true)` on the bus), or flip the
+**`d_dioramaHitboxOverlay`** console variable to force it on for every rig in the
+level at once. The quads appear in **game mode and the launcher** as the animation
+plays, so you watch boxes activate and recover frame by frame. The overlay holds a
+renderer handle per box only while it is on, and draws world-space only (it is not a
+screen-space HUD).
+
 ## Motion inputs (quarter-circle, dragon-punch, charge sequences)
 
 The **2D Input Actions** component recognizes directional motions. Point its

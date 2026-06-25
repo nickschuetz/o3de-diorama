@@ -602,4 +602,41 @@ namespace Diorama
         EXPECT_NEAR(infoA.m_pushOutX, -infoB.m_pushOutX, 0.001f);
         EXPECT_NEAR(infoA.m_pushOutY, 0.0f, 0.001f);
     }
+
+    TEST_F(DioramaHitboxComponentTest, ShowOverlayTogglesSafelyWithoutAScene)
+    {
+        // The box overlay draws through the sprite feature processor, which has no
+        // scene in this headless fixture, so RefreshOverlay must no-op rather than
+        // crash and must not disturb hit resolution. This guards the scene == nullptr
+        // early-out and the toggle path; the visual is verified at a monitor.
+        DioramaHitboxConfig attackerCfg;
+        attackerCfg.m_hurtLayer = HurtLayer;
+        attackerCfg.m_targetMask = HurtLayer;
+        attackerCfg.m_showOverlay = true; // on from activation
+        attackerCfg.m_boxes = { Box(HitboxFrames::BoxKind::Hitbox, 0.5f, 0, 9) };
+
+        DioramaHitboxConfig targetCfg;
+        targetCfg.m_hurtLayer = HurtLayer;
+        targetCfg.m_targetMask = HurtLayer;
+        targetCfg.m_boxes = { Box(HitboxFrames::BoxKind::Hurtbox, 0.7f, 0, 99) };
+
+        const AZ::EntityId attacker = MakeRig("Attacker", attackerCfg);
+        MakeRig("Target", targetCfg);
+
+        TestHitListener atk;
+        atk.Listen(attacker);
+        Tick(); // overlay refresh runs (and no-ops); the hit still lands
+        EXPECT_EQ(atk.m_hitCount, 1);
+
+        // Toggle off and back on at runtime: still no crash, still resolves.
+        DioramaHitboxRequestBus::Event(attacker, &DioramaHitboxRequests::SetShowOverlay, false);
+        DioramaHitboxRequestBus::Event(attacker, &DioramaHitboxRequests::SetShowOverlay, true);
+        DioramaHitboxRequestBus::Event(attacker, &DioramaHitboxRequests::SetFrame, 50); // leave the window
+        Tick();
+        DioramaHitboxRequestBus::Event(attacker, &DioramaHitboxRequests::SetFrame, 3); // re-enter -> re-arm
+        Tick();
+        EXPECT_EQ(atk.m_hitCount, 2);
+
+        atk.Stop();
+    }
 } // namespace Diorama

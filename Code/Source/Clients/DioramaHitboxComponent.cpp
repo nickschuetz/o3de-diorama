@@ -7,10 +7,14 @@
 
 #include <Clients/Collision2DSystemComponent.h> // Collision2DWorld (SetStaticColliders)
 #include <Clients/DioramaHitboxComponent.h>
+#include <Clients/SpriteFeatureProcessor.h> // box overlay quads
+#include <Diorama/SpriteComponentConfig.h>
 
 #include <Diorama/Collision2DBus.h> // Diorama2DCollisionRequestBus (OverlapBox)
 
+#include <Atom/RPI.Public/Scene.h>
 #include <AzCore/Component/TransformBus.h>
+#include <AzCore/Console/IConsole.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -18,6 +22,45 @@
 
 namespace Diorama
 {
+    // Global training-mode box display: forces the overlay on for every rig in the
+    // level regardless of each rig's per-component flag, so a frame-data session can
+    // be toggled from the console without re-authoring entities.
+    AZ_CVAR(
+        bool,
+        d_dioramaHitboxOverlay,
+        false,
+        nullptr,
+        AZ::ConsoleFunctorFlags::Null,
+        "Draw every Diorama frame-data hitbox rig's live boxes as world-space color-coded quads (training-mode display).");
+
+    namespace
+    {
+        //! Translucent fill color per box kind (the design's color key): hurt green,
+        //! hit red, push yellow, throw purple, armor blue, proximity gray.
+        AZ::Color OverlayColor(HitboxFrames::BoxKind kind)
+        {
+            constexpr float a = 0.35f;
+            switch (kind)
+            {
+            case HitboxFrames::BoxKind::Hitbox:
+                return AZ::Color(0.9f, 0.15f, 0.15f, a);
+            case HitboxFrames::BoxKind::Pushbox:
+                return AZ::Color(0.9f, 0.85f, 0.2f, a);
+            case HitboxFrames::BoxKind::Throwbox:
+                return AZ::Color(0.7f, 0.2f, 0.9f, a);
+            case HitboxFrames::BoxKind::ThrowableBox:
+                return AZ::Color(0.85f, 0.45f, 0.95f, a);
+            case HitboxFrames::BoxKind::ArmorBox:
+                return AZ::Color(0.2f, 0.45f, 0.95f, a);
+            case HitboxFrames::BoxKind::ProximityBox:
+                return AZ::Color(0.6f, 0.6f, 0.6f, a);
+            case HitboxFrames::BoxKind::Hurtbox:
+            default:
+                return AZ::Color(0.2f, 0.85f, 0.3f, a);
+            }
+        }
+    } // namespace
+
     void ReflectHitProperties(AZ::ReflectContext* context)
     {
         using HitboxFrames::GuardHeight;
@@ -132,7 +175,8 @@ namespace Diorama
                 ->Field("facing", &DioramaHitboxConfig::m_facing)
                 ->Field("boxes", &DioramaHitboxConfig::m_boxes)
                 ->Field("useSimClock", &DioramaHitboxConfig::m_useSimClock)
-                ->Field("autoSeparate", &DioramaHitboxConfig::m_autoSeparate);
+                ->Field("autoSeparate", &DioramaHitboxConfig::m_autoSeparate)
+                ->Field("showOverlay", &DioramaHitboxConfig::m_showOverlay);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -173,7 +217,13 @@ namespace Diorama
                         &DioramaHitboxConfig::m_autoSeparate,
                         "Auto Separate Pushboxes",
                         "Apply half the computed pushbox push-out to this entity each evaluation "
-                        "(overlapping pairs split the separation and converge). Off: only report it.");
+                        "(overlapping pairs split the separation and converge). Off: only report it.")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaHitboxConfig::m_showOverlay,
+                        "Show Box Overlay",
+                        "Draw this rig's live boxes as world-space color-coded quads (training-mode display). "
+                        "The d_dioramaHitboxOverlay console variable forces it on for every rig.");
             }
         }
     }
@@ -245,6 +295,7 @@ namespace Diorama
         {
             world->ClearStaticColliders(GetEntityId());
         }
+        ReleaseOverlay();
     }
 
     void DioramaHitboxComponent::OnAnimationFrame(int frameIndex)
@@ -561,6 +612,9 @@ namespace Diorama
         {
             ApplyPlaneTranslation(m_pushOut * 0.5f);
         }
+
+        // ---- Pass 6: the training-mode box overlay (off unless enabled).
+        RefreshOverlay();
     }
 
     const ActiveRigBox* DioramaHitboxComponent::FindOverlapping(
@@ -635,6 +689,105 @@ namespace Diorama
         AZ::TransformBus::Event(GetEntityId(), &AZ::TransformBus::Events::SetWorldTranslation, translation);
     }
 
+    AZ::Vector3 DioramaHitboxComponent::PlaneToWorld(const AZ::Vector2& inPlane) const
+    {
+        switch (m_config.m_plane)
+        {
+        case CollisionPlane::XZ:
+            return AZ::Vector3(inPlane.GetX(), m_worldTranslation.GetY(), inPlane.GetY());
+        case CollisionPlane::YZ:
+            return AZ::Vector3(m_worldTranslation.GetX(), inPlane.GetX(), inPlane.GetY());
+        case CollisionPlane::XY:
+        default:
+            return AZ::Vector3(inPlane.GetX(), inPlane.GetY(), m_worldTranslation.GetZ());
+        }
+    }
+
+    void DioramaHitboxComponent::RefreshOverlay()
+    {
+        const bool enabled = m_config.m_showOverlay || static_cast<bool>(d_dioramaHitboxOverlay);
+        if (!enabled)
+        {
+            ReleaseOverlay();
+            return;
+        }
+
+        // Acquire one renderer handle per authored box the first time the overlay is
+        // shown. The scene may not exist yet (level load / editor ordering); on a miss
+        // we simply skip this frame and retry next evaluation.
+        if (m_overlayFeatureProcessor == nullptr)
+        {
+            AZ::RPI::Scene* scene = AZ::RPI::Scene::GetSceneForEntityId(GetEntityId());
+            if (scene == nullptr)
+            {
+                return;
+            }
+            m_overlayFeatureProcessor = scene->GetFeatureProcessor<SpriteFeatureProcessor>();
+            if (m_overlayFeatureProcessor == nullptr)
+            {
+                m_overlayFeatureProcessor = scene->EnableFeatureProcessor<SpriteFeatureProcessor>();
+            }
+            if (m_overlayFeatureProcessor == nullptr)
+            {
+                return;
+            }
+            m_overlayHandles.clear();
+            m_overlayHandles.reserve(m_config.m_boxes.size());
+            for (size_t i = 0; i < m_config.m_boxes.size(); ++i)
+            {
+                m_overlayHandles.push_back(m_overlayFeatureProcessor->AcquireSprite());
+            }
+        }
+
+        // Hide every quad, then show the active ones. The handle for box i maps to
+        // authored box i; m_activeBoxScratch holds this evaluation's active boxes with
+        // their world-resolved (facing-applied) in-plane centers.
+        const auto hide = [this](size_t i)
+        {
+            if (i < m_overlayHandles.size() && m_overlayHandles[i] != 0)
+            {
+                SpriteComponentConfig cfg;
+                cfg.m_size = AZ::Vector2(0.0f, 0.0f);
+                m_overlayFeatureProcessor->UpdateSprite(m_overlayHandles[i], AZ::Transform::CreateIdentity(), cfg);
+            }
+        };
+        for (size_t i = 0; i < m_overlayHandles.size(); ++i)
+        {
+            hide(i);
+        }
+        for (const ActiveRigBox& box : m_activeBoxScratch)
+        {
+            const size_t i = static_cast<size_t>(box.m_index);
+            if (i >= m_overlayHandles.size() || m_overlayHandles[i] == 0)
+            {
+                continue;
+            }
+            SpriteComponentConfig cfg;
+            cfg.m_size = box.m_halfExtents * 2.0f;
+            cfg.m_tint = OverlayColor(box.m_kind);
+            cfg.m_billboard = true;
+            cfg.m_sortOffset = 1000.0f; // draw on top of the characters
+            const AZ::Transform tm = AZ::Transform::CreateTranslation(PlaneToWorld(box.m_center));
+            m_overlayFeatureProcessor->UpdateSprite(m_overlayHandles[i], tm, cfg);
+        }
+    }
+
+    void DioramaHitboxComponent::ReleaseOverlay()
+    {
+        if (m_overlayFeatureProcessor != nullptr)
+        {
+            for (AZ::u32 handle : m_overlayHandles)
+            {
+                if (handle != 0)
+                {
+                    m_overlayFeatureProcessor->ReleaseSprite(handle);
+                }
+            }
+        }
+        m_overlayHandles.clear();
+        m_overlayFeatureProcessor = nullptr;
+    }
+
     AZ::EntityId DioramaHitboxComponent::GetRigEntity() const
     {
         return GetEntityId();
@@ -684,6 +837,17 @@ namespace Diorama
     void DioramaHitboxComponent::SetAutoSeparate(bool enabled)
     {
         m_config.m_autoSeparate = enabled;
+    }
+
+    void DioramaHitboxComponent::SetShowOverlay(bool enabled)
+    {
+        m_config.m_showOverlay = enabled;
+        // Drop the renderer handles immediately when turned off (the global console
+        // variable can still force the overlay back on at the next evaluation).
+        if (!enabled && !static_cast<bool>(d_dioramaHitboxOverlay))
+        {
+            ReleaseOverlay();
+        }
     }
 
     DioramaHitboxInfo DioramaHitboxComponent::GetHitboxInfo()

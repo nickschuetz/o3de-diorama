@@ -102,6 +102,10 @@ namespace Diorama
         //! and converge). When false (default) the push-out is only reported in
         //! GetHitboxInfo for the game to apply.
         virtual void SetAutoSeparate(bool enabled) = 0;
+        //! Draw this rig's live boxes as world-space translucent quads color-coded by
+        //! kind (the training-mode box display). The global `d_dioramaHitboxOverlay`
+        //! console variable forces it on for every rig regardless of this setting.
+        virtual void SetShowOverlay(bool enabled) = 0;
         //! Resolved hitbox state. Safe to poll.
         virtual DioramaHitboxInfo GetHitboxInfo() = 0;
     };

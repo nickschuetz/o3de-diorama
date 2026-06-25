@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Typed interaction boxes, phase C (box overlay).** The **2D Frame-Data Hitboxes**
+  component can draw its live boxes as world-space translucent quads, color-coded by
+  kind (hurt green, hit red, push yellow, throw purple, armor blue, proximity gray) -
+  the training-mode box display for tuning frame data. Toggle it per rig (the **Show
+  Box Overlay** Inspector checkbox or the **`SetShowOverlay`** bus verb) or globally
+  with the **`d_dioramaHitboxOverlay`** console variable, which forces it on for every
+  rig. The quads draw through the existing sprite batch path (one renderer handle per
+  authored box, acquired only while the overlay is on, so a rig with it off costs the
+  renderer nothing) and stay world-space, inside the gem's scope line. Visible in game
+  mode and the launcher as the animation plays. Phase D (the sample wiring real frame
+  data onto boxes) follows.
 - **Typed interaction boxes, phase A (pure core).** `HitboxFrames` grows the full
   interaction vocabulary: `BoxKind` adds Pushbox, Throwbox, ThrowableBox, ArmorBox,
   and ProximityBox alongside the v1 Hurtbox/Hitbox; each box carries a

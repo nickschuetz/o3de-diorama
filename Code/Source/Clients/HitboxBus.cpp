@@ -140,6 +140,12 @@ namespace Diorama
                 { { { "enabled",
                       "Apply half the computed pushbox push-out to this entity each evaluation (pairs split the "
                       "separation and converge); off (default) only reports it in GetHitboxInfo." } } })
+            ->Event(
+                "SetShowOverlay",
+                &DioramaHitboxRequestBus::Events::SetShowOverlay,
+                { { { "enabled",
+                      "Draw this rig's live boxes as world-space color-coded quads (training-mode display); the "
+                      "d_dioramaHitboxOverlay console variable forces it on for every rig." } } })
             ->Event("GetHitboxInfo", &DioramaHitboxRequestBus::Events::GetHitboxInfo);
 
         behaviorContext->EBus<DioramaHitboxNotificationBus>("DioramaHitboxNotificationBus")

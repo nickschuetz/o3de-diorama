@@ -33,6 +33,8 @@ namespace AZ
 
 namespace Diorama
 {
+    class SpriteFeatureProcessor;
+
     //! Reflect the pure HitProperties payload (serialize + Inspector rows + read-only
     //! script properties). Called from the hitbox config's Reflect.
     void ReflectHitProperties(AZ::ReflectContext* context);
@@ -86,6 +88,10 @@ namespace Diorama
         //! (overlapping pairs split the separation and converge). Off by default:
         //! the push-out is only reported through GetHitboxInfo.
         bool m_autoSeparate = false;
+        //! Draw this rig's live boxes as world-space translucent quads, color-coded by
+        //! kind (the training-mode box display). The global `d_dioramaHitboxOverlay`
+        //! console variable forces it on for every rig regardless of this flag.
+        bool m_showOverlay = false;
     };
 
     //! Runtime frame-data hitbox component. Each frame it reads the animation frame
@@ -140,6 +146,7 @@ namespace Diorama
         void SetFrame(int frame) override;
         void SetUseSimClock(bool enabled) override;
         void SetAutoSeparate(bool enabled) override;
+        void SetShowOverlay(bool enabled) override;
         DioramaHitboxInfo GetHitboxInfo() override;
 
         // DioramaHitboxRigBus (the registry attacking rigs pair against)
@@ -178,6 +185,14 @@ namespace Diorama
             const HitboxFrames::HitProperties& payload);
         //! Move this entity by an in-plane delta (pushbox auto-separation).
         void ApplyPlaneTranslation(const AZ::Vector2& delta);
+        //! Map an in-plane point back to a world position on the configured plane
+        //! (inverse of PlaneCenter; the off-plane coordinate stays the entity's).
+        AZ::Vector3 PlaneToWorld(const AZ::Vector2& inPlane) const;
+        //! Draw (or hide) the per-box overlay quads to match the active boxes and the
+        //! effective overlay flag (per-rig config OR the global console variable).
+        void RefreshOverlay();
+        //! Release the overlay's renderer handles and forget the feature processor.
+        void ReleaseOverlay();
 
         DioramaHitboxConfig m_config;
         int m_frame = 0;
@@ -208,5 +223,12 @@ namespace Diorama
         int m_activeThrowableBoxes = 0;
         int m_activeArmorBoxes = 0;
         int m_activeProximityBoxes = 0;
+
+        // Box overlay (training-mode display). One renderer handle per authored box,
+        // acquired lazily from the entity's scene; a translucent quad colored by kind
+        // is pushed for each active box and the rest are hidden. Held only while the
+        // overlay is on, so a rig with the overlay off costs the renderer nothing.
+        SpriteFeatureProcessor* m_overlayFeatureProcessor = nullptr;
+        AZStd::vector<AZ::u32> m_overlayHandles;
     };
 } // namespace Diorama

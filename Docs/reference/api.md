@@ -398,6 +398,7 @@ live only on an animation-frame window, over the 2D collision world (how-to
 | `SetFrame` | `frame: int` | void | Override the activation frame (for rigs not driven by the sprite player). |
 | `SetUseSimClock` | `enabled: bool` | void | Evaluate overlaps on the 2D Simulation Clock's fixed steps instead of the render tick (deterministic hit order; no clock: render tick still evaluates). |
 | `SetAutoSeparate` | `enabled: bool` | void | Apply half the computed pushbox push-out to this entity each evaluation (pairs split the separation and converge); off (default) only reports it in `GetHitboxInfo`. |
+| `SetShowOverlay` | `enabled: bool` | void | Draw this rig's live boxes as world-space color-coded quads (training-mode display). The `d_dioramaHitboxOverlay` console variable forces it on for every rig. |
 | `GetHitboxInfo` | | `DioramaHitboxInfo` | Read-only: current frame, facing, per-kind active counts, pending pushbox push-out. |
 
 Author each box's **Kind** (Hurtbox, Hitbox, Pushbox, Throwbox, Throwable, Armor,
