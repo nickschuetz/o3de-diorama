@@ -13,6 +13,8 @@
 #include <Diorama/Collision2DBus.h> // Diorama2DCollisionRequestBus (OverlapBox)
 
 #include <Atom/RPI.Public/Scene.h>
+#include <AzCore/Component/ComponentApplicationBus.h> // FindEntity (bone-name resolution)
+#include <AzCore/Component/Entity.h>
 #include <AzCore/Component/TransformBus.h>
 #include <AzCore/Console/IConsole.h>
 #include <AzCore/RTTI/BehaviorContext.h>
@@ -116,13 +118,14 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<DioramaHitboxData>()
-                ->Version(2)
+                ->Version(3)
                 ->Field("kind", &DioramaHitboxData::m_kind)
                 ->Field("offset", &DioramaHitboxData::m_offset)
                 ->Field("halfExtents", &DioramaHitboxData::m_halfExtents)
                 ->Field("startFrame", &DioramaHitboxData::m_startFrame)
                 ->Field("endFrame", &DioramaHitboxData::m_endFrame)
-                ->Field("hit", &DioramaHitboxData::m_hit);
+                ->Field("hit", &DioramaHitboxData::m_hit)
+                ->Field("boneName", &DioramaHitboxData::m_boneName);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -155,7 +158,13 @@ namespace Diorama
                         AZ::Edit::UIHandlers::Default,
                         &DioramaHitboxData::m_hit,
                         "Attack Payload",
-                        "Delivered with the box's event (meaningful on Hitbox / Throwbox)");
+                        "Delivered with the box's event (meaningful on Hitbox / Throwbox)")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaHitboxData::m_boneName,
+                        "Bone (entity name)",
+                        "Optional 2D-skeletal bone to ride: a descendant entity whose world position the box follows "
+                        "(Offset is then a local nudge). Empty = a static box at Offset on the rig.");
             }
         }
     }
@@ -267,6 +276,7 @@ namespace Diorama
     {
         m_frame = 0;
         m_boxState.assign(m_config.m_boxes.size(), BoxState());
+        m_boneEntities.assign(m_config.m_boxes.size(), AZ::EntityId()); // resolved lazily in BoxCenter
 
         AZ::Transform worldTM = AZ::Transform::CreateIdentity();
         AZ::TransformBus::EventResult(worldTM, GetEntityId(), &AZ::TransformBus::Events::GetWorldTM);
@@ -341,10 +351,70 @@ namespace Diorama
         }
     }
 
-    AZ::Vector2 DioramaHitboxComponent::BoxCenter(const DioramaHitboxData& box, const AZ::Vector2& origin) const
+    AZ::Vector2 DioramaHitboxComponent::PlaneProject(const AZ::Vector3& world) const
+    {
+        switch (m_config.m_plane)
+        {
+        case CollisionPlane::XZ:
+            return AZ::Vector2(world.GetX(), world.GetZ());
+        case CollisionPlane::YZ:
+            return AZ::Vector2(world.GetY(), world.GetZ());
+        case CollisionPlane::XY:
+        default:
+            return AZ::Vector2(world.GetX(), world.GetY());
+        }
+    }
+
+    AZ::EntityId DioramaHitboxComponent::FindBone(const AZStd::string& boneName) const
+    {
+        if (boneName.empty())
+        {
+            return AZ::EntityId();
+        }
+        // Breadth-first over the rig's transform hierarchy, matching by entity name
+        // (the same way the skeletal component resolves its bone tracks).
+        AZStd::vector<AZ::EntityId> frontier;
+        AZ::TransformBus::EventResult(frontier, GetEntityId(), &AZ::TransformBus::Events::GetChildren);
+        for (size_t head = 0; head < frontier.size(); ++head)
+        {
+            const AZ::EntityId current = frontier[head];
+            AZ::Entity* entity = nullptr;
+            AZ::ComponentApplicationBus::BroadcastResult(entity, &AZ::ComponentApplicationBus::Events::FindEntity, current);
+            if (entity != nullptr && entity->GetName() == boneName)
+            {
+                return current;
+            }
+            AZStd::vector<AZ::EntityId> children;
+            AZ::TransformBus::EventResult(children, current, &AZ::TransformBus::Events::GetChildren);
+            frontier.insert(frontier.end(), children.begin(), children.end());
+        }
+        return AZ::EntityId();
+    }
+
+    AZ::Vector2 DioramaHitboxComponent::BoxCenter(size_t index, const DioramaHitboxData& box, const AZ::Vector2& origin)
     {
         const float facing = m_config.m_facing < 0 ? -1.0f : 1.0f;
-        return origin + AZ::Vector2(box.m_offset.GetX() * facing, box.m_offset.GetY());
+
+        // Bone-attached: ride the named 2D-skeletal bone's world position (resolved and
+        // cached lazily; a bone may not exist yet at activation). An empty or
+        // unresolved name falls back to the rig origin (the v1 static path), so adding
+        // a bone name never breaks a box whose bone is missing.
+        AZ::Vector2 base = origin;
+        if (!box.m_boneName.empty() && index < m_boneEntities.size())
+        {
+            if (!m_boneEntities[index].IsValid())
+            {
+                m_boneEntities[index] = FindBone(box.m_boneName);
+            }
+            if (m_boneEntities[index].IsValid())
+            {
+                AZ::Vector3 boneWorld = AZ::Vector3::CreateZero();
+                AZ::TransformBus::EventResult(boneWorld, m_boneEntities[index], &AZ::TransformBus::Events::GetWorldTranslation);
+                base = PlaneProject(boneWorld);
+            }
+        }
+
+        return base + AZ::Vector2(box.m_offset.GetX() * facing, box.m_offset.GetY());
     }
 
     void DioramaHitboxComponent::Evaluate()
@@ -394,7 +464,7 @@ namespace Diorama
             ActiveRigBox snapshot;
             snapshot.m_index = static_cast<int>(i);
             snapshot.m_kind = data.m_kind;
-            snapshot.m_center = BoxCenter(data, origin);
+            snapshot.m_center = BoxCenter(i, data, origin);
             snapshot.m_halfExtents = data.m_halfExtents;
             snapshot.m_hit = data.m_hit;
             m_activeBoxScratch.push_back(snapshot);

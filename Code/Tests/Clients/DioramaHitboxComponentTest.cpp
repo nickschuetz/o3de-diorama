@@ -639,4 +639,39 @@ namespace Diorama
 
         atk.Stop();
     }
+
+    TEST_F(DioramaHitboxComponentTest, UnresolvedBoneNameFallsBackToTheStaticOffset)
+    {
+        // A box that names a 2D-skeletal bone resolves the bone entity by name from the
+        // rig's transform hierarchy. This headless fixture has no such hierarchy, so the
+        // name does not resolve and the box must fall back to its static offset (the v1
+        // behavior) - adding a bone name never breaks a box whose bone is missing. Live
+        // bone-following is verified at a monitor. A static box at 0.5 and a
+        // bone-named box at 0.5 (bone "fist" absent) must land the same hit.
+        DioramaHitboxData jab = Box(HitboxFrames::BoxKind::Hitbox, 0.5f, 0, 9);
+        jab.m_boneName = "fist"; // no descendant entity named "fist" in this fixture
+
+        DioramaHitboxConfig attackerCfg;
+        attackerCfg.m_hurtLayer = HurtLayer;
+        attackerCfg.m_targetMask = HurtLayer;
+        attackerCfg.m_boxes = { jab };
+
+        DioramaHitboxConfig targetCfg;
+        targetCfg.m_hurtLayer = HurtLayer;
+        targetCfg.m_targetMask = HurtLayer;
+        targetCfg.m_boxes = { Box(HitboxFrames::BoxKind::Hurtbox, 0.7f, 0, 99) };
+
+        const AZ::EntityId attacker = MakeRig("Attacker", attackerCfg);
+        const AZ::EntityId target = MakeRig("Target", targetCfg);
+
+        TestHitListener atk;
+        atk.Listen(attacker);
+        Tick();
+
+        // Same overlap as the plain static-hitbox test: the fallback landed the hit.
+        EXPECT_EQ(atk.m_hitCount, 1);
+        EXPECT_EQ(atk.m_lastTarget, target);
+
+        atk.Stop();
+    }
 } // namespace Diorama

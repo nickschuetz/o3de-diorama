@@ -127,6 +127,19 @@ yourself, or turn it on and each rig applies half its own push-out so an overlap
 pair splits the gap and converges. Put pushboxes on their own **Push Layer**.
 `GetHitboxInfo` now also reports the active count of every box kind.
 
+### Boxes that ride the skeleton
+
+If the character is a [2D skeletal rig](18-skeletal.md), a box can **follow a bone**
+instead of sitting at a fixed offset: set the box's **Bone (entity name)** to the name
+of a skeletal bone (a descendant entity), and its center tracks that bone's world
+position each frame, with **Offset** applied as a local nudge. Put the hitbox on the
+fist bone and it stays on the fist through the whole swing, no per-frame offset
+authoring. An empty bone name (the default) keeps the static offset; an unresolved
+name falls back to it, so a missing bone never breaks the box. (The bone's position
+comes from the skeletal animation, which runs on the render tick, so a bone-attached
+box is rollback-exact only once the skeletal component moves onto the simulation
+clock; static boxes are unaffected.)
+
 ## Seeing the boxes (training-mode overlay)
 
 Tuning frame data blind is the worst part of building a fighter, so the rig can draw

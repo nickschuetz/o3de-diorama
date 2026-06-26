@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Bone-attached hitboxes (boxes ride the 2D skeletal rig).** A box on the **2D
+  Frame-Data Hitboxes** rig can now name a **2D-skeletal bone** (a descendant entity)
+  to follow: its center tracks the bone's world position each evaluation, with the
+  box's offset applied as a local nudge, so hit/hurt/throw boxes deform with the
+  cutout animation instead of sitting at a static facing-mirrored offset. Both systems
+  are Diorama's own (the hitbox rig and the 2D skeletal animation), so this composes
+  them with no new dependency. Author the bone name per box in the Inspector; an empty
+  name (default) keeps the v1 static-offset behavior, and an **unresolved** name falls
+  back to it too, so adding a bone name never breaks a box whose bone is missing.
+  Determinism note: the bone position comes from the skeletal animation, which advances
+  on the render tick (the skeletal component is not yet sim-clock migrated), so a
+  bone-attached box is rollback-exact only once that migration lands; static boxes are
+  unaffected. A test covers the graceful fallback; live bone-following is verified at a
+  monitor.
 - **Super-freeze (cinematic time-control) on the 2D Simulation Clock.** A new
   **`FreezeFor(frames)`** verb suppresses the clock's automatic stepping for a set
   number of fixed steps, then resumes on its own - the super-flash / dramatic pause.

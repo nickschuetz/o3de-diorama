@@ -404,7 +404,9 @@ live only on an animation-frame window, over the 2D collision world (how-to
 Author each box's **Kind** (Hurtbox, Hitbox, Pushbox, Throwbox, Throwable, Armor,
 Proximity) and its **Attack Payload** (damage, hitstun/blockstun/hitstop frames,
 pushback, guard height, launch, clash priority, opaque `customId`) on the component;
-the gem delivers the payload but never applies it.
+the gem delivers the payload but never applies it. A box may also name a **2D-skeletal
+bone** (a descendant entity) to follow, so it rides the cutout animation instead of a
+static offset; an empty or unresolved name keeps the static-offset behavior.
 
 `DioramaHitboxNotificationBus` fires `OnHit(target)` on the attacker and
 `OnHurt(attacker)` on the target when a live hitbox overlaps a live hurtbox, once per

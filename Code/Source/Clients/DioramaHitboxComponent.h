@@ -21,6 +21,7 @@
 #include <AzCore/RTTI/TypeInfo.h>
 #include <AzCore/std/containers/unordered_set.h>
 #include <AzCore/std/containers/vector.h>
+#include <AzCore/std/string/string.h>
 
 // The pure HitboxFrames types live in a dependency-free header, so their
 // reflection type info is specialized here (the one place that reflects them).
@@ -53,6 +54,11 @@ namespace Diorama
         int m_startFrame = 0;
         int m_endFrame = 0;
         HitboxFrames::HitProperties m_hit; //!< attack payload (Hitbox / Throwbox)
+        //! Optional 2D-skeletal bone to ride: the name of a descendant entity (a sprite
+        //! "bone") whose world position the box follows, with m_offset applied as a
+        //! local nudge. Empty (default) = the box stays at m_offset on the rig, mirrored
+        //! by facing (the v1 behavior). An unresolved name falls back to that static path.
+        AZStd::string m_boneName;
     };
 
     //! Configuration for the frame-data hitbox rig. The boxes are authored once; which
@@ -163,8 +169,15 @@ namespace Diorama
     private:
         //! Project the entity's world translation onto the configured collision plane.
         AZ::Vector2 PlaneCenter() const;
-        //! In-plane center of a box, mirrored by facing.
-        AZ::Vector2 BoxCenter(const DioramaHitboxData& box, const AZ::Vector2& origin) const;
+        //! Project an arbitrary world position onto the configured collision plane.
+        AZ::Vector2 PlaneProject(const AZ::Vector3& world) const;
+        //! In-plane center of box `index`: the rig origin (or, if the box names a 2D
+        //! skeletal bone that resolves, the bone's world position) plus the box's
+        //! facing-mirrored local offset. Resolves and caches the bone entity lazily.
+        AZ::Vector2 BoxCenter(size_t index, const DioramaHitboxData& box, const AZ::Vector2& origin);
+        //! Breadth-first search this rig's transform hierarchy for a descendant entity
+        //! named `boneName` (a 2D-skeletal bone); invalid id if none. Empty name = invalid.
+        AZ::EntityId FindBone(const AZStd::string& boneName) const;
         //! Rebuild the active-box snapshot and static geometry, then resolve typed
         //! interactions for `frame`: legacy collider hits, the rig-pair matrix
         //! (hit / clash / armor / throw / proximity), and pushbox separation.
@@ -198,6 +211,9 @@ namespace Diorama
         int m_frame = 0;
         AZ::Vector3 m_worldTranslation = AZ::Vector3::CreateZero();
         AZ::Vector2 m_pushOut = AZ::Vector2(0.0f, 0.0f); //!< last evaluation's pushbox push-out
+        //! Cached bone entity per box (aligned to m_config.m_boxes); invalid until a box
+        //! with a bone name resolves it. Only the boxes that name a bone use a slot.
+        AZStd::vector<AZ::EntityId> m_boneEntities;
 
         //! Per-box state, aligned to m_config.m_boxes. Tracks whether the box was live
         //! last evaluation (to reset on a fresh activation), which targets its current
