@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/nickschuetz/o3de-diorama/actions/workflows/lint.yml"><img src="https://github.com/nickschuetz/o3de-diorama/actions/workflows/lint.yml/badge.svg" alt="lint"></a>
   <img src="https://img.shields.io/badge/O3DE-26.05-orange" alt="O3DE 26.05">
-  <img src="https://img.shields.io/badge/status-beta%20v0.3.0-blueviolet" alt="status: beta v0.3.0">
+  <img src="https://img.shields.io/badge/status-beta%20v0.4.0-blueviolet" alt="status: beta v0.4.0">
   <img src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue" alt="license: Apache-2.0 OR MIT">
 </p>
 
@@ -21,7 +21,7 @@ depth. It is the world-space counterpart to LyShine's screen-space UI: LyShine
 owns the UI layer, Diorama owns world-space 2D content. It ships as a clean,
 upstreamable gem, not an engine fork.
 
-> ### Status: beta (v0.3.0-beta)
+> ### Status: beta (v0.4.0-beta)
 >
 > Diorama is in beta. The feature set is broad (see the status table below) and
 > the gem builds with its unit tests green on both Linux and Windows. The API,
