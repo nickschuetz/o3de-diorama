@@ -28,6 +28,7 @@
 #include <Clients/DioramaLookComponent.h>
 #include <Clients/DioramaParallaxComponent.h>
 #include <Clients/DioramaSkeletalClipComponent.h>
+#include <Clients/MeshSkin.h>
 #include <Clients/ParticleEmitterComponent.h>
 #include <Clients/SkeletalClip.h>
 #include <Clients/SpriteAnimation.h>
@@ -1021,6 +1022,127 @@ namespace Diorama
         const float dup[] = { 0.0f, 1.0f, 1.0f, 2.0f };
         auto onDup = SkeletalClip::ResolveBlend1D(AZStd::span<const float>(dup, 4), 1.0f);
         EXPECT_NEAR(onDup.m_weight, 0.0f, 1e-4f);
+    }
+
+    // ---- Mesh-deform skinning (v2 animation depth): 2D affine + linear-blend skin --
+
+    TEST(MeshSkinTest, Affine2D_TRSTransformsAPoint)
+    {
+        // Rotate 90 deg CCW, then translate by (5,3): (1,0) -> (0,1) -> (5,4).
+        const MeshSkin::Affine2D t = MeshSkin::Affine2D::FromTRS(AZ::Vector2(5.0f, 3.0f), AZ::Constants::HalfPi, AZ::Vector2(1.0f, 1.0f));
+        const AZ::Vector2 p = t.TransformPoint(AZ::Vector2(1.0f, 0.0f));
+        EXPECT_NEAR(p.GetX(), 5.0f, 1e-4f);
+        EXPECT_NEAR(p.GetY(), 4.0f, 1e-4f);
+
+        // Scale (2,3) with no rotation/translation scales each axis.
+        const MeshSkin::Affine2D s = MeshSkin::Affine2D::FromTRS(AZ::Vector2::CreateZero(), 0.0f, AZ::Vector2(2.0f, 3.0f));
+        const AZ::Vector2 sp = s.TransformPoint(AZ::Vector2(1.0f, 1.0f));
+        EXPECT_NEAR(sp.GetX(), 2.0f, 1e-4f);
+        EXPECT_NEAR(sp.GetY(), 3.0f, 1e-4f);
+    }
+
+    TEST(MeshSkinTest, Affine2D_MultiplyComposesParentThenLocal)
+    {
+        // world = parent * local: parent translates +10 x, local translates +5 y.
+        const MeshSkin::Affine2D parent = MeshSkin::Affine2D::FromTRS(AZ::Vector2(10.0f, 0.0f), 0.0f, AZ::Vector2(1.0f, 1.0f));
+        const MeshSkin::Affine2D local = MeshSkin::Affine2D::FromTRS(AZ::Vector2(0.0f, 5.0f), 0.0f, AZ::Vector2(1.0f, 1.0f));
+        const AZ::Vector2 origin = MeshSkin::Multiply(parent, local).TransformPoint(AZ::Vector2::CreateZero());
+        EXPECT_NEAR(origin.GetX(), 10.0f, 1e-4f);
+        EXPECT_NEAR(origin.GetY(), 5.0f, 1e-4f);
+    }
+
+    TEST(MeshSkinTest, Affine2D_InverseRoundTrips)
+    {
+        const MeshSkin::Affine2D t =
+            MeshSkin::Affine2D::FromTRS(AZ::Vector2(5.0f, 3.0f), AZ::Constants::QuarterPi, AZ::Vector2(2.0f, 0.5f));
+        // inverse(t) * t == identity, so it maps any point back to itself.
+        const MeshSkin::Affine2D roundTrip = MeshSkin::Multiply(MeshSkin::Inverse(t), t);
+        const AZ::Vector2 p = roundTrip.TransformPoint(AZ::Vector2(2.0f, -1.0f));
+        EXPECT_NEAR(p.GetX(), 2.0f, 1e-3f);
+        EXPECT_NEAR(p.GetY(), -1.0f, 1e-3f);
+        // A degenerate (zero-scale) transform inverts to identity rather than NaN.
+        const MeshSkin::Affine2D degenerate = MeshSkin::Affine2D::FromTRS(AZ::Vector2::CreateZero(), 0.0f, AZ::Vector2(0.0f, 0.0f));
+        const AZ::Vector2 q = MeshSkin::Inverse(degenerate).TransformPoint(AZ::Vector2(7.0f, 9.0f));
+        EXPECT_NEAR(q.GetX(), 7.0f, 1e-4f);
+        EXPECT_NEAR(q.GetY(), 9.0f, 1e-4f);
+    }
+
+    TEST(MeshSkinTest, SkinVertex_SingleBoneFollowsRigidly)
+    {
+        // One bone whose skinning matrix translates +10 x; the vertex rides it whole.
+        const MeshSkin::Affine2D skin[1] = { MeshSkin::Affine2D::FromTRS(AZ::Vector2(10.0f, 0.0f), 0.0f, AZ::Vector2(1.0f, 1.0f)) };
+        MeshSkin::SkinnedVertex v;
+        v.m_bindPos = AZ::Vector2(1.0f, 1.0f);
+        v.m_influenceCount = 1;
+        v.m_influences[0] = { 0, 1.0f };
+        const AZ::Vector2 out = MeshSkin::SkinVertex(v, AZStd::span<const MeshSkin::Affine2D>(skin, 1));
+        EXPECT_NEAR(out.GetX(), 11.0f, 1e-4f);
+        EXPECT_NEAR(out.GetY(), 1.0f, 1e-4f);
+    }
+
+    TEST(MeshSkinTest, SkinVertex_TwoBonesBlendAndNormalize)
+    {
+        // Bone 0 pulls to +10 x, bone 1 to +10 y; a 50/50 vertex lands at their average.
+        const MeshSkin::Affine2D skin[2] = { MeshSkin::Affine2D::FromTRS(AZ::Vector2(10.0f, 0.0f), 0.0f, AZ::Vector2(1.0f, 1.0f)),
+                                             MeshSkin::Affine2D::FromTRS(AZ::Vector2(0.0f, 10.0f), 0.0f, AZ::Vector2(1.0f, 1.0f)) };
+        MeshSkin::SkinnedVertex v;
+        v.m_bindPos = AZ::Vector2::CreateZero();
+        v.m_influenceCount = 2;
+        v.m_influences[0] = { 0, 1.0f };
+        v.m_influences[1] = { 1, 1.0f }; // unnormalized weights; SkinVertex normalizes
+        const AZ::Vector2 out = MeshSkin::SkinVertex(v, AZStd::span<const MeshSkin::Affine2D>(skin, 2));
+        EXPECT_NEAR(out.GetX(), 5.0f, 1e-4f);
+        EXPECT_NEAR(out.GetY(), 5.0f, 1e-4f);
+    }
+
+    TEST(MeshSkinTest, SkinVertex_UnweightedAndBadIndexHoldBindPos)
+    {
+        const MeshSkin::Affine2D skin[1] = { MeshSkin::Affine2D::FromTRS(AZ::Vector2(10.0f, 0.0f), 0.0f, AZ::Vector2(1.0f, 1.0f)) };
+        // No influences -> the vertex holds its bind position.
+        MeshSkin::SkinnedVertex bare;
+        bare.m_bindPos = AZ::Vector2(3.0f, 4.0f);
+        bare.m_influenceCount = 0;
+        const AZ::Vector2 a = MeshSkin::SkinVertex(bare, AZStd::span<const MeshSkin::Affine2D>(skin, 1));
+        EXPECT_NEAR(a.GetX(), 3.0f, 1e-4f);
+        EXPECT_NEAR(a.GetY(), 4.0f, 1e-4f);
+
+        // An out-of-range bone index is skipped; with no valid influence left, bind pos.
+        MeshSkin::SkinnedVertex bad;
+        bad.m_bindPos = AZ::Vector2(3.0f, 4.0f);
+        bad.m_influenceCount = 1;
+        bad.m_influences[0] = { 9, 1.0f };
+        const AZ::Vector2 b = MeshSkin::SkinVertex(bad, AZStd::span<const MeshSkin::Affine2D>(skin, 1));
+        EXPECT_NEAR(b.GetX(), 3.0f, 1e-4f);
+        EXPECT_NEAR(b.GetY(), 4.0f, 1e-4f);
+    }
+
+    TEST(MeshSkinTest, ComputeWorldTransforms_ComposesAChain)
+    {
+        // Root at +10 x, child (parent 0) offset +5 y in local space -> world (10,5).
+        MeshSkin::Bone bones[2];
+        bones[0].m_parentIndex = -1;
+        bones[0].m_local = MeshSkin::Affine2D::FromTRS(AZ::Vector2(10.0f, 0.0f), 0.0f, AZ::Vector2(1.0f, 1.0f));
+        bones[1].m_parentIndex = 0;
+        bones[1].m_local = MeshSkin::Affine2D::FromTRS(AZ::Vector2(0.0f, 5.0f), 0.0f, AZ::Vector2(1.0f, 1.0f));
+        const MeshSkin::Affine2D locals[2] = { bones[0].m_local, bones[1].m_local };
+        MeshSkin::Affine2D world[2];
+        MeshSkin::ComputeWorldTransforms(
+            AZStd::span<const MeshSkin::Bone>(bones, 2),
+            AZStd::span<const MeshSkin::Affine2D>(locals, 2),
+            AZStd::span<MeshSkin::Affine2D>(world, 2));
+        const AZ::Vector2 childWorld = world[1].TransformPoint(AZ::Vector2::CreateZero());
+        EXPECT_NEAR(childWorld.GetX(), 10.0f, 1e-4f);
+        EXPECT_NEAR(childWorld.GetY(), 5.0f, 1e-4f);
+
+        // Posing the root (override its local to +20 x) carries the child along.
+        MeshSkin::Affine2D posed[2] = { MeshSkin::Affine2D::FromTRS(AZ::Vector2(20.0f, 0.0f), 0.0f, AZ::Vector2(1.0f, 1.0f)), locals[1] };
+        MeshSkin::ComputeWorldTransforms(
+            AZStd::span<const MeshSkin::Bone>(bones, 2),
+            AZStd::span<const MeshSkin::Affine2D>(posed, 2),
+            AZStd::span<MeshSkin::Affine2D>(world, 2));
+        const AZ::Vector2 movedChild = world[1].TransformPoint(AZ::Vector2::CreateZero());
+        EXPECT_NEAR(movedChild.GetX(), 20.0f, 1e-4f);
+        EXPECT_NEAR(movedChild.GetY(), 5.0f, 1e-4f);
     }
 
     // ---- Aseprite import: JSON parse + playback timeline -----------------------

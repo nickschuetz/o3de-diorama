@@ -14,6 +14,7 @@ set(FILES
     Source/Clients/SpriteAnimation.h
     Source/Clients/SpriteBatchPlan.h
     Source/Clients/SkeletalClip.h
+    Source/Clients/MeshSkin.h
     Source/Clients/AsepriteImport.h
     Source/Clients/AsepriteImport.cpp
     Source/Clients/AsepriteSheetData.h
