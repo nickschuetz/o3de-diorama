@@ -140,6 +140,10 @@ comes from the skeletal animation, which runs on the render tick, so a bone-atta
 box is rollback-exact only once the skeletal component moves onto the simulation
 clock; static boxes are unaffected.)
 
+Demo: `Docs/examples/bone_demo.py` builds a runnable `DioramaBoneDemo` level with the
+overlay on - a static green hurtbox plus a red hitbox whose **Bone** is a sliding child
+marker, so in game mode the red box tracks the bone while the green box stays put.
+
 ## Seeing the boxes (training-mode overlay)
 
 Tuning frame data blind is the worst part of building a fighter, so the rig can draw

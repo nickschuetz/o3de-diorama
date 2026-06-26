@@ -75,6 +75,10 @@ unaffected, and the freeze countdown is part of the snapshot so it rewinds corre
 A darken scrim is a sample-side touch (a translucent world quad you tint for the
 freeze); see `Assets/Diorama/Examples/Fighting/super_freeze.lua`.
 
+Demo: `Docs/examples/super_freeze_demo.py` builds a runnable `DioramaSuperFreeze` level
+(a sim-clocked bullet emitter on `auto_super_freeze.lua`); in game mode the bullets
+freeze mid-air on a cycle while the emitter keeps gliding, no input needed.
+
 ## Seeded randomness
 
 The clock hosts a deterministic RNG on `DioramaRandomRequestBus` (`SetSeed`,

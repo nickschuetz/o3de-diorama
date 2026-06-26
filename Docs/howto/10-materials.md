@@ -97,6 +97,10 @@ simulation clock, costs the renderer nothing when off (Trail Ghosts = 0), and st
 world-space. For a fighter, flip it on at the start of a dash or super and off in
 recovery.
 
+Demo: `Docs/examples/trails_demo.py` builds a runnable `DioramaTrailsDemo` level (a
+mascot that dashes left/right and drags a fading ghost trail); assign
+`diorama/examples/sprite/trail_mover.lua` to the Mover and enter game mode.
+
 ## Palette recolor (team / alt colors)
 
 The same sprite sheet can wear different color schemes - P1 vs P2, team colors, a
@@ -121,6 +125,10 @@ art); pick ramps with enough contrast between the three stops to keep the shape
 readable. Strength 0 is off (the sprite keeps its own colors), and the palette is part
 of the draw batch key, so two differently-colored copies of the same sheet still batch
 efficiently.
+
+Demo: `Docs/examples/palette_demo.py` builds a runnable `DioramaPaletteDemo` level - the
+same mascot in four schemes (original, P1 cool, P2 warm, alt green) side by side, so the
+luminance ramp is visible at a glance.
 
 ## How it works
 
