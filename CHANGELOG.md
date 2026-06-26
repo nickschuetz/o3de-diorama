@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+- **1D blend trees on the 2D skeletal player (animation depth v2).** A skeletal rig
+  can now blend clips *continuously* by a parameter instead of only switching or
+  cross-fading between them. Author a **Blend tree (1D)** on the **Skeletal Clip**
+  component - a list of entries, each a clip (from the library, or the default clip)
+  at an **Anchor** value (e.g. idle@0, walk@1, run@2) - and drive it at runtime with
+  the new **`SetBlendParam(value)`** verb (read back with **`GetBlendParam`**), AI/human
+  parity. Each tick the player blends the two clips that bracket the live parameter,
+  **phase-synced** (a shared normalized phase sampled against each clip's duration) so
+  footfalls stay aligned as the mix shifts. The bracket-and-weight math is a new pure
+  **`SkeletalClip::ResolveBlend1D`** core (below the first anchor pins to the first
+  clip, above the last to the last, in between it lerps), unit tested headlessly and
+  reusing the existing `BlendPose` primitive. A rig with no blend tree authored is
+  unaffected (the single-clip / cross-fade path is unchanged). See
+  [howto/18-skeletal.md](Docs/howto/18-skeletal.md). The DragonBones open-format
+  mesh-deform path (the other half of animation depth v2) remains future work.
+
 ## [0.4.0-beta] - 2026-06-25
 
 ### Added

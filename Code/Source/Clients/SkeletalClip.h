@@ -150,4 +150,52 @@ namespace Diorama::SkeletalClip
         out.m_scale = a.m_scale.Lerp(b.m_scale, w);
         return out;
     }
+
+    //! The two clips that bracket a 1D blend parameter, and the weight between them.
+    //! m_low and m_high index into the anchor list; m_weight (0..1) is how far from the
+    //! low clip toward the high clip the parameter sits. When the parameter is at or
+    //! past an end, both indices are that end and the weight is 0 (a single clip plays).
+    struct BlendBracket
+    {
+        size_t m_low = 0;
+        size_t m_high = 0;
+        float m_weight = 0.0f;
+    };
+
+    //! Resolve a 1D blend tree: given clip anchor positions sorted ascending (e.g. a
+    //! walk-speed value per clip: idle at 0, walk at 1, run at 2) and the current blend
+    //! parameter, return the bracketing pair and the [0,1] weight to BlendPose them by.
+    //! Below the first anchor pins to the first clip; above the last pins to the last;
+    //! duplicate/zero-span anchors yield weight 0. The component samples the two named
+    //! clips and calls BlendPose(low, high, m_weight). Pure, unit tested directly.
+    inline BlendBracket ResolveBlend1D(AZStd::span<const float> anchors, float param)
+    {
+        BlendBracket bracket;
+        if (anchors.empty())
+        {
+            return bracket;
+        }
+        const size_t last = anchors.size() - 1;
+        if (param <= anchors.front())
+        {
+            return { 0, 0, 0.0f };
+        }
+        if (param >= anchors[last])
+        {
+            return { last, last, 0.0f };
+        }
+        // anchors[hi-1] <= param < anchors[hi]; anchors assumed sorted ascending.
+        size_t hi = 1;
+        while (hi < anchors.size() && anchors[hi] <= param)
+        {
+            ++hi;
+        }
+        const size_t lo = hi - 1;
+        const float span = anchors[hi] - anchors[lo];
+        const float w = span > 0.0f ? (param - anchors[lo]) / span : 0.0f;
+        bracket.m_low = lo;
+        bracket.m_high = hi;
+        bracket.m_weight = w < 0.0f ? 0.0f : (w > 1.0f ? 1.0f : w);
+        return bracket;
+    }
 } // namespace Diorama::SkeletalClip

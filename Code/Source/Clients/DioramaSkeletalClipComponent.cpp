@@ -174,21 +174,51 @@ namespace Diorama
         }
     }
 
+    void SkeletalBlendEntryData::Reflect(AZ::ReflectContext* context)
+    {
+        if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serializeContext->Class<SkeletalBlendEntryData>()
+                ->Version(1)
+                ->Field("clipName", &SkeletalBlendEntryData::m_clipName)
+                ->Field("anchor", &SkeletalBlendEntryData::m_anchor);
+
+            if (auto* editContext = serializeContext->GetEditContext())
+            {
+                editContext->Class<SkeletalBlendEntryData>("Blend entry", "A clip anchored at a blend-parameter value")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SkeletalBlendEntryData::m_clipName,
+                        "Clip",
+                        "Name of a clip in the library, or empty for the default clip")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &SkeletalBlendEntryData::m_anchor,
+                        "Anchor",
+                        "Blend-parameter value this clip sits at");
+            }
+        }
+    }
+
     void DioramaSkeletalClipConfig::Reflect(AZ::ReflectContext* context)
     {
         SkeletalBoneTrackData::Reflect(context);
         SkeletalNamedClipData::Reflect(context);
+        SkeletalBlendEntryData::Reflect(context);
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<DioramaSkeletalClipConfig>()
-                ->Version(2)
+                ->Version(3)
                 ->Field("duration", &DioramaSkeletalClipConfig::m_duration)
                 ->Field("looping", &DioramaSkeletalClipConfig::m_looping)
                 ->Field("speed", &DioramaSkeletalClipConfig::m_speed)
                 ->Field("autoPlay", &DioramaSkeletalClipConfig::m_autoPlay)
                 ->Field("tracks", &DioramaSkeletalClipConfig::m_tracks)
-                ->Field("clips", &DioramaSkeletalClipConfig::m_clips);
+                ->Field("clips", &DioramaSkeletalClipConfig::m_clips)
+                ->Field("blendTree", &DioramaSkeletalClipConfig::m_blendTree);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -207,7 +237,12 @@ namespace Diorama
                         AZ::Edit::UIHandlers::Default,
                         &DioramaSkeletalClipConfig::m_clips,
                         "Clips",
-                        "Named alternative clips on the same rig, selectable via CrossFadeTo");
+                        "Named alternative clips on the same rig, selectable via CrossFadeTo")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaSkeletalClipConfig::m_blendTree,
+                        "Blend tree (1D)",
+                        "Clips anchored on a blend parameter; non-empty makes this a blend rig driven by SetBlendParam");
             }
         }
     }
@@ -301,12 +336,70 @@ namespace Diorama
 
         m_bones = ResolveSkeletalBones(GetEntityId(), m_config);
         m_time = 0.0f;
+        m_blendPhase = 0.0f;
         m_playing = m_config.m_autoPlay;
+        ResolveBlendTree();
 
         // Apply the opening pose so the rig is posed even before the first tick.
         ApplySkeletalPose(m_config, m_bones, m_time);
 
         AZ::TickBus::Handler::BusConnect();
+    }
+
+    void DioramaSkeletalClipComponent::ResolveBlendTree()
+    {
+        m_blendEntries.clear();
+        m_blendAnchors.clear();
+        m_blendActive = false;
+        if (m_config.m_blendTree.empty())
+        {
+            return;
+        }
+
+        m_blendEntries.reserve(m_config.m_blendTree.size());
+        for (const SkeletalBlendEntryData& entry : m_config.m_blendTree)
+        {
+            int clipIndex = -1; // default clip
+            for (size_t i = 0; i < m_config.m_clips.size(); ++i)
+            {
+                if (m_config.m_clips[i].m_name == entry.m_clipName && !entry.m_clipName.empty())
+                {
+                    clipIndex = static_cast<int>(i);
+                    break;
+                }
+            }
+            m_blendEntries.push_back({ entry.m_anchor, clipIndex });
+        }
+        AZStd::sort(
+            m_blendEntries.begin(),
+            m_blendEntries.end(),
+            [](const ResolvedBlendEntry& lhs, const ResolvedBlendEntry& rhs)
+            {
+                return lhs.m_anchor < rhs.m_anchor;
+            });
+        m_blendAnchors.reserve(m_blendEntries.size());
+        for (const ResolvedBlendEntry& entry : m_blendEntries)
+        {
+            m_blendAnchors.push_back(entry.m_anchor);
+        }
+        m_blendActive = true;
+    }
+
+    const AZStd::vector<SkeletalBoneTrackData>& DioramaSkeletalClipComponent::BlendTracks(int clipIndex) const
+    {
+        if (clipIndex >= 0 && clipIndex < static_cast<int>(m_config.m_clips.size()))
+        {
+            return m_config.m_clips[clipIndex].m_tracks;
+        }
+        return m_config.m_tracks;
+    }
+
+    float DioramaSkeletalClipComponent::BlendClipDuration(int clipIndex) const
+    {
+        const float duration = (clipIndex >= 0 && clipIndex < static_cast<int>(m_config.m_clips.size()))
+            ? m_config.m_clips[clipIndex].m_duration
+            : m_config.m_duration;
+        return AZ::GetMax(duration, AZ::Constants::FloatEpsilon);
     }
 
     void DioramaSkeletalClipComponent::Deactivate()
@@ -319,6 +412,33 @@ namespace Diorama
     {
         if (!m_playing)
         {
+            return;
+        }
+
+        if (m_blendActive && !m_blendEntries.empty())
+        {
+            // Resolve the two clips bracketing the blend parameter and the weight.
+            const SkeletalClip::BlendBracket bracket =
+                SkeletalClip::ResolveBlend1D(AZStd::span<const float>(m_blendAnchors.data(), m_blendAnchors.size()), m_blendParam);
+            const ResolvedBlendEntry& low = m_blendEntries[bracket.m_low];
+            const ResolvedBlendEntry& high = m_blendEntries[bracket.m_high];
+            const float durLow = BlendClipDuration(low.m_clipIndex);
+            const float durHigh = BlendClipDuration(high.m_clipIndex);
+
+            // Phase-sync the clips: a shared normalized phase keeps footfalls aligned
+            // regardless of differing clip lengths. Advance by the blended duration so
+            // the timeline reads smoothly as the parameter (and so the blend) shifts.
+            const float blendedDuration = AZ::GetMax(AZ::Lerp(durLow, durHigh, bracket.m_weight), AZ::Constants::FloatEpsilon);
+            m_blendPhase += deltaTime * m_config.m_speed / blendedDuration;
+            m_blendPhase -= std::floor(m_blendPhase); // wrap into [0,1)
+
+            ApplySkeletalPoseBlended(
+                BlendTracks(low.m_clipIndex),
+                m_blendPhase * durLow,
+                BlendTracks(high.m_clipIndex),
+                m_blendPhase * durHigh,
+                m_bones,
+                bracket.m_weight);
             return;
         }
 
@@ -411,6 +531,16 @@ namespace Diorama
             return;
         }
         // Unknown clip name: ignored (forgiving bus).
+    }
+
+    void DioramaSkeletalClipComponent::SetBlendParam(float value)
+    {
+        m_blendParam = value;
+    }
+
+    float DioramaSkeletalClipComponent::GetBlendParam()
+    {
+        return m_blendParam;
     }
 
     void DioramaSkeletalClipComponent::Play()

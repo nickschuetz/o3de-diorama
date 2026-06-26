@@ -88,6 +88,27 @@ weighted by `CrossfadeWeight` over the duration, so the transition math is unit 
 headlessly. An unknown clip name is ignored. Clips share the rig: their tracks animate
 the same bones, matched in order, so only the keyframes differ between clips.
 
+## Blend by a parameter (1D blend tree)
+
+A cross-fade is a one-shot transition; a **blend tree** holds a *continuous* mix driven
+by a value. Author a **Blend tree (1D)** on the component: a list of entries, each a clip
+(from the library, or empty for the default clip) at an **Anchor** value - for example
+`idle` at 0, `walk` at 1, `run` at 2. At runtime set the blend parameter, and the player
+blends the two clips that bracket it:
+
+```lua
+-- Drive locomotion by speed: 0 = pure idle, 1 = pure walk, 1.5 = walk/run mixed 50/50.
+DioramaSkeletalRequestBus.Event.SetBlendParam(self.entityId, speed)
+```
+
+The two bracketing clips are **phase-synced** (a shared normalized phase sampled against
+each clip's duration), so footfalls stay aligned as the mix shifts, and the blend weight
+comes from the pure `SkeletalClip::ResolveBlend1D` (below the first anchor pins to the
+first clip, above the last to the last, in between it lerps), unit tested headlessly. A
+rig with no blend tree authored is unaffected - it stays on the single-clip / cross-fade
+path. The blend tree and cross-fade are alternative modes: author one or the other on a
+given rig.
+
 ## Scope
 
 This is the **v1 cutout player**: a transform hierarchy of sprite bones, keyframed local

@@ -72,6 +72,21 @@ namespace Diorama
         AZStd::vector<SkeletalBoneTrackData> m_tracks;
     };
 
+    //! One entry in a 1D blend tree: a clip (by name) anchored at a blend-parameter
+    //! value. The player blends the two entries that bracket the live parameter
+    //! (SetBlendParam), so e.g. idle@0, walk@1, run@2 cross-blend as a speed value
+    //! rises. An empty clip name refers to the component's default clip.
+    struct SkeletalBlendEntryData final
+    {
+        AZ_TYPE_INFO(Diorama::SkeletalBlendEntryData, SkeletalBlendEntryDataTypeId);
+        static void Reflect(AZ::ReflectContext* context);
+
+        //! Name of a clip in the clip library, or empty for the default clip.
+        AZStd::string m_clipName;
+        //! Blend-parameter value this clip sits at. Entries are sorted by this at play.
+        float m_anchor = 0.0f;
+    };
+
     //! Configuration for the cutout skeletal clip player. The character is the entity
     //! hierarchy under this entity; each track names a descendant and animates its
     //! local transform over the clip.
@@ -97,6 +112,11 @@ namespace Diorama
         //! Named alternative clips on the same rig, selectable via CrossFadeTo. Empty
         //! leaves the player single-clip (unchanged from v1).
         AZStd::vector<SkeletalNamedClipData> m_clips;
+        //! 1D blend tree: clips (from the library / default) anchored on a blend
+        //! parameter. Non-empty makes this a blend rig: each tick the player blends the
+        //! two clips bracketing the live SetBlendParam value, phase-synced. Empty leaves
+        //! the player on the single-clip / cross-fade path (unchanged from v1).
+        AZStd::vector<SkeletalBlendEntryData> m_blendTree;
     };
 
     //! Resolve each track's bone name to a descendant entity of root (breadth-first
@@ -155,9 +175,26 @@ namespace Diorama
         void SetLooping(bool looping) override;
         void SetDuration(float seconds) override;
         void CrossFadeTo(const AZStd::string& clipName, float durationSeconds) override;
+        void SetBlendParam(float value) override;
+        float GetBlendParam() override;
         bool IsPlaying() override;
 
     private:
+        //! One resolved blend-tree entry: an anchor and which clip backs it
+        //! (m_clipIndex into m_config.m_clips, or -1 for the default clip).
+        struct ResolvedBlendEntry
+        {
+            float m_anchor = 0.0f;
+            int m_clipIndex = -1;
+        };
+
+        //! Build m_blendEntries / m_blendAnchors from m_config.m_blendTree (sorted by
+        //! anchor, names resolved to clip indices). Sets m_blendActive.
+        void ResolveBlendTree();
+        //! Tracks / duration backing a resolved blend entry's clip index (-1 = default).
+        const AZStd::vector<SkeletalBoneTrackData>& BlendTracks(int clipIndex) const;
+        float BlendClipDuration(int clipIndex) const;
+
         DioramaSkeletalClipConfig m_config;
         AZStd::vector<AZ::EntityId> m_bones;
         float m_time = 0.0f;
@@ -169,5 +206,12 @@ namespace Diorama
         float m_fadeTime = 0.0f; //!< playback time of the fade-target clip
         float m_fadeElapsed = 0.0f; //!< seconds into the fade
         float m_fadeDuration = 0.0f;
+        // 1D blend-tree state (active when m_config.m_blendTree is non-empty). The tick
+        // blends the two clips bracketing m_blendParam, phase-synced across durations.
+        bool m_blendActive = false;
+        float m_blendParam = 0.0f;
+        float m_blendPhase = 0.0f; //!< shared normalized phase [0,1) across the blended clips
+        AZStd::vector<ResolvedBlendEntry> m_blendEntries; //!< sorted by anchor
+        AZStd::vector<float> m_blendAnchors; //!< parallel anchors, for ResolveBlend1D
     };
 } // namespace Diorama

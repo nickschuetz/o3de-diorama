@@ -48,6 +48,12 @@ namespace Diorama
         //! blending the current and target poses per bone. An unknown name is ignored; a
         //! non-positive duration switches instantly. Restarts the target clip from its start.
         virtual void CrossFadeTo(const AZStd::string& clipName, float durationSeconds) = 0;
+        //! Drive the 1D blend tree: set the blend parameter the rig blends on (e.g. a
+        //! walk-speed value). The player blends the two clips in the configured blend
+        //! tree that bracket this value. No-op on a rig with no blend tree authored.
+        virtual void SetBlendParam(float value) = 0;
+        //! The current blend-tree parameter (the value set by SetBlendParam).
+        virtual float GetBlendParam() = 0;
         //! True while the clip is advancing.
         virtual bool IsPlaying() = 0;
     };

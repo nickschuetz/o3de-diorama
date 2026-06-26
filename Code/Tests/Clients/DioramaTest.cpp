@@ -972,6 +972,57 @@ namespace Diorama
         EXPECT_NEAR(SkeletalClip::CrossfadeWeight(0.0f, 0.0f), 1.0f, 1e-4f);
     }
 
+    TEST(SkeletalClipTest, ResolveBlend1D_BracketsParameterAndPinsAtEnds)
+    {
+        // A locomotion blend: idle at 0, walk at 1, run at 2.
+        const float anchors[] = { 0.0f, 1.0f, 2.0f };
+        const AZStd::span<const float> span(anchors, 3);
+
+        // Below / at the low end -> the first clip alone (weight 0).
+        auto below = SkeletalClip::ResolveBlend1D(span, -5.0f);
+        EXPECT_EQ(below.m_low, 0u);
+        EXPECT_EQ(below.m_high, 0u);
+        EXPECT_NEAR(below.m_weight, 0.0f, 1e-4f);
+
+        // At / above the high end -> the last clip alone (weight 0).
+        auto above = SkeletalClip::ResolveBlend1D(span, 9.0f);
+        EXPECT_EQ(above.m_low, 2u);
+        EXPECT_EQ(above.m_high, 2u);
+        EXPECT_NEAR(above.m_weight, 0.0f, 1e-4f);
+
+        // Midway between idle and walk -> bracket {0,1} at weight 0.25.
+        auto mid = SkeletalClip::ResolveBlend1D(span, 0.25f);
+        EXPECT_EQ(mid.m_low, 0u);
+        EXPECT_EQ(mid.m_high, 1u);
+        EXPECT_NEAR(mid.m_weight, 0.25f, 1e-4f);
+
+        // In the walk..run segment -> bracket {1,2} at weight 0.5.
+        auto upper = SkeletalClip::ResolveBlend1D(span, 1.5f);
+        EXPECT_EQ(upper.m_low, 1u);
+        EXPECT_EQ(upper.m_high, 2u);
+        EXPECT_NEAR(upper.m_weight, 0.5f, 1e-4f);
+    }
+
+    TEST(SkeletalClipTest, ResolveBlend1D_EmptyAndSingleAndDegenerate)
+    {
+        // Empty anchors -> a safe zero bracket (no clip to blend).
+        auto empty = SkeletalClip::ResolveBlend1D(AZStd::span<const float>(), 1.0f);
+        EXPECT_EQ(empty.m_low, 0u);
+        EXPECT_EQ(empty.m_high, 0u);
+
+        // Single anchor -> always that clip, weight 0, for any parameter.
+        const float one[] = { 4.0f };
+        auto single = SkeletalClip::ResolveBlend1D(AZStd::span<const float>(one, 1), 100.0f);
+        EXPECT_EQ(single.m_low, 0u);
+        EXPECT_EQ(single.m_high, 0u);
+        EXPECT_NEAR(single.m_weight, 0.0f, 1e-4f);
+
+        // Duplicate adjacent anchors (zero span) never divide by zero; weight stays 0.
+        const float dup[] = { 0.0f, 1.0f, 1.0f, 2.0f };
+        auto onDup = SkeletalClip::ResolveBlend1D(AZStd::span<const float>(dup, 4), 1.0f);
+        EXPECT_NEAR(onDup.m_weight, 0.0f, 1e-4f);
+    }
+
     // ---- Aseprite import: JSON parse + playback timeline -----------------------
     // The component is sprite-driven (it sets the sprite's texture + UV per frame),
     // but the parse and the per-frame-duration / direction timeline are pure and

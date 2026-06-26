@@ -46,6 +46,11 @@ namespace Diorama
                 &DioramaSkeletalRequestBus::Events::CrossFadeTo,
                 { { { "clipName", "Name of a clip in the config's clip library to blend to (unknown name is ignored)." },
                     { "durationSeconds", "Cross-fade time in seconds; non-positive switches instantly." } } })
+            ->Event(
+                "SetBlendParam",
+                &DioramaSkeletalRequestBus::Events::SetBlendParam,
+                { { { "value", "Blend-tree parameter (e.g. walk speed); blends the two bracketing clips." } } })
+            ->Event("GetBlendParam", &DioramaSkeletalRequestBus::Events::GetBlendParam)
             ->Event("IsPlaying", &DioramaSkeletalRequestBus::Events::IsPlaying);
     }
 } // namespace Diorama

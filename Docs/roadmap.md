@@ -139,8 +139,10 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   ([howto/18-skeletal.md](howto/18-skeletal.md)). **Shipped (cross-fade)**: a named
   clip library + `CrossFadeTo(clip, duration)` that blends the current and target
   clips per bone over a transition, on the pure tested `SkeletalClip::BlendPose` +
-  `CrossfadeWeight` cores (the same primitives back 1D blend trees later). Remaining:
-  1D blend trees, and the DragonBones open-format mesh-deform path (v2, an open
+  `CrossfadeWeight` cores. **Shipped (1D blend trees)**: a **Blend tree (1D)** of
+  clips anchored on a parameter, driven by `SetBlendParam(value)`, blending the two
+  bracketing clips phase-synced, on the pure tested `SkeletalClip::ResolveBlend1D`
+  core. Remaining: the DragonBones open-format mesh-deform path (v2, an open
   MIT-licensed format the builder can parse, reusing the same sampling core).
 - **2D particle system** (M). A real emitter component (the sample's heart-burst
   pool, generalized): rate/burst, velocity/gravity/drag, size/color over life,

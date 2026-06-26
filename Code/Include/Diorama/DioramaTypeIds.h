@@ -116,6 +116,8 @@ namespace Diorama
     inline constexpr const char* SkeletalEaseTypeId = "{0748594A-B5C6-40D1-B2F3-6E7F80910213}";
     // Named alternative clip in the cross-fade library (v2 animation depth)
     inline constexpr const char* SkeletalNamedClipDataTypeId = "{18596A5B-C6D7-40E2-A3B4-7F8091021324}";
+    // One (clip, parameter anchor) entry in a 1D blend tree (v2 animation depth)
+    inline constexpr const char* SkeletalBlendEntryDataTypeId = "{296A7B8C-D7E8-40F3-B4C5-8091A2B3C4D5}";
     // Aseprite import TypeIds (sprite-sheet JSON -> frames + named tag animations)
     inline constexpr const char* DioramaAsepriteConfigTypeId = "{1A2B3C4D-5E6F-4071-8192-A3B4C5D6E7F8}";
     inline constexpr const char* DioramaAsepriteComponentTypeId = "{2B3C4D5E-6F70-4182-92A3-B4C5D6E7F809}";
