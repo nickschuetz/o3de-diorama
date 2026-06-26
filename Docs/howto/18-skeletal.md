@@ -109,6 +109,10 @@ rig with no blend tree authored is unaffected - it stays on the single-clip / cr
 path. The blend tree and cross-fade are alternative modes: author one or the other on a
 given rig.
 
+Demo: `Docs/examples/blend_tree_demo.py` builds a runnable `DioramaBlendTree` level - a
+one-bone rig with two single-pose clips (arm low at 0, arm high at 1); `blend_sweep.lua`
+sweeps the parameter so in game mode the arm eases continuously between the two.
+
 ## Scope
 
 This is the **v1 cutout player**: a transform hierarchy of sprite bones, keyframed local

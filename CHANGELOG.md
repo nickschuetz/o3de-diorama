@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   [howto/18-skeletal.md](Docs/howto/18-skeletal.md). The DragonBones open-format
   mesh-deform path (the other half of animation depth v2) remains future work.
 
+### Fixed
+- **Skeletal bones now resolve in game mode when a bone entity activates after the
+  rig.** The 2D Skeletal Clip player resolved its bone descendants once, eagerly, at
+  activation; in game mode a child "bone" entity can activate after the parent, so
+  that one-shot lookup could miss it and the rig would never pose (it only worked in
+  the editor's static preview, where the hierarchy is already settled). The player now
+  re-resolves any missing bones on the tick until the hierarchy is ready. Affects the
+  single-clip, cross-fade, and blend-tree paths.
+
 ## [0.4.0-beta] - 2026-06-25
 
 ### Added

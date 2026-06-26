@@ -415,6 +415,23 @@ namespace Diorama
             return;
         }
 
+        // Re-resolve bones if any are missing. In game mode a child "bone" entity can
+        // activate after this component, so the eager Activate-time BFS can miss it;
+        // retry until the hierarchy is ready (cheap for small rigs, stops once valid).
+        bool needResolve = m_bones.size() != m_config.m_tracks.size();
+        for (const AZ::EntityId& bone : m_bones)
+        {
+            if (!bone.IsValid())
+            {
+                needResolve = true;
+                break;
+            }
+        }
+        if (needResolve)
+        {
+            m_bones = ResolveSkeletalBones(GetEntityId(), m_config);
+        }
+
         if (m_blendActive && !m_blendEntries.empty())
         {
             // Resolve the two clips bracketing the blend parameter and the weight.
