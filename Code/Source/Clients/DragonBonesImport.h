@@ -86,6 +86,9 @@ namespace Diorama::DragonBones
     {
         AZStd::string m_slotName; //!< the owning slot's name (e.g. "a_head")
         AZStd::string m_displayName; //!< the mesh display's name (e.g. "body/a_head")
+        //! Draw order: the slot's index in the armature's slot list. DragonBones layers
+        //! slots back-to-front in that order, so a lower value draws further back.
+        int m_drawOrder = 0;
         AZStd::vector<MeshSkin::SkinnedVertex> m_vertices;
         AZStd::vector<AZ::u16> m_indices; //!< triangle list, 3 indices per triangle
         AZStd::vector<int> m_boneGlobalIndices;
@@ -111,6 +114,60 @@ namespace Diorama::DragonBones
         //! Real exports always satisfy this; a false here flags a malformed/reordered file.
         bool m_bonesInOrder = true;
     };
+
+    //! One packed sub-image in the DragonBones "*_tex.json" atlas: its name (which matches a
+    //! mesh display name) and its pixel rect on the texture page. DragonBones stores mesh UVs
+    //! normalized to the SubTexture (0..1 within this rect), so they must be remapped into
+    //! page space before sampling the atlas.
+    struct SubTexture
+    {
+        AZStd::string m_name;
+        float m_x = 0.0f;
+        float m_y = 0.0f;
+        float m_width = 0.0f;
+        float m_height = 0.0f;
+    };
+
+    //! A parsed DragonBones texture atlas ("*_tex.json"): the page size and its sub-images.
+    struct Atlas
+    {
+        float m_width = 0.0f;
+        float m_height = 0.0f;
+        AZStd::vector<SubTexture> m_subTextures;
+    };
+
+    //! Parse a DragonBones "*_tex.json" atlas. Returns false on malformed JSON (out cleared).
+    //! Implemented in DragonBonesImport.cpp.
+    bool ParseAtlas(AZStd::string_view json, Atlas& out);
+
+    //! Find a sub-texture by name (exact match); nullptr if absent.
+    inline const SubTexture* FindSubTexture(const Atlas& atlas, AZStd::string_view name)
+    {
+        for (const SubTexture& sub : atlas.m_subTextures)
+        {
+            if (sub.m_name == name)
+            {
+                return &sub;
+            }
+        }
+        return nullptr;
+    }
+
+    //! Remap a sub-texture-local UV (0..1 within a SubTexture) into page space (0..1 over the
+    //! whole atlas). Pure so the atlas math is unit tested.
+    inline AZ::Vector2 RemapAtlasUV(const AZ::Vector2& localUV, const SubTexture& sub, float atlasWidth, float atlasHeight)
+    {
+        if (atlasWidth <= 0.0f || atlasHeight <= 0.0f)
+        {
+            return localUV;
+        }
+        return AZ::Vector2((sub.m_x + localUV.GetX() * sub.m_width) / atlasWidth, (sub.m_y + localUV.GetY() * sub.m_height) / atlasHeight);
+    }
+
+    //! Remap every skinned mesh's UVs from sub-texture-local space into page space, matching
+    //! each mesh to its SubTexture by display name. Meshes without a matching sub-texture (or
+    //! a degenerate atlas) are left unchanged. Call after ParseDocument + ParseAtlas.
+    void ApplyAtlasUVs(Document& document, const Atlas& atlas);
 
     //! Parse a DragonBones "*_ske.json" armature document. Returns false on malformed JSON
     //! (out is left cleared). Only mesh displays with weights (the skinned family) are

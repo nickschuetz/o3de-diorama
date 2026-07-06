@@ -27,6 +27,7 @@
 #include <Clients/DioramaSimClockComponent.h>
 #include <Clients/DioramaSimStateComponent.h>
 #include <Clients/DioramaSkeletalClipComponent.h>
+#include <Clients/DioramaSkinnedSpriteComponent.h>
 #include <Clients/DioramaSystemComponent.h>
 #include <Clients/ParticleEmitterComponent.h>
 #include <Clients/SpriteComponent.h>
@@ -59,6 +60,7 @@ namespace Diorama
                 DioramaCRTComponent::CreateDescriptor(),
                 DioramaLookComponent::CreateDescriptor(),
                 DioramaSkeletalClipComponent::CreateDescriptor(),
+                DioramaSkinnedSpriteComponent::CreateDescriptor(),
                 DioramaInputComponent::CreateDescriptor(),
                 DioramaHitboxComponent::CreateDescriptor(),
                 DioramaBulletEmitterComponent::CreateDescriptor(),

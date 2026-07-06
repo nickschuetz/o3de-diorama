@@ -28,6 +28,7 @@
 #include <Clients/DioramaLookComponent.h>
 #include <Clients/DioramaParallaxComponent.h>
 #include <Clients/DioramaSkeletalClipComponent.h>
+#include <Clients/DioramaSkinnedSpriteComponent.h>
 #include <Clients/DragonBonesImport.h>
 #include <Clients/MeshSkin.h>
 #include <Clients/ParticleEmitterComponent.h>
@@ -846,6 +847,7 @@ namespace Diorama
         ExpectInspectorParity<DioramaLookConfig>("DioramaLookConfig", {});
         ExpectInspectorParity<DioramaCamera2DConfig>("DioramaCamera2DConfig", {});
         ExpectInspectorParity<DioramaSkeletalClipConfig>("DioramaSkeletalClipConfig", {});
+        ExpectInspectorParity<DioramaSkinnedSpriteConfig>("DioramaSkinnedSpriteConfig", {});
         ExpectInspectorParity<DioramaInputConfig>("DioramaInputConfig", {});
         ExpectInspectorParity<DioramaAnimStateMachineConfig>("DioramaAnimStateMachineConfig", {});
         ExpectInspectorParity<DioramaAsepriteConfig>("DioramaAsepriteConfig", {});
@@ -1171,6 +1173,10 @@ namespace Diorama
               { "name": "upper", "parent": "root", "transform": { "x": 10, "y": 0, "skX": 90, "skY": 90 } },
               { "name": "lower", "parent": "upper", "transform": { "x": 5, "y": 0 } }
             ],
+            "slot": [
+              { "name": "behind" },
+              { "name": "limb" }
+            ],
             "skin": [{
               "slot": [{
                 "name": "limb",
@@ -1378,6 +1384,70 @@ namespace Diorama
         ASSERT_EQ(mesh->m_vertices[0].m_influenceCount, 1);
         EXPECT_EQ(mesh->m_vertices[0].m_influences[0].m_boneIndex, 0);
         EXPECT_NEAR(mesh->m_vertices[0].m_influences[0].m_weight, 1.0f, 1e-4f);
+    }
+
+    TEST(DragonBonesImportTest, CapturesSlotDrawOrder)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kDragonBonesJson, doc));
+        const Diorama::DragonBones::SkinnedMesh* mesh = Diorama::DragonBones::FindMesh(doc.m_armatures[0], "limb");
+        ASSERT_NE(mesh, nullptr);
+        // "limb" is the second slot in the armature slot list (index 1), so it draws in
+        // front of anything in slot 0. This is what layers the parts back-to-front.
+        EXPECT_EQ(mesh->m_drawOrder, 1);
+    }
+
+    TEST(DragonBonesImportTest, RemapAtlasUV_MapsLocalUVIntoPageRect)
+    {
+        // A 100x50 sub-texture at (200, 100) on a 1000x500 page. Local (0,0) -> the rect's
+        // top-left in page space; (1,1) -> its bottom-right.
+        Diorama::DragonBones::SubTexture sub;
+        sub.m_x = 200.0f;
+        sub.m_y = 100.0f;
+        sub.m_width = 100.0f;
+        sub.m_height = 50.0f;
+        const AZ::Vector2 topLeft = Diorama::DragonBones::RemapAtlasUV(AZ::Vector2(0.0f, 0.0f), sub, 1000.0f, 500.0f);
+        EXPECT_NEAR(topLeft.GetX(), 0.2f, 1e-5f);
+        EXPECT_NEAR(topLeft.GetY(), 0.2f, 1e-5f);
+        const AZ::Vector2 bottomRight = Diorama::DragonBones::RemapAtlasUV(AZ::Vector2(1.0f, 1.0f), sub, 1000.0f, 500.0f);
+        EXPECT_NEAR(bottomRight.GetX(), 0.3f, 1e-5f); // (200 + 100) / 1000
+        EXPECT_NEAR(bottomRight.GetY(), 0.3f, 1e-5f); // (100 + 50) / 500
+        // A degenerate page leaves the UV unchanged.
+        const AZ::Vector2 same = Diorama::DragonBones::RemapAtlasUV(AZ::Vector2(0.4f, 0.6f), sub, 0.0f, 500.0f);
+        EXPECT_NEAR(same.GetX(), 0.4f, 1e-5f);
+    }
+
+    TEST(DragonBonesImportTest, ParseAtlasAndApplyRemapsMeshUVsIntoPageSpace)
+    {
+        // An atlas whose "puppet/limb" sub-texture matches the mesh's display name.
+        constexpr const char* atlasJson = R"JSON(
+        {
+          "width": 1000,
+          "height": 500,
+          "SubTexture": [
+            { "name": "puppet/limb", "x": 200, "y": 100, "width": 100, "height": 50 }
+          ]
+        })JSON";
+
+        Diorama::DragonBones::Atlas atlas;
+        ASSERT_TRUE(Diorama::DragonBones::ParseAtlas(atlasJson, atlas));
+        EXPECT_NEAR(atlas.m_width, 1000.0f, 1e-4f);
+        ASSERT_EQ(atlas.m_subTextures.size(), 1u);
+        EXPECT_EQ(atlas.m_subTextures[0].m_name, "puppet/limb");
+
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kDragonBonesJson, doc));
+        // Before remap: the mesh UVs are sub-texture-local (v0 = (0,0), v1 = (0.5,0)).
+        const Diorama::DragonBones::SkinnedMesh& before = doc.m_armatures[0].m_meshes[0];
+        EXPECT_NEAR(before.m_vertices[0].m_uv.GetX(), 0.0f, 1e-5f);
+
+        Diorama::DragonBones::ApplyAtlasUVs(doc, atlas);
+        const Diorama::DragonBones::SkinnedMesh& after = doc.m_armatures[0].m_meshes[0];
+        // v0 local (0,0) -> page (200/1000, 100/500) = (0.2, 0.2).
+        EXPECT_NEAR(after.m_vertices[0].m_uv.GetX(), 0.2f, 1e-5f);
+        EXPECT_NEAR(after.m_vertices[0].m_uv.GetY(), 0.2f, 1e-5f);
+        // v1 local (0.5,0) -> page ((200 + 0.5*100)/1000, 0.2) = (0.25, 0.2).
+        EXPECT_NEAR(after.m_vertices[1].m_uv.GetX(), 0.25f, 1e-5f);
     }
 
     // ---- Aseprite import: JSON parse + playback timeline -----------------------

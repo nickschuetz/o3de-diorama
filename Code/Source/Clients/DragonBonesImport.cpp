@@ -240,8 +240,10 @@ namespace Diorama::DragonBones
         }
 
         //! Parse skin[].slot[].display[] into the armature's skinned meshes. A slot's mesh
-        //! display is matched by type "mesh"; only weighted ones are kept.
-        void ParseSkins(const rapidjson::Value& skinArray, Armature& armature)
+        //! display is matched by type "mesh"; only weighted ones are kept. Each mesh's draw
+        //! order comes from slotOrder (its slot's index in the armature slot list), so parts
+        //! layer back-to-front the way DragonBones renders them.
+        void ParseSkins(const rapidjson::Value& skinArray, const AZStd::unordered_map<AZStd::string, int>& slotOrder, Armature& armature)
         {
             for (rapidjson::SizeType s = 0; s < skinArray.Size(); ++s)
             {
@@ -258,6 +260,8 @@ namespace Diorama::DragonBones
                     {
                         continue;
                     }
+                    const auto orderIt = slotOrder.find(slotName);
+                    const int drawOrder = (orderIt != slotOrder.end()) ? orderIt->second : 0;
                     for (const rapidjson::Value& display : displaysIt->value.GetArray())
                     {
                         if (!display.IsObject() || GetString(display, "type") != "mesh")
@@ -267,13 +271,87 @@ namespace Diorama::DragonBones
                         SkinnedMesh mesh;
                         if (ParseMeshDisplay(display, slotName, mesh))
                         {
+                            mesh.m_drawOrder = drawOrder;
                             armature.m_meshes.push_back(AZStd::move(mesh));
                         }
                     }
                 }
             }
         }
+
+        //! Build slotName -> draw order (its index in the armature "slot" list, which
+        //! DragonBones orders back-to-front).
+        AZStd::unordered_map<AZStd::string, int> ReadSlotOrder(const rapidjson::Value& slotArray)
+        {
+            AZStd::unordered_map<AZStd::string, int> slotOrder;
+            for (rapidjson::SizeType i = 0; i < slotArray.Size(); ++i)
+            {
+                if (slotArray[i].IsObject())
+                {
+                    slotOrder[GetString(slotArray[i], "name")] = static_cast<int>(i);
+                }
+            }
+            return slotOrder;
+        }
     } // namespace
+
+    bool ParseAtlas(AZStd::string_view json, Atlas& out)
+    {
+        out = Atlas();
+
+        rapidjson::Document doc;
+        doc.Parse(json.data(), json.size());
+        if (doc.HasParseError() || !doc.IsObject())
+        {
+            return false;
+        }
+
+        out.m_width = GetFloat(doc, "width", 0.0f);
+        out.m_height = GetFloat(doc, "height", 0.0f);
+
+        const auto subsIt = doc.FindMember("SubTexture");
+        if (subsIt != doc.MemberEnd() && subsIt->value.IsArray())
+        {
+            for (const rapidjson::Value& sub : subsIt->value.GetArray())
+            {
+                if (!sub.IsObject())
+                {
+                    continue;
+                }
+                SubTexture subTexture;
+                subTexture.m_name = GetString(sub, "name");
+                subTexture.m_x = GetFloat(sub, "x", 0.0f);
+                subTexture.m_y = GetFloat(sub, "y", 0.0f);
+                subTexture.m_width = GetFloat(sub, "width", 0.0f);
+                subTexture.m_height = GetFloat(sub, "height", 0.0f);
+                out.m_subTextures.push_back(AZStd::move(subTexture));
+            }
+        }
+        return true;
+    }
+
+    void ApplyAtlasUVs(Document& document, const Atlas& atlas)
+    {
+        if (atlas.m_width <= 0.0f || atlas.m_height <= 0.0f)
+        {
+            return;
+        }
+        for (Armature& armature : document.m_armatures)
+        {
+            for (SkinnedMesh& mesh : armature.m_meshes)
+            {
+                const SubTexture* sub = FindSubTexture(atlas, mesh.m_displayName);
+                if (sub == nullptr)
+                {
+                    continue;
+                }
+                for (MeshSkin::SkinnedVertex& vertex : mesh.m_vertices)
+                {
+                    vertex.m_uv = RemapAtlasUV(vertex.m_uv, *sub, atlas.m_width, atlas.m_height);
+                }
+            }
+        }
+    }
 
     bool ParseDocument(AZStd::string_view json, Document& out)
     {
@@ -311,10 +389,19 @@ namespace Diorama::DragonBones
                 ParseBones(bonesIt->value, armature, out.m_bonesInOrder);
             }
 
+            // The armature "slot" list is the back-to-front draw order; capture it so each
+            // mesh knows how to layer against the others.
+            AZStd::unordered_map<AZStd::string, int> slotOrder;
+            const auto slotsIt = armatureValue.FindMember("slot");
+            if (slotsIt != armatureValue.MemberEnd() && slotsIt->value.IsArray())
+            {
+                slotOrder = ReadSlotOrder(slotsIt->value);
+            }
+
             const auto skinsIt = armatureValue.FindMember("skin");
             if (skinsIt != armatureValue.MemberEnd() && skinsIt->value.IsArray())
             {
-                ParseSkins(skinsIt->value, armature);
+                ParseSkins(skinsIt->value, slotOrder, armature);
             }
 
             out.m_armatures.push_back(AZStd::move(armature));
