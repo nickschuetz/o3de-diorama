@@ -53,6 +53,15 @@ namespace Diorama
             ->Attribute(AZ::Script::Attributes::Category, "Diorama/SkinnedSprite")
             ->Attribute(AZ::Script::Attributes::Module, "diorama")
             ->Event(
+                "PlayAnimation",
+                &DioramaSkinnedSpriteRequestBus::Events::PlayAnimation,
+                { { { "name", "Clip name to play from the start." }, { "looping", "Loop the clip (overrides its own loop flag)." } } })
+            ->Event("StopAnimation", &DioramaSkinnedSpriteRequestBus::Events::StopAnimation)
+            ->Event(
+                "SetAnimationSpeed",
+                &DioramaSkinnedSpriteRequestBus::Events::SetAnimationSpeed,
+                { { { "speed", "Playback rate multiplier (negative plays in reverse)." } } })
+            ->Event(
                 "SetBoneRotation",
                 &DioramaSkinnedSpriteRequestBus::Events::SetBoneRotation,
                 { { { "boneName", "Name of the bone to bend." },

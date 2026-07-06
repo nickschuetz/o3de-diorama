@@ -80,9 +80,24 @@ namespace Diorama
         return m_presenter.GetInfo();
     }
 
-    void EditorDioramaSkinnedSpriteComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    void EditorDioramaSkinnedSpriteComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
     {
-        m_presenter.Tick();
+        m_presenter.Tick(deltaTime);
+    }
+
+    void EditorDioramaSkinnedSpriteComponent::PlayAnimation(const AZStd::string& name, bool looping)
+    {
+        m_presenter.PlayAnimation(name, looping);
+    }
+
+    void EditorDioramaSkinnedSpriteComponent::StopAnimation()
+    {
+        m_presenter.StopAnimation();
+    }
+
+    void EditorDioramaSkinnedSpriteComponent::SetAnimationSpeed(float speed)
+    {
+        m_presenter.SetAnimationSpeed(speed);
     }
 
     AZ::u32 EditorDioramaSkinnedSpriteComponent::OnConfigChanged()

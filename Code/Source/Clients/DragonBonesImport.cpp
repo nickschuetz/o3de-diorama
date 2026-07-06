@@ -61,22 +61,22 @@ namespace Diorama::DragonBones
             return out;
         }
 
-        //! Read a bone's { x, y, skX, skY, scX, scY } transform (all optional) into an affine.
-        MeshSkin::Affine2D ReadBoneTransform(const rapidjson::Value& bone)
+        //! Read a bone's { x, y, skX, skY, scX, scY } transform (all optional) into the bone's
+        //! components and compute its composed bind-local affine.
+        void ReadBoneTransform(const rapidjson::Value& bone, BoneData& out)
         {
             const auto it = bone.FindMember("transform");
-            if (it == bone.MemberEnd() || !it->value.IsObject())
+            if (it != bone.MemberEnd() && it->value.IsObject())
             {
-                return MeshSkin::Affine2D::Identity();
+                const rapidjson::Value& t = it->value;
+                out.m_x = GetFloat(t, "x", 0.0f);
+                out.m_y = GetFloat(t, "y", 0.0f);
+                out.m_skewXDegrees = GetFloat(t, "skX", 0.0f);
+                out.m_skewYDegrees = GetFloat(t, "skY", 0.0f);
+                out.m_scaleX = GetFloat(t, "scX", 1.0f);
+                out.m_scaleY = GetFloat(t, "scY", 1.0f);
             }
-            const rapidjson::Value& t = it->value;
-            return TransformToAffine(
-                GetFloat(t, "x", 0.0f),
-                GetFloat(t, "y", 0.0f),
-                GetFloat(t, "skX", 0.0f),
-                GetFloat(t, "skY", 0.0f),
-                GetFloat(t, "scX", 1.0f),
-                GetFloat(t, "scY", 1.0f));
+            out.m_bindLocal = TransformToAffine(out.m_x, out.m_y, out.m_skewXDegrees, out.m_skewYDegrees, out.m_scaleX, out.m_scaleY);
         }
 
         //! Parse the bone list (two passes: collect bones + their parent names, then resolve
@@ -99,7 +99,7 @@ namespace Diorama::DragonBones
                 }
                 BoneData bone;
                 bone.m_name = GetString(boneArray[i], "name");
-                bone.m_bindLocal = ReadBoneTransform(boneArray[i]);
+                ReadBoneTransform(boneArray[i], bone);
                 nameToIndex[bone.m_name] = static_cast<int>(armature.m_bones.size());
                 armature.m_bones.push_back(AZStd::move(bone));
                 parentNames.push_back(GetString(boneArray[i], "parent"));
@@ -293,7 +293,131 @@ namespace Diorama::DragonBones
             }
             return slotOrder;
         }
+
+        //! Parse one channel's frame array (translate/rotate/scale) into keyframes. Frame
+        //! durations are in frames (converted to seconds via frameRate) and are cumulative.
+        //! keyX/keyY name the channel's value fields; defaultValue is 0 (translate/rotate) or
+        //! 1 (scale) so a missing field means "no change". A "curve" array selects bezier
+        //! easing, a present "tweenEasing" selects linear, and neither selects stepped/hold.
+        void ParseFrameTrack(
+            const rapidjson::Value& frames,
+            float frameRate,
+            const char* keyX,
+            const char* keyY,
+            float defaultValue,
+            AZStd::vector<Keyframe>& out)
+        {
+            const float fps = frameRate > 0.0f ? frameRate : 30.0f;
+            float startFrames = 0.0f;
+            for (const rapidjson::Value& frame : frames.GetArray())
+            {
+                if (!frame.IsObject())
+                {
+                    continue;
+                }
+                Keyframe kf;
+                const float durationFrames = GetFloat(frame, "duration", 0.0f);
+                kf.m_startTime = startFrames / fps;
+                kf.m_duration = durationFrames / fps;
+                kf.m_value = AZ::Vector2(GetFloat(frame, keyX, defaultValue), GetFloat(frame, keyY, defaultValue));
+
+                const auto curveIt = frame.FindMember("curve");
+                if (curveIt != frame.MemberEnd() && curveIt->value.IsArray() && curveIt->value.Size() >= 4)
+                {
+                    kf.m_tween = TweenType::Curve;
+                    for (int k = 0; k < 4; ++k)
+                    {
+                        kf.m_curve[k] = ArrayFloat(curveIt->value, static_cast<rapidjson::SizeType>(k));
+                    }
+                }
+                else if (frame.HasMember("tweenEasing"))
+                {
+                    kf.m_tween = TweenType::Linear;
+                }
+                else
+                {
+                    kf.m_tween = TweenType::Stepped;
+                }
+
+                out.push_back(kf);
+                startFrames += durationFrames;
+            }
+        }
+
+        //! Parse the armature's animation[] into clips, resolving each bone timeline's name to
+        //! a bone index via nameToIndex.
+        void ParseAnimations(
+            const rapidjson::Value& animationArray,
+            float frameRate,
+            const AZStd::unordered_map<AZStd::string, int>& nameToIndex,
+            Armature& armature)
+        {
+            const float fps = frameRate > 0.0f ? frameRate : 30.0f;
+            for (const rapidjson::Value& animValue : animationArray.GetArray())
+            {
+                if (!animValue.IsObject())
+                {
+                    continue;
+                }
+                Animation animation;
+                animation.m_name = GetString(animValue, "name");
+                animation.m_durationSeconds = GetFloat(animValue, "duration", 0.0f) / fps;
+                animation.m_loop = static_cast<int>(GetFloat(animValue, "playTimes", 0.0f)) == 0;
+
+                const auto bonesIt = animValue.FindMember("bone");
+                if (bonesIt != animValue.MemberEnd() && bonesIt->value.IsArray())
+                {
+                    for (const rapidjson::Value& boneValue : bonesIt->value.GetArray())
+                    {
+                        if (!boneValue.IsObject())
+                        {
+                            continue;
+                        }
+                        BoneTimeline timeline;
+                        timeline.m_boneName = GetString(boneValue, "name");
+                        const auto found = nameToIndex.find(timeline.m_boneName);
+                        timeline.m_boneIndex = (found != nameToIndex.end()) ? found->second : -1;
+
+                        const auto tf = boneValue.FindMember("translateFrame");
+                        if (tf != boneValue.MemberEnd() && tf->value.IsArray())
+                        {
+                            ParseFrameTrack(tf->value, fps, "x", "y", 0.0f, timeline.m_translate);
+                        }
+                        const auto rf = boneValue.FindMember("rotateFrame");
+                        if (rf != boneValue.MemberEnd() && rf->value.IsArray())
+                        {
+                            ParseFrameTrack(rf->value, fps, "rotate", "skew", 0.0f, timeline.m_rotate);
+                        }
+                        const auto sf = boneValue.FindMember("scaleFrame");
+                        if (sf != boneValue.MemberEnd() && sf->value.IsArray())
+                        {
+                            ParseFrameTrack(sf->value, fps, "x", "y", 1.0f, timeline.m_scale);
+                        }
+                        animation.m_bones.push_back(AZStd::move(timeline));
+                    }
+                }
+                armature.m_animations.push_back(AZStd::move(animation));
+            }
+        }
     } // namespace
+
+    void SampleAnimation(const Animation& animation, float timeSeconds, int boneCount, AZStd::vector<BonePoseDelta>& out)
+    {
+        out.assign(boneCount < 0 ? 0 : static_cast<size_t>(boneCount), BonePoseDelta{});
+        for (const BoneTimeline& timeline : animation.m_bones)
+        {
+            if (timeline.m_boneIndex < 0 || timeline.m_boneIndex >= boneCount)
+            {
+                continue;
+            }
+            BonePoseDelta& delta = out[timeline.m_boneIndex];
+            delta.m_translate = SampleTrack(timeline.m_translate, timeSeconds, AZ::Vector2::CreateZero());
+            const AZ::Vector2 rotate = SampleTrack(timeline.m_rotate, timeSeconds, AZ::Vector2::CreateZero());
+            delta.m_rotateDegrees = rotate.GetX();
+            delta.m_skewDegrees = rotate.GetY();
+            delta.m_scale = SampleTrack(timeline.m_scale, timeSeconds, AZ::Vector2(1.0f, 1.0f));
+        }
+    }
 
     bool ParseAtlas(AZStd::string_view json, Atlas& out)
     {
@@ -402,6 +526,17 @@ namespace Diorama::DragonBones
             if (skinsIt != armatureValue.MemberEnd() && skinsIt->value.IsArray())
             {
                 ParseSkins(skinsIt->value, slotOrder, armature);
+            }
+
+            const auto animsIt = armatureValue.FindMember("animation");
+            if (animsIt != armatureValue.MemberEnd() && animsIt->value.IsArray())
+            {
+                AZStd::unordered_map<AZStd::string, int> nameToIndex;
+                for (size_t i = 0; i < armature.m_bones.size(); ++i)
+                {
+                    nameToIndex[armature.m_bones[i].m_name] = static_cast<int>(i);
+                }
+                ParseAnimations(animsIt->value, armature.m_frameRate, nameToIndex, armature);
             }
 
             out.m_armatures.push_back(AZStd::move(armature));

@@ -59,7 +59,10 @@ namespace Diorama
                 ->Field("billboard", &DioramaSkinnedSpriteConfig::m_billboard)
                 ->Field("pointFilter", &DioramaSkinnedSpriteConfig::m_pointFilter)
                 ->Field("sortOffset", &DioramaSkinnedSpriteConfig::m_sortOffset)
-                ->Field("tint", &DioramaSkinnedSpriteConfig::m_tint);
+                ->Field("tint", &DioramaSkinnedSpriteConfig::m_tint)
+                ->Field("animationName", &DioramaSkinnedSpriteConfig::m_animationName)
+                ->Field("autoPlay", &DioramaSkinnedSpriteConfig::m_autoPlay)
+                ->Field("speed", &DioramaSkinnedSpriteConfig::m_speed);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -107,8 +110,22 @@ namespace Diorama
                         &DioramaSkinnedSpriteConfig::m_sortOffset,
                         "Sort offset",
                         "Draw-order bias; higher draws on top.")
+                    ->DataElement(AZ::Edit::UIHandlers::Color, &DioramaSkinnedSpriteConfig::m_tint, "Tint", "Multiplied into every vertex.")
                     ->DataElement(
-                        AZ::Edit::UIHandlers::Color, &DioramaSkinnedSpriteConfig::m_tint, "Tint", "Multiplied into every vertex.");
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaSkinnedSpriteConfig::m_animationName,
+                        "Animation",
+                        "Clip to play on activate; empty leaves the rig in its bind pose.")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaSkinnedSpriteConfig::m_autoPlay,
+                        "Auto play",
+                        "Start the clip automatically on activate.")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
+                        &DioramaSkinnedSpriteConfig::m_speed,
+                        "Speed",
+                        "Playback rate multiplier (negative plays in reverse).");
             }
         }
     }
@@ -123,7 +140,21 @@ namespace Diorama
         {
             m_config.m_texture.QueueLoad();
         }
-        return BuildRig();
+        const bool built = BuildRig();
+        // Auto-play the configured clip (if any) so the character animates in game and in the
+        // editor preview without a script.
+        if (built && m_config.m_autoPlay && !m_config.m_animationName.empty() && m_armature != nullptr)
+        {
+            const DragonBones::Animation* clip = DragonBones::FindAnimation(*m_armature, m_config.m_animationName);
+            if (clip != nullptr)
+            {
+                m_animation = clip;
+                m_animTime = 0.0f;
+                m_playing = true;
+                m_loop = clip->m_loop;
+            }
+        }
+        return built;
     }
 
     void SkinnedSpritePresenter::Connect(AZ::EntityId entityId)
@@ -161,6 +192,11 @@ namespace Diorama
         m_bones.clear();
         m_boneNameToIndex.clear();
         m_meshes.clear();
+        // The clip points into m_document, which is about to be re-parsed; drop it so it can
+        // never dangle. SetConfig re-resolves it after the rebuild.
+        m_animation = nullptr;
+        m_playing = false;
+        m_animTime = 0.0f;
 
         const AZStd::string json = LoadTextFile(m_config.m_sourcePath);
         if (json.empty() || !DragonBones::ParseDocument(json, m_document))
@@ -292,8 +328,27 @@ namespace Diorama
         return true;
     }
 
-    void SkinnedSpritePresenter::Tick()
+    void SkinnedSpritePresenter::Tick(float deltaTime)
     {
+        // Advance the clip (wrap when looping, hold the end otherwise).
+        if (m_playing && m_animation != nullptr && m_animation->m_durationSeconds > 0.0f)
+        {
+            m_animTime += deltaTime * m_config.m_speed;
+            const float duration = m_animation->m_durationSeconds;
+            if (m_loop)
+            {
+                m_animTime = std::fmod(m_animTime, duration);
+                if (m_animTime < 0.0f)
+                {
+                    m_animTime += duration;
+                }
+            }
+            else
+            {
+                m_animTime = AZ::GetClamp(m_animTime, 0.0f, duration);
+            }
+        }
+
         if (!TryAcquireFeatureProcessor())
         {
             return;
@@ -301,29 +356,56 @@ namespace Diorama
         SkinAndPush();
     }
 
+    void SkinnedSpritePresenter::PlayAnimation(const AZStd::string& name, bool looping)
+    {
+        m_animation = (m_armature != nullptr) ? DragonBones::FindAnimation(*m_armature, name) : nullptr;
+        m_animTime = 0.0f;
+        m_playing = m_animation != nullptr;
+        m_loop = looping;
+    }
+
+    void SkinnedSpritePresenter::StopAnimation()
+    {
+        m_playing = false;
+    }
+
+    void SkinnedSpritePresenter::SetAnimationSpeed(float speed)
+    {
+        m_config.m_speed = speed;
+    }
+
     void SkinnedSpritePresenter::SkinAndPush()
     {
         AZ::Transform worldTransform = AZ::Transform::CreateIdentity();
         AZ::TransformBus::EventResult(worldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
 
-        // Pose: apply each bone's override rotation about its joint in the PARENT frame,
-        // not in the bone's own bind-rotated/scaled frame. Composing on the right
-        // (bindLocal * R_delta) would rotate inside the bind linear map, so any bone with
-        // non-uniform bind scale or skew (common in DragonBones) would shear/twist rather
-        // than bend. Instead: override = Translate(bindTranslation + transDelta) * R_delta *
-        // bindLinear, which rotates the bone (and its descendants) cleanly about the joint.
-        for (size_t i = 0; i < m_bones.size(); ++i)
+        // Sample the active clip into per-bone deltas (identity when nothing is playing).
+        const int boneCount = static_cast<int>(m_bones.size());
+        if (m_animation != nullptr)
         {
-            const MeshSkin::Affine2D& bind = m_bones[i].m_local;
-            MeshSkin::Affine2D bindLinear = bind; // bind minus its translation
-            bindLinear.m_tx = 0.0f;
-            bindLinear.m_ty = 0.0f;
-            const MeshSkin::Affine2D rot =
-                MeshSkin::Affine2D::FromTRS(AZ::Vector2::CreateZero(), m_boneRotationDelta[i], AZ::Vector2(1.0f, 1.0f));
-            MeshSkin::Affine2D over = MeshSkin::Multiply(rot, bindLinear); // R_delta * bindLinear (translation stays 0)
-            over.m_tx = bind.m_tx + m_boneTranslationDelta[i].GetX();
-            over.m_ty = bind.m_ty + m_boneTranslationDelta[i].GetY();
-            m_localOverrides[i] = over;
+            DragonBones::SampleAnimation(*m_animation, m_animTime, boneCount, m_poseScratch);
+        }
+        else
+        {
+            m_poseScratch.assign(static_cast<size_t>(boneCount), DragonBones::BonePoseDelta{});
+        }
+
+        // Rebuild each bone's local from its bind COMPONENTS plus the animation delta and any
+        // bus override, exactly as DragonBones composes a pose: add to x/y and to skX/skY
+        // (rotation is degrees), multiply the scale. Rebuilding from components (rather than
+        // composing a rotation onto the bind affine) rotates cleanly about the joint even when
+        // the bone has non-uniform bind scale or skew.
+        for (int i = 0; i < boneCount; ++i)
+        {
+            const DragonBones::BoneData& bind = m_armature->m_bones[i];
+            const DragonBones::BonePoseDelta& delta = m_poseScratch[i];
+            const float x = bind.m_x + delta.m_translate.GetX() + m_boneTranslationDelta[i].GetX();
+            const float y = bind.m_y + delta.m_translate.GetY() + m_boneTranslationDelta[i].GetY();
+            const float skewX = bind.m_skewXDegrees + delta.m_rotateDegrees + delta.m_skewDegrees + m_boneRotationDelta[i];
+            const float skewY = bind.m_skewYDegrees + delta.m_rotateDegrees + m_boneRotationDelta[i];
+            const float scaleX = bind.m_scaleX * delta.m_scale.GetX();
+            const float scaleY = bind.m_scaleY * delta.m_scale.GetY();
+            m_localOverrides[i] = DragonBones::TransformToAffine(x, y, skewX, skewY, scaleX, scaleY);
         }
         MeshSkin::ComputeWorldTransforms(
             AZStd::span<const MeshSkin::Bone>(m_bones.data(), m_bones.size()),
@@ -386,7 +468,7 @@ namespace Diorama
         const auto it = m_boneNameToIndex.find(boneName);
         if (it != m_boneNameToIndex.end())
         {
-            m_boneRotationDelta[it->second] = AZ::DegToRad(degrees);
+            m_boneRotationDelta[it->second] = degrees; // added directly to the bone's skX/skY
         }
     }
 

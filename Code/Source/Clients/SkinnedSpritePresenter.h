@@ -59,6 +59,12 @@ namespace Diorama
         float m_sortOffset = 0.0f;
         //! Multiplied into every vertex color.
         AZ::Color m_tint = AZ::Color(1.0f, 1.0f, 1.0f, 1.0f);
+        //! Animation clip to play on activate; empty leaves the rig in its bind pose.
+        AZStd::string m_animationName;
+        //! Start playing the clip automatically on activate.
+        bool m_autoPlay = true;
+        //! Playback rate multiplier (negative plays in reverse).
+        float m_speed = 1.0f;
     };
 
     //! Shared helper that turns a DragonBones weighted-mesh config into deformed geometry on
@@ -85,11 +91,20 @@ namespace Diorama
         //! Release the feature-processor handles. Safe from Deactivate.
         void Disconnect();
 
-        //! Acquire the feature processor if needed, then pose + skin + push. Retried each
-        //! call until the scene exists (level load / editor ordering).
-        void Tick();
+        //! Advance the animation by deltaTime, acquire the feature processor if needed, then
+        //! pose + skin + push. Retried each call until the scene exists (level load / editor
+        //! ordering).
+        void Tick(float deltaTime);
 
-        //! Pose overrides (agent-facing), applied on top of the bind pose.
+        //! Play a clip by name from the start; looping overrides the clip's own loop flag.
+        //! An unknown name stops playback (holds the bind pose + any bus overrides).
+        void PlayAnimation(const AZStd::string& name, bool looping);
+        //! Stop playback, holding the current pose's bind base.
+        void StopAnimation();
+        //! Set the playback rate (negative plays in reverse).
+        void SetAnimationSpeed(float speed);
+
+        //! Pose overrides (agent-facing), added on top of the animated (or bind) pose.
         void SetBoneRotation(const AZStd::string& boneName, float degrees);
         void SetBoneTranslation(const AZStd::string& boneName, const AZ::Vector2& offset);
         void ResetPose();
@@ -115,14 +130,23 @@ namespace Diorama
 
         DragonBones::Document m_document;
         const DragonBones::Armature* m_armature = nullptr;
-        AZStd::vector<MeshSkin::Bone> m_bones;
+        AZStd::vector<MeshSkin::Bone> m_bones; //!< parent index per bone (bind local for reference)
         AZStd::unordered_map<AZStd::string, int> m_boneNameToIndex;
         AZStd::vector<RuntimeMesh> m_meshes;
         AZ::Vector2 m_center = AZ::Vector2::CreateZero();
         bool m_rigBuilt = false;
 
+        // Animation playback: the active clip, playback time, and state.
+        const DragonBones::Animation* m_animation = nullptr;
+        float m_animTime = 0.0f;
+        bool m_playing = false;
+        bool m_loop = true;
+
+        // Bus pose overrides (degrees / armature units), added on top of the animated pose.
         AZStd::vector<float> m_boneRotationDelta;
         AZStd::vector<AZ::Vector2> m_boneTranslationDelta;
+        // Reused per-frame scratch.
+        AZStd::vector<DragonBones::BonePoseDelta> m_poseScratch;
         AZStd::vector<MeshSkin::Affine2D> m_localOverrides;
         AZStd::vector<MeshSkin::Affine2D> m_world;
         AZStd::vector<SpriteFeatureProcessor::MeshVertex> m_vertexScratch;

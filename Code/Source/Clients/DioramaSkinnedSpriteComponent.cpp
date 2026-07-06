@@ -60,9 +60,24 @@ namespace Diorama
         m_presenter.Disconnect();
     }
 
-    void DioramaSkinnedSpriteComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    void DioramaSkinnedSpriteComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
     {
-        m_presenter.Tick();
+        m_presenter.Tick(deltaTime);
+    }
+
+    void DioramaSkinnedSpriteComponent::PlayAnimation(const AZStd::string& name, bool looping)
+    {
+        m_presenter.PlayAnimation(name, looping);
+    }
+
+    void DioramaSkinnedSpriteComponent::StopAnimation()
+    {
+        m_presenter.StopAnimation();
+    }
+
+    void DioramaSkinnedSpriteComponent::SetAnimationSpeed(float speed)
+    {
+        m_presenter.SetAnimationSpeed(speed);
     }
 
     void DioramaSkinnedSpriteComponent::SetBoneRotation(const AZStd::string& boneName, float degrees)

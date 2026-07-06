@@ -1250,6 +1250,39 @@ namespace Diorama
             }]
           }]
         })JSON";
+
+        // A minimal rig + one animation "wave" (24 fps, 24-frame / 1s clip) on bone "upper":
+        // rotate 0 -> 90 deg over the first half, translate x 0 -> 10 over the first half,
+        // both linear. Used to pin the animation parse + sampler.
+        constexpr const char* kAnimJson = R"JSON(
+        {
+          "name": "puppet",
+          "frameRate": 24,
+          "armature": [{
+            "name": "arm",
+            "bone": [
+              { "name": "root" },
+              { "name": "upper", "parent": "root", "transform": { "x": 10, "y": 0, "skX": 30, "skY": 30 } }
+            ],
+            "animation": [{
+              "name": "wave",
+              "duration": 24,
+              "bone": [{
+                "name": "upper",
+                "rotateFrame": [
+                  { "duration": 12, "tweenEasing": 0, "rotate": 0 },
+                  { "duration": 12, "tweenEasing": 0, "rotate": 90 },
+                  { "duration": 0 }
+                ],
+                "translateFrame": [
+                  { "duration": 12, "tweenEasing": 0 },
+                  { "duration": 12, "tweenEasing": 0, "x": 10 },
+                  { "duration": 0 }
+                ]
+              }]
+            }]
+          }]
+        })JSON";
     } // namespace
 
     TEST(DragonBonesImportTest, ParsesBoneHierarchyAndTransforms)
@@ -1448,6 +1481,88 @@ namespace Diorama
         EXPECT_NEAR(after.m_vertices[0].m_uv.GetY(), 0.2f, 1e-5f);
         // v1 local (0.5,0) -> page ((200 + 0.5*100)/1000, 0.2) = (0.25, 0.2).
         EXPECT_NEAR(after.m_vertices[1].m_uv.GetX(), 0.25f, 1e-5f);
+    }
+
+    TEST(DragonBonesImportTest, ParsesBoneTransformComponents)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kAnimJson, doc));
+        const Diorama::DragonBones::BoneData& upper = doc.m_armatures[0].m_bones[1];
+        // Raw components are captured (used by the animation sampler to rebuild the local).
+        EXPECT_NEAR(upper.m_x, 10.0f, 1e-4f);
+        EXPECT_NEAR(upper.m_skewXDegrees, 30.0f, 1e-4f);
+        EXPECT_NEAR(upper.m_skewYDegrees, 30.0f, 1e-4f);
+        EXPECT_NEAR(upper.m_scaleX, 1.0f, 1e-4f);
+    }
+
+    TEST(DragonBonesImportTest, EvaluateCurve_LinearIsIdentityEaseInLags)
+    {
+        const float linear[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+        EXPECT_NEAR(Diorama::DragonBones::EvaluateCurve(linear, 0.25f), 0.25f, 1e-3f);
+        EXPECT_NEAR(Diorama::DragonBones::EvaluateCurve(linear, 0.75f), 0.75f, 1e-3f);
+        // An ease-in curve (slow start) sits below the linear value at the same x.
+        const float easeIn[4] = { 0.42f, 0.0f, 1.0f, 1.0f };
+        EXPECT_LT(Diorama::DragonBones::EvaluateCurve(easeIn, 0.25f), 0.25f);
+    }
+
+    TEST(DragonBonesImportTest, SampleTrack_HoldsEndsAndInterpolates)
+    {
+        AZStd::vector<Diorama::DragonBones::Keyframe> track;
+        Diorama::DragonBones::Keyframe a;
+        a.m_startTime = 1.0f;
+        a.m_duration = 2.0f;
+        a.m_value = AZ::Vector2(0.0f, 0.0f);
+        a.m_tween = Diorama::DragonBones::TweenType::Linear;
+        Diorama::DragonBones::Keyframe b;
+        b.m_startTime = 3.0f;
+        b.m_duration = 0.0f;
+        b.m_value = AZ::Vector2(4.0f, 0.0f);
+        track.push_back(a);
+        track.push_back(b);
+
+        const AZ::Vector2 fallback = AZ::Vector2::CreateZero();
+        // Before the first frame holds the first; after the last holds the last.
+        EXPECT_NEAR(Diorama::DragonBones::SampleTrack(track, 0.0f, fallback).GetX(), 0.0f, 1e-4f);
+        EXPECT_NEAR(Diorama::DragonBones::SampleTrack(track, 5.0f, fallback).GetX(), 4.0f, 1e-4f);
+        // Halfway through the 1..3s span, linear -> 2.0.
+        EXPECT_NEAR(Diorama::DragonBones::SampleTrack(track, 2.0f, fallback).GetX(), 2.0f, 1e-4f);
+        // An empty track returns the fallback (1 for scale).
+        EXPECT_NEAR(Diorama::DragonBones::SampleTrack({}, 2.0f, AZ::Vector2(1.0f, 1.0f)).GetX(), 1.0f, 1e-4f);
+    }
+
+    TEST(DragonBonesImportTest, SampleAnimation_ProducesPerBoneDeltas)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kAnimJson, doc));
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+        ASSERT_EQ(arm.m_animations.size(), 1u);
+        const Diorama::DragonBones::Animation* wave = Diorama::DragonBones::FindAnimation(arm, "wave");
+        ASSERT_NE(wave, nullptr);
+        EXPECT_NEAR(wave->m_durationSeconds, 1.0f, 1e-4f); // 24 frames / 24 fps
+        EXPECT_TRUE(wave->m_loop); // no playTimes
+
+        AZStd::vector<Diorama::DragonBones::BonePoseDelta> pose;
+        const int boneCount = static_cast<int>(arm.m_bones.size());
+
+        // At t=0: no delta yet.
+        Diorama::DragonBones::SampleAnimation(*wave, 0.0f, boneCount, pose);
+        ASSERT_EQ(pose.size(), 2u);
+        EXPECT_NEAR(pose[1].m_rotateDegrees, 0.0f, 1e-3f);
+        EXPECT_NEAR(pose[1].m_translate.GetX(), 0.0f, 1e-3f);
+
+        // At t=0.25s (quarter into the 0..0.5s first span): rotate 45, translate x 5 (linear).
+        Diorama::DragonBones::SampleAnimation(*wave, 0.25f, boneCount, pose);
+        EXPECT_NEAR(pose[1].m_rotateDegrees, 45.0f, 1e-2f);
+        EXPECT_NEAR(pose[1].m_translate.GetX(), 5.0f, 1e-2f);
+
+        // At t=0.5s (the second keyframe): rotate 90, translate x 10.
+        Diorama::DragonBones::SampleAnimation(*wave, 0.5f, boneCount, pose);
+        EXPECT_NEAR(pose[1].m_rotateDegrees, 90.0f, 1e-2f);
+        EXPECT_NEAR(pose[1].m_translate.GetX(), 10.0f, 1e-2f);
+
+        // The root bone (index 0) has no timeline: identity delta (scale 1).
+        EXPECT_NEAR(pose[0].m_rotateDegrees, 0.0f, 1e-4f);
+        EXPECT_NEAR(pose[0].m_scale.GetX(), 1.0f, 1e-4f);
     }
 
     // ---- Aseprite import: JSON parse + playback timeline -----------------------

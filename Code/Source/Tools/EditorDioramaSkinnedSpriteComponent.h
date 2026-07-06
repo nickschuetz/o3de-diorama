@@ -48,6 +48,9 @@ namespace Diorama
 
         // DioramaSkinnedSpriteRequests (so the preview is drivable from script/agent while
         // authoring, mirroring the runtime component)
+        void PlayAnimation(const AZStd::string& name, bool looping) override;
+        void StopAnimation() override;
+        void SetAnimationSpeed(float speed) override;
         void SetBoneRotation(const AZStd::string& boneName, float degrees) override;
         void SetBoneTranslation(const AZStd::string& boneName, const AZ::Vector2& offset) override;
         void ResetPose() override;

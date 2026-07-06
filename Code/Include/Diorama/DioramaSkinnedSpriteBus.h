@@ -48,8 +48,18 @@ namespace Diorama
         AZ_RTTI(DioramaSkinnedSpriteRequests, DioramaSkinnedSpriteRequestsTypeId);
         virtual ~DioramaSkinnedSpriteRequests() = default;
 
-        //! Add an extra rotation (degrees) at the named bone, on top of its bind pose,
-        //! rotating that bone and its descendants about the bone's own origin. This is
+        //! Play an authored clip by name from the start; looping overrides the clip's own
+        //! loop flag. An unknown name stops playback (the rig holds its bind pose).
+        virtual void PlayAnimation(const AZStd::string& name, bool looping) = 0;
+
+        //! Stop animation playback, holding the bind pose (plus any bone overrides).
+        virtual void StopAnimation() = 0;
+
+        //! Set the playback rate multiplier (negative plays in reverse).
+        virtual void SetAnimationSpeed(float speed) = 0;
+
+        //! Add an extra rotation (degrees) at the named bone, on top of the animated (or bind)
+        //! pose, rotating that bone and its descendants about the bone's own origin. This is
         //! the primitive that bends a limb; unknown bone names are ignored.
         virtual void SetBoneRotation(const AZStd::string& boneName, float degrees) = 0;
 

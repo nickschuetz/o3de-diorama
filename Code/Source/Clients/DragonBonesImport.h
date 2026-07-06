@@ -73,6 +73,16 @@ namespace Diorama::DragonBones
         AZStd::string m_name;
         int m_parentIndex = -1;
         MeshSkin::Affine2D m_bindLocal;
+        // Raw bind transform components (m_bindLocal is these composed). Animation applies
+        // deltas to these components (x += frame.x, skX/skY += rotate, scale *= frame.scale),
+        // so the animated local is rebuilt from them each frame; that is exact and rotates
+        // cleanly about the joint regardless of bind scale/skew.
+        float m_x = 0.0f;
+        float m_y = 0.0f;
+        float m_skewXDegrees = 0.0f; //!< skX (rotation + skew)
+        float m_skewYDegrees = 0.0f; //!< skY (rotation)
+        float m_scaleX = 1.0f;
+        float m_scaleY = 1.0f;
     };
 
     //! One skinned mesh (a DragonBones mesh display with weights). Vertices carry their
@@ -95,14 +105,64 @@ namespace Diorama::DragonBones
         AZStd::vector<MeshSkin::Affine2D> m_bindWorld;
     };
 
-    //! One armature: its name, source frame rate, its bones (parent-first), and its
-    //! skinned meshes. A DragonBones file usually holds exactly one.
+    //! How a keyframe eases into the next: hold (stepped), linear, or a cubic bezier curve.
+    enum class TweenType : AZ::u8
+    {
+        Stepped,
+        Linear,
+        Curve
+    };
+
+    //! One keyframe on a bone channel. Its value is a delta applied to the bone's bind
+    //! components: (x, y) for translate, (scaleX, scaleY) for scale, and (rotateDeg, skewDeg)
+    //! for rotate. m_tween/m_curve describe the ease from THIS frame to the next.
+    struct Keyframe
+    {
+        float m_startTime = 0.0f; //!< seconds into the clip (cumulative)
+        float m_duration = 0.0f; //!< seconds until the next frame
+        AZ::Vector2 m_value = AZ::Vector2::CreateZero();
+        TweenType m_tween = TweenType::Linear;
+        float m_curve[4] = { 0.0f, 0.0f, 1.0f, 1.0f }; //!< cubic bezier control points (0,0)->(1,1)
+    };
+
+    //! Per-bone animation channels. Each track is a list of keyframes; an empty track leaves
+    //! that channel at its bind value.
+    struct BoneTimeline
+    {
+        AZStd::string m_boneName;
+        int m_boneIndex = -1; //!< resolved against the armature bone list
+        AZStd::vector<Keyframe> m_translate; //!< value = (dx, dy)
+        AZStd::vector<Keyframe> m_rotate; //!< value = (rotateDeg, skewDeg)
+        AZStd::vector<Keyframe> m_scale; //!< value = (scaleX, scaleY), 1 = unchanged
+    };
+
+    //! One authored animation clip: its name, length, whether it loops, and per-bone timelines.
+    struct Animation
+    {
+        AZStd::string m_name;
+        float m_durationSeconds = 0.0f;
+        bool m_loop = true; //!< DragonBones playTimes 0 loops; >0 plays that many times
+        AZStd::vector<BoneTimeline> m_bones;
+    };
+
+    //! The sampled pose delta for one bone: what to add to / multiply the bind components by.
+    struct BonePoseDelta
+    {
+        AZ::Vector2 m_translate = AZ::Vector2::CreateZero();
+        float m_rotateDegrees = 0.0f;
+        float m_skewDegrees = 0.0f;
+        AZ::Vector2 m_scale = AZ::Vector2(1.0f, 1.0f);
+    };
+
+    //! One armature: its name, source frame rate, its bones (parent-first), its skinned
+    //! meshes, and its animation clips. A DragonBones file usually holds exactly one.
     struct Armature
     {
         AZStd::string m_name;
         float m_frameRate = 30.0f;
         AZStd::vector<BoneData> m_bones;
         AZStd::vector<SkinnedMesh> m_meshes;
+        AZStd::vector<Animation> m_animations;
     };
 
     //! A parsed DragonBones document: its name and its armatures.
@@ -168,6 +228,97 @@ namespace Diorama::DragonBones
     //! each mesh to its SubTexture by display name. Meshes without a matching sub-texture (or
     //! a degenerate atlas) are left unchanged. Call after ParseDocument + ParseAtlas.
     void ApplyAtlasUVs(Document& document, const Atlas& atlas);
+
+    //! Evaluate a DragonBones cubic-bezier easing curve at normalized time t (0..1). The
+    //! curve is the two control points [x1, y1, x2, y2] of a bezier from (0,0) to (1,1); this
+    //! returns the eased y for the given x=t. Pure (a few Newton iterations); unit tested.
+    inline float EvaluateCurve(const float curve[4], float t)
+    {
+        t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+        const float x1 = curve[0];
+        const float y1 = curve[1];
+        const float x2 = curve[2];
+        const float y2 = curve[3];
+        // Solve for the bezier parameter u where bezierX(u) == t, then return bezierY(u).
+        auto bezier = [](float a, float b, float u)
+        {
+            const float v = 1.0f - u;
+            // control points 0 and 1 are 0 and 1 (the curve spans (0,0)->(1,1)).
+            return 3.0f * v * v * u * a + 3.0f * v * u * u * b + u * u * u;
+        };
+        float u = t;
+        for (int i = 0; i < 8; ++i)
+        {
+            const float x = bezier(x1, x2, u) - t;
+            const float v = 1.0f - u;
+            const float dx = 3.0f * v * v * x1 + 6.0f * v * u * (x2 - x1) + 3.0f * u * u * (1.0f - x2);
+            if (dx < 1e-6f && dx > -1e-6f)
+            {
+                break;
+            }
+            u -= x / dx;
+            u = u < 0.0f ? 0.0f : (u > 1.0f ? 1.0f : u);
+        }
+        return bezier(y1, y2, u);
+    }
+
+    //! Sample a keyframe track at timeSeconds, honoring each frame's tween (stepped / linear /
+    //! bezier curve). Holds the first value before the track starts and the last after it ends.
+    //! An empty track returns `fallback` (0 for translate/rotate, 1 for scale). Pure; tested.
+    inline AZ::Vector2 SampleTrack(const AZStd::vector<Keyframe>& track, float timeSeconds, const AZ::Vector2& fallback)
+    {
+        if (track.empty())
+        {
+            return fallback;
+        }
+        if (timeSeconds <= track.front().m_startTime)
+        {
+            return track.front().m_value;
+        }
+        for (size_t i = 0; i < track.size(); ++i)
+        {
+            const Keyframe& frame = track[i];
+            const float end = frame.m_startTime + frame.m_duration;
+            if (timeSeconds >= end || frame.m_duration <= 0.0f || i + 1 >= track.size())
+            {
+                if (i + 1 >= track.size())
+                {
+                    return frame.m_value; // past the last frame: hold it
+                }
+                continue;
+            }
+            const Keyframe& next = track[i + 1];
+            if (frame.m_tween == TweenType::Stepped)
+            {
+                return frame.m_value;
+            }
+            float local = (timeSeconds - frame.m_startTime) / frame.m_duration;
+            if (frame.m_tween == TweenType::Curve)
+            {
+                local = EvaluateCurve(frame.m_curve, local);
+            }
+            return frame.m_value + (next.m_value - frame.m_value) * local;
+        }
+        return track.back().m_value;
+    }
+
+    //! Sample a whole animation at timeSeconds into per-bone pose deltas (out sized to
+    //! boneCount, indexed by bone). Bones without a timeline get the identity delta. Pure;
+    //! implemented in DragonBonesImport.cpp.
+    void SampleAnimation(const Animation& animation, float timeSeconds, int boneCount, AZStd::vector<BonePoseDelta>& out);
+
+    //! Find an animation by name (exact match); nullptr if absent.
+    inline const Animation* FindAnimation(const Armature& armature, AZStd::string_view name)
+    {
+        for (const Animation& animation : armature.m_animations)
+        {
+            if (animation.m_name == name)
+            {
+                return &animation;
+            }
+        }
+        return nullptr;
+    }
 
     //! Parse a DragonBones "*_ske.json" armature document. Returns false on malformed JSON
     //! (out is left cleared). Only mesh displays with weights (the skinned family) are
