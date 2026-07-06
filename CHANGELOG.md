@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.5.0-beta] - 2026-07-06
+
 ### Added
 - **1D blend trees on the 2D skeletal player (animation depth v2).** A skeletal rig
   can now blend clips *continuously* by a parameter instead of only switching or
