@@ -63,7 +63,7 @@ recoil, or procedural secondary motion:
 
 ```lua
 DioramaSkinnedSpriteRequestBus.Event.SetBoneRotation(self.entityId, "upperarm_r", 40.0)  -- degrees
-DioramaSkinnedSpriteRequestBus.Event.SetBoneTranslation(self.entityId, "head", Vector2(0.0, -3.0))
+DioramaSkinnedSpriteRequestBus.Event.SetBoneTranslation(self.entityId, "head", 0.0, -3.0)
 DioramaSkinnedSpriteRequestBus.Event.ResetPose(self.entityId)
 ```
 

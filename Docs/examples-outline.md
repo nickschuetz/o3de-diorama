@@ -79,8 +79,9 @@ piece, and ship one tiny demo per new feature for the docs. See
   the teaching ladder. Most of these have **shipped** with a written how-to (see
   [howto/README.md](howto/README.md)): Lighting, Camera (follow/shake/pixel-perfect),
   Particles, Materials (flash/outline), Glow (post-processing), CRT overlay,
-  Skeletal cutout animation, and Aseprite import; plus the in-editor tilemap paint
-  tool and the `Diorama2DGame` project template. Still on the list: a dedicated
+  Skeletal cutout animation, DragonBones mesh-deform characters, and Aseprite
+  import; plus the in-editor tilemap paint tool and the `Diorama2DGame` project
+  template. Still on the list: a dedicated
   Collision demo. Cheap, crisp, and ideal for documentation.
 
 The flagship and side-scroller pieces above remain designs until built and verified

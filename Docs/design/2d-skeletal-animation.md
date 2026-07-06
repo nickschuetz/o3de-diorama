@@ -1,8 +1,10 @@
 # Design: skeletal 2D animation (cutout and mesh deform)
 
 Status: **v1 (transform-hierarchy cutout) shipped**: `DioramaSkeletalClipComponent`
-+ [how-to 18](../howto/18-skeletal.md). v2 (DragonBones mesh deform) and v3 (EMotionFX)
-remain design.
++ [how-to 18](../howto/18-skeletal.md) (with cross-fade and 1D blend trees).
+**v2 (DragonBones mesh deform) shipped**: `DioramaSkinnedSpriteComponent` +
+`DioramaSkinnedSpriteRequestBus` + [how-to 31](../howto/31-mesh-deform.md), on the
+pure `MeshSkin` + `DragonBonesImport` cores. Only v3 (EMotionFX) remains design.
 
 ## Goal
 

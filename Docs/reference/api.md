@@ -16,7 +16,7 @@ The Diorama request buses (`DioramaSpriteRequestBus`, `DioramaTilemapRequestBus`
 `DioramaParallaxRequestBus`, `Diorama2DColliderRequestBus`,
 `Diorama2DCollisionRequestBus`, `DioramaAudioRequestBus`,
 `DioramaCRTRequestBus`, `DioramaLookRequestBus`, `DioramaSkeletalRequestBus`,
-`DioramaAsepriteRequestBus`, `DioramaInputRequestBus`,
+`DioramaSkinnedSpriteRequestBus`, `DioramaAsepriteRequestBus`, `DioramaInputRequestBus`,
 `DioramaAnimStateMachineRequestBus`, `DioramaHitboxRequestBus`,
 `DioramaBulletRequestBus`, `DioramaDepthBodyRequestBus`,
 `DioramaDayNightRequestBus`, `DioramaSimClockRequestBus`,
@@ -342,6 +342,24 @@ transform over the clip (how-to [18-skeletal](../howto/18-skeletal.md)).
 | `SetDuration` | `seconds: float` | void | `> 0`. | Clip length the normalized time maps onto. |
 | `CrossFadeTo` | `clipName: string, durationSeconds: float` | void | Unknown name ignored; non-positive duration switches instantly. | Blend to a named clip from the config's clip library, easing each bone's pose across the transition, then continue on the target clip. |
 | `IsPlaying` | (none) | `bool` | n/a | True while the clip is advancing. |
+
+## DioramaSkinnedSpriteRequestBus
+
+Drives the **Skinned Sprite (mesh deform)** component: it imports the open DragonBones
+weighted-mesh format and CPU-skins a textured mesh so it bends and stretches as its bones
+move, drawing the deformed geometry through the sprite feature processor (how-to
+[31-mesh-deform](../howto/31-mesh-deform.md)). Bones are named by the DragonBones armature;
+an unknown bone name is ignored. Pose overrides add on top of the playing (or bind) pose.
+
+| Verb | Signature (after entity id) | Returns | Clamping | Effect |
+| ---- | --------------------------- | ------- | -------- | ------ |
+| `PlayAnimation` | `name: string, looping: bool` | void | Unknown name stops playback (holds the bind pose). | Play an authored clip from the start; `looping` overrides the clip's own loop flag. |
+| `StopAnimation` | (none) | void | None. | Stop playback, holding the current bind base + any bone overrides. |
+| `SetAnimationSpeed` | `speed: float` | void | None (negative plays in reverse). | Playback rate multiplier. |
+| `SetBoneRotation` | `boneName: string, degrees: float` | void | Unknown bone ignored. | Add an extra rotation at the bone (and its descendants), on top of the animated pose. |
+| `SetBoneTranslation` | `boneName: string, x: float, y: float` | void | Unknown bone ignored. | Add an extra translation (armature units) at the bone, on top of the animated pose. |
+| `ResetPose` | (none) | void | None. | Clear every bone override, returning to the animated (or bind) pose. |
+| `GetSkinnedSpriteInfo` | (none) | `SkinnedSpriteInfo` | n/a | Snapshot: `loaded` (rig parsed), `visible` (registered + drawing), `boneCount`, `meshCount`, `vertexCount`. |
 
 ## DioramaAsepriteRequestBus
 
