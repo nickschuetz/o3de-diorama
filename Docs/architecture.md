@@ -255,6 +255,10 @@ sequenceDiagram
 - A **tilemap** does not render itself cell by cell. Each visible tile is fed to
   the same feature processor as a quad sampling its atlas cell, so a whole layer
   sharing one atlas collapses into a single batch.
+- A **skinned sprite** (DragonBones mesh deform) is not a quad. The feature
+  processor also has a mesh path: a component submits a CPU-skinned, variable-vertex
+  mesh, and the processor billboards and draws it through the same shader, lighting,
+  and sort as quads, layering its parts back-to-front by their slot order.
 
 The gem registers `SpriteFeatureProcessor` with Atom's
 `FeatureProcessorFactory`. Because that factory only exists once the Atom RPI
@@ -337,6 +341,7 @@ a `Common`-scoped request bus at AI/human parity. The full catalog:
 | 2D Look (post) | `DioramaLookComponent` | `DioramaLookRequestBus` | [14](howto/14-glow.md) |
 | CRT overlay | `DioramaCRTComponent` | `DioramaCRTRequestBus` | [16](howto/16-crt.md) |
 | Skeletal animation | `DioramaSkeletalClipComponent` | `DioramaSkeletalRequestBus` | [18](howto/18-skeletal.md) |
+| Skinned sprite (mesh deform) | `DioramaSkinnedSpriteComponent` | `DioramaSkinnedSpriteRequestBus` | [31](howto/31-mesh-deform.md) |
 | Aseprite animation | `DioramaAsepriteComponent` | `DioramaAsepriteRequestBus` | [19](howto/19-aseprite.md) |
 | Animation state machine | `DioramaAnimStateMachineComponent` | `DioramaAnimStateMachineRequestBus` | [22](howto/22-anim-state-machine.md) |
 | Input actions + motions | `DioramaInputComponent` | `DioramaInputRequestBus` | [23](howto/23-input-actions.md) |
@@ -347,16 +352,19 @@ a `Common`-scoped request bus at AI/human parity. The full catalog:
 Each effect-style feature (light, particle, look, CRT) embeds its own presenter or
 applies to the scene's Atom feature processor; the data-style features (skeletal,
 aseprite) drive a Sprite on the same entity through its bus rather than rendering
-directly, so they compose with everything else. The editor twins add more than
+directly, so they compose with everything else. The skinned sprite is the exception
+that renders its own geometry: it CPU-skins a DragonBones mesh and submits the
+deformed vertices through the sprite feature processor's mesh path (below). The editor twins add more than
 preview where it helps: the Tilemap twin hosts an **editor component mode** for
 brush painting, the Aseprite twin runs the **sprite-sheet JSON import**, and the
 Look and Skeletal twins add **edit-mode previews** (bloom A/B, pose scrubbing).
 
 The pure, engine-free cores that back these (`SpriteBatchPlan`, `SpriteCull`,
 `SpriteTrail`, `SpritePalette`, `Collision2D`, `Camera2D`, `Particles2D`,
-`TilemapPaint`, `SkeletalClip`, `AsepriteImport`, `InputActionMap`, `MotionInput`,
-`HitboxFrames`, `BulletPattern`, `SlopeCollision`, `DepthLane`, `Pathfinding`,
-`MovementRange`, `FieldOfView`, `DayNightCycle`, `SimClock`, `SimRandom`, `SimState`)
+`TilemapPaint`, `SkeletalClip`, `MeshSkin`, `DragonBonesImport`, `AsepriteImport`,
+`InputActionMap`, `MotionInput`, `HitboxFrames`, `BulletPattern`, `SlopeCollision`,
+`DepthLane`, `Pathfinding`, `MovementRange`, `FieldOfView`, `DayNightCycle`,
+`SimClock`, `SimRandom`, `SimState`)
 are header/`.cpp` pairs unit-tested on their own, the same way the config helpers are. `SpriteCull` is the off-screen reject: the feature processor
 builds the view frustum once per frame and skips packing/drawing any sprite whose
 bounding sphere is fully outside the side planes (conservative, so it never hides a
