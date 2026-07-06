@@ -10,7 +10,6 @@
 #include <Diorama/DioramaTypeIds.h>
 
 #include <AzCore/Component/ComponentBus.h>
-#include <AzCore/Math/Vector2.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/RTTI/RTTI.h>
 #include <AzCore/std/string/string.h>
@@ -63,9 +62,9 @@ namespace Diorama
         //! the primitive that bends a limb; unknown bone names are ignored.
         virtual void SetBoneRotation(const AZStd::string& boneName, float degrees) = 0;
 
-        //! Add an extra translation (in armature units) at the named bone, on top of its
-        //! bind pose. Unknown bone names are ignored.
-        virtual void SetBoneTranslation(const AZStd::string& boneName, const AZ::Vector2& offset) = 0;
+        //! Add an extra translation (x, y, in armature units) at the named bone, on top of
+        //! its bind pose. Unknown bone names are ignored.
+        virtual void SetBoneTranslation(const AZStd::string& boneName, float x, float y) = 0;
 
         //! Clear every pose override, returning the rig to its bind pose.
         virtual void ResetPose() = 0;

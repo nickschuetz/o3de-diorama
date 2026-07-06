@@ -108,7 +108,7 @@ namespace Diorama
 
         //! Pose overrides (agent-facing), added on top of the animated (or bind) pose.
         void SetBoneRotation(const AZStd::string& boneName, float degrees);
-        void SetBoneTranslation(const AZStd::string& boneName, const AZ::Vector2& offset);
+        void SetBoneTranslation(const AZStd::string& boneName, float x, float y);
         void ResetPose();
 
         //! Read-only snapshot of the loaded rig and draw state.
