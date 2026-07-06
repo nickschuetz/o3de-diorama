@@ -178,6 +178,7 @@ namespace Diorama
         m_shadowImageAsset = {};
         m_initialized = false;
         m_sprites.clear();
+        m_meshes.clear();
 
         // Drop the cached plan (its entry pointers are about to dangle) and force
         // a rebuild if this processor is reactivated.
@@ -253,6 +254,45 @@ namespace Diorama
         {
             it->second = light;
         }
+    }
+
+    SpriteFeatureProcessor::MeshHandle SpriteFeatureProcessor::AcquireMesh()
+    {
+        const MeshHandle handle = m_nextMeshHandle++;
+        m_meshes.emplace(handle, MeshEntry{});
+        return handle;
+    }
+
+    void SpriteFeatureProcessor::ReleaseMesh(MeshHandle handle)
+    {
+        m_meshes.erase(handle);
+    }
+
+    void SpriteFeatureProcessor::UpdateMesh(
+        MeshHandle handle,
+        const AZ::Transform& worldTransform,
+        const AZ::Data::Asset<AZ::RPI::StreamingImageAsset>& texture,
+        const AZ::Color& tint,
+        float sortOffset,
+        bool billboard,
+        bool pointFilter,
+        AZStd::span<const MeshVertex> vertices,
+        AZStd::span<const AZ::u32> indices)
+    {
+        auto it = m_meshes.find(handle);
+        if (it == m_meshes.end())
+        {
+            return;
+        }
+        MeshEntry& entry = it->second;
+        entry.m_worldTransform = worldTransform;
+        entry.m_texture = texture;
+        entry.m_tint = tint;
+        entry.m_sortOffset = sortOffset;
+        entry.m_billboard = billboard;
+        entry.m_pointFilter = pointFilter;
+        entry.m_vertices.assign(vertices.begin(), vertices.end());
+        entry.m_indices.assign(indices.begin(), indices.end());
     }
 
     void SpriteFeatureProcessor::SetLightingConstants(AZ::RPI::ShaderResourceGroup* drawSrg)
@@ -625,9 +665,150 @@ namespace Diorama
             drawSrg);
     }
 
+    void SpriteFeatureProcessor::DrawMeshes(AZ::RHI::DrawItemSortKey startSortKey, const AZ::Transform& cameraTransform)
+    {
+        if (m_meshes.empty())
+        {
+            return;
+        }
+
+        AZ::Data::Instance<AZ::RPI::Image> fallbackImage;
+        if (auto* imageSystem = AZ::RPI::ImageSystemInterface::Get())
+        {
+            fallbackImage = imageSystem->GetSystemImage(AZ::RPI::SystemImage::White);
+        }
+
+        // Order meshes by sort offset (then far-to-near within an offset) so explicit
+        // layering holds and nearer characters draw over farther ones.
+        const AZ::Vector3 cameraPosition = cameraTransform.GetTranslation();
+        m_meshOrderScratch.clear();
+        m_meshOrderScratch.reserve(m_meshes.size());
+        for (const auto& [handle, entry] : m_meshes)
+        {
+            m_meshOrderScratch.push_back(&entry);
+        }
+        AZStd::stable_sort(
+            m_meshOrderScratch.begin(),
+            m_meshOrderScratch.end(),
+            [cameraPosition](const MeshEntry* a, const MeshEntry* b)
+            {
+                if (a->m_sortOffset != b->m_sortOffset)
+                {
+                    return a->m_sortOffset < b->m_sortOffset;
+                }
+                const float da = (a->m_worldTransform.GetTranslation() - cameraPosition).GetLengthSq();
+                const float db = (b->m_worldTransform.GetTranslation() - cameraPosition).GetLengthSq();
+                return da > db;
+            });
+
+        const AZ::Matrix3x3 cameraBasis = AZ::Matrix3x3::CreateFromTransform(cameraTransform);
+        AZ::RHI::DrawItemSortKey sortKey = startSortKey;
+
+        for (const MeshEntry* entry : m_meshOrderScratch)
+        {
+            if (entry->m_vertices.empty() || entry->m_indices.empty())
+            {
+                continue;
+            }
+
+            AZ::Data::Instance<AZ::RPI::Image> image;
+            if (entry->m_texture.IsReady())
+            {
+                image = AZ::RPI::StreamingImage::FindOrCreate(entry->m_texture);
+            }
+            if (!image)
+            {
+                image = fallbackImage;
+            }
+            if (!image)
+            {
+                continue;
+            }
+
+            AZ::Data::Instance<AZ::RPI::ShaderResourceGroup> drawSrg = m_dynamicDraw->NewDrawSrg();
+            if (!drawSrg)
+            {
+                continue;
+            }
+            const AZ::RHI::ShaderInputImageIndex imageIndex = drawSrg->FindShaderInputImageIndex(TextureSrgInput());
+            if (!imageIndex.IsValid())
+            {
+                continue;
+            }
+            drawSrg->SetImage(imageIndex, image);
+            // No normal map on skinned meshes yet: bind the albedo into the required
+            // normal-map slot as a placeholder and flag the batch flat-lit.
+            const AZ::RHI::ShaderInputImageIndex normalIndex = drawSrg->FindShaderInputImageIndex(NormalMapSrgInput());
+            if (normalIndex.IsValid())
+            {
+                drawSrg->SetImage(normalIndex, image);
+            }
+            SetLightingConstants(drawSrg.get());
+            SetMaterialConstants(
+                drawSrg.get(),
+                cameraTransform,
+                false, // no normal map
+                0.0f,
+                AZ::Color(1.0f, 1.0f, 1.0f, 1.0f), // no flash
+                0.0f,
+                AZ::Color(1.0f, 1.0f, 1.0f, 1.0f), // no outline
+                AZ::Color(1.0f, 1.0f, 1.0f, 1.0f),
+                0.0f, // no emissive
+                entry->m_pointFilter,
+                0.0f, // no palette recolor
+                AZ::Color(0.0f, 0.0f, 0.0f, 1.0f),
+                AZ::Color(0.0f, 0.0f, 0.0f, 1.0f),
+                AZ::Color(0.0f, 0.0f, 0.0f, 1.0f));
+            drawSrg->Compile();
+
+            // Billboard basis: face the camera (like sprites) or use the entity basis.
+            AZ::Vector3 right;
+            AZ::Vector3 up;
+            const AZ::Vector3 origin = entry->m_worldTransform.GetTranslation();
+            if (entry->m_billboard)
+            {
+                right = cameraBasis.GetColumn(0);
+                up = cameraBasis.GetColumn(2);
+            }
+            else
+            {
+                const AZ::Matrix3x3 entityBasis = AZ::Matrix3x3::CreateFromTransform(entry->m_worldTransform);
+                const float uniformScale = entry->m_worldTransform.GetUniformScale();
+                right = entityBasis.GetColumn(0) * uniformScale;
+                up = entityBasis.GetColumn(2) * uniformScale;
+            }
+
+            const AZ::u32 packedColor = entry->m_tint.ToU32();
+            m_meshVertexScratch.clear();
+            m_meshVertexScratch.resize(entry->m_vertices.size());
+            for (size_t i = 0; i < entry->m_vertices.size(); ++i)
+            {
+                const MeshVertex& v = entry->m_vertices[i];
+                const AZ::Vector3 position = origin + right * v.m_position.GetX() + up * v.m_position.GetY();
+                SpriteVertex& out = m_meshVertexScratch[i];
+                out.m_position[0] = position.GetX();
+                out.m_position[1] = position.GetY();
+                out.m_position[2] = position.GetZ();
+                out.m_color = packedColor;
+                out.m_uv[0] = v.m_uv.GetX();
+                out.m_uv[1] = v.m_uv.GetY();
+            }
+            // Indices are static per mesh; billboarding only rewrites positions, so draw
+            // straight from the entry's index buffer (no per-frame copy).
+            m_dynamicDraw->SetSortKey(sortKey++);
+            m_dynamicDraw->DrawIndexed(
+                m_meshVertexScratch.data(),
+                static_cast<uint32_t>(m_meshVertexScratch.size()),
+                entry->m_indices.data(),
+                static_cast<uint32_t>(entry->m_indices.size()),
+                AZ::RHI::IndexFormat::Uint32,
+                drawSrg);
+        }
+    }
+
     void SpriteFeatureProcessor::Render(const RenderPacket& packet)
     {
-        if (m_sprites.empty() || !EnsureInitialized())
+        if ((m_sprites.empty() && m_meshes.empty()) || !EnsureInitialized())
         {
             return;
         }
@@ -854,5 +1035,10 @@ namespace Diorama
                 AZ::RHI::IndexFormat::Uint32,
                 drawSrg);
         }
+
+        // Deformed skinned meshes draw after the sprite batches, continuing the sort
+        // key sequence so they layer on top of (or interleave by sort offset with) the
+        // quads through the same transparent pass.
+        DrawMeshes(batchSortKey, cameraTransform);
     }
 } // namespace Diorama

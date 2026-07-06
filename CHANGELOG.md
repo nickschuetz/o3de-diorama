@@ -22,8 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   clip, above the last to the last, in between it lerps), unit tested headlessly and
   reusing the existing `BlendPose` primitive. A rig with no blend tree authored is
   unaffected (the single-clip / cross-fade path is unchanged). See
-  [howto/18-skeletal.md](Docs/howto/18-skeletal.md). The DragonBones open-format
-  mesh-deform path (the other half of animation depth v2) remains future work.
+  [howto/18-skeletal.md](Docs/howto/18-skeletal.md).
+- **Mesh-deform characters from DragonBones (animation depth v2, part 2).** The other
+  half of animation depth v2: a new **Skinned Sprite (mesh deform)** component imports
+  the open, Apache-2.0 **DragonBones** weighted-mesh format and CPU-skins it so a
+  textured mesh *bends and stretches* as its bones move, instead of pivoting as rigid
+  cutout parts. It parses the armature (`*_ske.json`), remaps the mesh UVs through the
+  companion atlas (`*_tex.json`), poses the bone hierarchy each frame, skins every mesh
+  with a pure `MeshSkin` core, and draws the deformed geometry through the sprite feature
+  processor's new mesh path - so it composes with the gem's 2D lighting, sorting, and
+  camera, and previews live in the editor viewport. Authored clips play (`Auto play` +
+  the **Animation** field, or **`PlayAnimation`** / **`StopAnimation`** /
+  **`SetAnimationSpeed`** on the request bus, AI/human parity), with per-bone
+  translate / rotate / scale timelines and cubic-bezier easing; individual bones are
+  poseable on top via **`SetBoneRotation`** / **`SetBoneTranslation`**. Parts layer
+  back-to-front by their slot order automatically. Ships with a generated, IP-free
+  seaweed example (`scripts/gen_seaweed_rig.py`); see
+  [howto/31-mesh-deform.md](Docs/howto/31-mesh-deform.md) and
+  `Docs/examples/seaweed_demo.py`. Surface / free-form-FFD deformation stays out of
+  scope for this version.
 
 ### Fixed
 - **Skeletal bones now resolve in game mode when a bone entity activates after the

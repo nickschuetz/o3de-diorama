@@ -22,6 +22,8 @@ set(FILES
     Source/Tools/EditorDioramaLookComponent.h
     Source/Tools/EditorDioramaSkeletalClipComponent.cpp
     Source/Tools/EditorDioramaSkeletalClipComponent.h
+    Source/Tools/EditorDioramaSkinnedSpriteComponent.cpp
+    Source/Tools/EditorDioramaSkinnedSpriteComponent.h
     Source/Tools/EditorDioramaInputComponent.cpp
     Source/Tools/EditorDioramaInputComponent.h
     Source/Tools/EditorDioramaHitboxComponent.cpp

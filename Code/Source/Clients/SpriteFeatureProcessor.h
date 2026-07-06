@@ -12,7 +12,9 @@
 
 #include <AzCore/Math/Color.h>
 #include <AzCore/Math/Transform.h>
+#include <AzCore/Math/Vector2.h>
 #include <AzCore/Math/Vector3.h>
+#include <AzCore/std/containers/span.h>
 #include <AzCore/std/containers/unordered_map.h>
 #include <AzCore/std/containers/vector.h>
 
@@ -47,6 +49,18 @@ namespace Diorama
 
         using SpriteHandle = AZ::u32;
         static constexpr SpriteHandle InvalidHandle = 0;
+
+        using MeshHandle = AZ::u32;
+
+        //! One vertex of a deformed 2D mesh: a local 2D position (in world units,
+        //! relative to the entity origin) and its texture coordinate. The mesh path
+        //! billboards these into world space each frame the same way AppendQuad does
+        //! for sprite corners, so a skinned character faces the camera like a sprite.
+        struct MeshVertex
+        {
+            AZ::Vector2 m_position = AZ::Vector2::CreateZero();
+            AZ::Vector2 m_uv = AZ::Vector2::CreateZero();
+        };
 
         using LightHandle = AZ::u32;
         //! Max gem-native lights gathered into the per-draw lighting constants each
@@ -85,6 +99,29 @@ namespace Diorama
 
         //! Update the world transform and configuration of a registered sprite.
         void UpdateSprite(SpriteHandle handle, const AZ::Transform& worldTransform, const SpriteComponentConfig& config);
+
+        //! Register a deformed 2D mesh (a CPU-skinned character) for drawing. Returns a
+        //! stable handle (0 on failure). The mesh is drawn through the same textured
+        //! sprite shader / lighting as quads, so it composes with the 2D lighting.
+        MeshHandle AcquireMesh();
+
+        //! Stop drawing the mesh for the given handle.
+        void ReleaseMesh(MeshHandle handle);
+
+        //! Update a registered mesh's world placement, texture, tint, sort offset (higher
+        //! draws later / on top), billboard flag, and its per-frame deformed geometry
+        //! (vertices + triangle indices). The vertex/index data is copied into reused
+        //! scratch so steady-state redraws allocate nothing.
+        void UpdateMesh(
+            MeshHandle handle,
+            const AZ::Transform& worldTransform,
+            const AZ::Data::Asset<AZ::RPI::StreamingImageAsset>& texture,
+            const AZ::Color& tint,
+            float sortOffset,
+            bool billboard,
+            bool pointFilter,
+            AZStd::span<const MeshVertex> vertices,
+            AZStd::span<const AZ::u32> indices);
 
         //! Register a 2D light. Returns a stable handle (0 on failure).
         LightHandle AcquireLight();
@@ -200,5 +237,34 @@ namespace Diorama
         // sprite buffers above (the shadow pass runs in the middle of the batch loop).
         AZStd::vector<SpriteVertex> m_shadowVertexScratch;
         AZStd::vector<AZ::u32> m_shadowIndexScratch;
+
+        //! One registered deformed mesh: its world placement, texture, and the CPU-skinned
+        //! geometry pushed each frame by the component. Positions are local 2D (world units,
+        //! entity-relative); Render() billboards them like sprite corners.
+        struct MeshEntry
+        {
+            AZ::Transform m_worldTransform = AZ::Transform::CreateIdentity();
+            AZ::Data::Asset<AZ::RPI::StreamingImageAsset> m_texture;
+            AZ::Color m_tint = AZ::Color(1.0f, 1.0f, 1.0f, 1.0f);
+            float m_sortOffset = 0.0f;
+            bool m_billboard = true;
+            bool m_pointFilter = true;
+            AZStd::vector<MeshVertex> m_vertices;
+            AZStd::vector<AZ::u32> m_indices;
+        };
+
+        //! Draw every registered deformed mesh, one DrawIndexed per mesh, ordered by sort
+        //! offset (then far-to-near) and starting at the given sort key so meshes layer
+        //! after the sprite batches. Runs after the sprite loop in Render().
+        void DrawMeshes(AZ::RHI::DrawItemSortKey startSortKey, const AZ::Transform& cameraTransform);
+
+        AZStd::unordered_map<MeshHandle, MeshEntry> m_meshes;
+        MeshHandle m_nextMeshHandle = 1;
+
+        // Reused per-frame scratch for the mesh pass (runs after the sprite batch loop, so
+        // it could reuse the sprite scratch, but a separate buffer keeps the two paths
+        // independent and equally allocation-free in steady state).
+        AZStd::vector<SpriteVertex> m_meshVertexScratch;
+        AZStd::vector<const MeshEntry*> m_meshOrderScratch;
     };
 } // namespace Diorama

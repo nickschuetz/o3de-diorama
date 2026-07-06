@@ -205,6 +205,15 @@ namespace Diorama
     inline constexpr const char* DioramaSimClockInfoTypeId = "{98F1EAE2-365A-47E2-BBDB-C19596E362D2}";
     inline constexpr const char* DioramaRandomRequestsTypeId = "{B0E25564-5A2A-4A35-8252-4B26ED38D9DF}";
 
+    // Skinned-sprite (DragonBones mesh-deform) TypeIds. A weighted 2D mesh is CPU-skinned
+    // by a posed bone hierarchy and drawn through the sprite feature processor's mesh path
+    // (animation depth v2; see Docs/design/2d-skeletal-animation.md).
+    inline constexpr const char* DioramaSkinnedSpriteConfigTypeId = "{39E38C1E-32DC-4D09-BF29-F21E262ABF7D}";
+    inline constexpr const char* DioramaSkinnedSpriteComponentTypeId = "{B3F2AFC0-2F8C-4938-9E6B-9800032B1241}";
+    inline constexpr const char* EditorDioramaSkinnedSpriteComponentTypeId = "{F1995DCF-85E2-4FCA-848E-181DEBB26780}";
+    inline constexpr const char* DioramaSkinnedSpriteRequestsTypeId = "{EAD95AC3-1D6D-4627-A0DB-991942A3CEBE}";
+    inline constexpr const char* SkinnedSpriteInfoTypeId = "{F57BF5F1-0E46-433F-BEFB-3904E6D1511E}";
+
     // Simulation state marker TypeIds (enrolls an entity in snapshot/restore capture)
     inline constexpr const char* DioramaSimStateComponentTypeId = "{034F5837-545F-4930-AA58-F728EFBC0F73}";
     inline constexpr const char* EditorDioramaSimStateComponentTypeId = "{C8908981-1387-4055-ACB5-4B189AC1F486}";

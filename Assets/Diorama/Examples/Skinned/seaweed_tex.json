@@ -1,0 +1,15 @@
+{
+  "width": 96,
+  "height": 512,
+  "name": "seaweed",
+  "imagePath": "seaweed_tex.png",
+  "SubTexture": [
+    {
+      "name": "seaweed/frond",
+      "x": 0,
+      "y": 0,
+      "width": 96,
+      "height": 512
+    }
+  ]
+}

@@ -15,6 +15,8 @@ set(FILES
     Source/Clients/SpriteBatchPlan.h
     Source/Clients/SkeletalClip.h
     Source/Clients/MeshSkin.h
+    Source/Clients/DragonBonesImport.h
+    Source/Clients/DragonBonesImport.cpp
     Source/Clients/AsepriteImport.h
     Source/Clients/AsepriteImport.cpp
     Source/Clients/AsepriteSheetData.h
@@ -59,6 +61,11 @@ set(FILES
     Source/Clients/DioramaSkeletalClipComponent.cpp
     Source/Clients/DioramaSkeletalClipComponent.h
     Source/Clients/SkeletalBus.cpp
+    Source/Clients/DioramaSkinnedSpriteComponent.cpp
+    Source/Clients/DioramaSkinnedSpriteComponent.h
+    Source/Clients/SkinnedSpritePresenter.cpp
+    Source/Clients/SkinnedSpritePresenter.h
+    Source/Clients/SkinnedSpriteBus.cpp
     Source/Clients/InputActionMap.h
     Source/Clients/MotionInput.h
     Source/Clients/HitboxFrames.h
