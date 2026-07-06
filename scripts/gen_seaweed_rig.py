@@ -191,8 +191,10 @@ def main():
     build_texture().save(os.path.join(OUT_DIR, "seaweed_tex.png"))
     with open(os.path.join(OUT_DIR, "seaweed_tex.json"), "w") as f:
         json.dump(build_atlas(), f, indent=2)
+        f.write("\n")  # trailing newline (repo hygiene)
     with open(os.path.join(OUT_DIR, "seaweed_ske.json"), "w") as f:
         json.dump(build_ske(), f, indent=2)
+        f.write("\n")
     print("wrote seaweed_ske.json, seaweed_tex.json, seaweed_tex.png to {}".format(os.path.normpath(OUT_DIR)))
 
 
