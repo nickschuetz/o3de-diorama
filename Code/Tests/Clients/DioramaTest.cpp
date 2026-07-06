@@ -28,6 +28,7 @@
 #include <Clients/DioramaLookComponent.h>
 #include <Clients/DioramaParallaxComponent.h>
 #include <Clients/DioramaSkeletalClipComponent.h>
+#include <Clients/DragonBonesImport.h>
 #include <Clients/MeshSkin.h>
 #include <Clients/ParticleEmitterComponent.h>
 #include <Clients/SkeletalClip.h>
@@ -1143,6 +1144,240 @@ namespace Diorama
         const AZ::Vector2 movedChild = world[1].TransformPoint(AZ::Vector2::CreateZero());
         EXPECT_NEAR(movedChild.GetX(), 20.0f, 1e-4f);
         EXPECT_NEAR(movedChild.GetY(), 5.0f, 1e-4f);
+    }
+
+    // ---- DragonBones import: weighted-mesh armature decode ----------------------
+    // The parse turns a DragonBones "*_ske.json" armature into the MeshSkin data
+    // model: a bone hierarchy plus skinned meshes whose global bone references are
+    // remapped to per-mesh-local slots and whose bind worlds come from bonePose.
+    // A controlled synthetic rig pins the exact decode; a real slice of the open
+    // you_xin/body sample guards against format misreads.
+
+    namespace
+    {
+        // A synthetic 3-bone rig (root -> upper -> lower) with one skinned mesh of 3
+        // vertices: v0 rides bone "upper" (global 1), v1 blends upper/lower 0.25/0.75,
+        // v2 rides "lower" (global 2). slotPose shifts vertices +100 x. bonePose gives
+        // each used bone a bind world (upper tx=10, lower tx=15). Every number is chosen
+        // so the parse result can be asserted exactly.
+        constexpr const char* kDragonBonesJson = R"JSON(
+        {
+          "name": "puppet",
+          "frameRate": 24,
+          "armature": [{
+            "name": "arm",
+            "bone": [
+              { "name": "root" },
+              { "name": "upper", "parent": "root", "transform": { "x": 10, "y": 0, "skX": 90, "skY": 90 } },
+              { "name": "lower", "parent": "upper", "transform": { "x": 5, "y": 0 } }
+            ],
+            "skin": [{
+              "slot": [{
+                "name": "limb",
+                "display": [{
+                  "type": "mesh",
+                  "name": "puppet/limb",
+                  "vertices": [0, 0, 2, 0, 4, 0],
+                  "uvs": [0, 0, 0.5, 0, 1, 0],
+                  "triangles": [0, 1, 2],
+                  "slotPose": [1, 0, 0, 1, 100, 0],
+                  "bonePose": [1, 1, 0, 0, 1, 10, 0, 2, 1, 0, 0, 1, 15, 0],
+                  "weights": [1, 1, 1, 2, 1, 0.25, 2, 0.75, 1, 2, 1]
+                }]
+              }]
+            }]
+          }]
+        })JSON";
+
+        // A rigid (unweighted) image display in a mesh-less slot: it must be skipped, not
+        // imported, since it is not a weighted mesh.
+        constexpr const char* kRigidOnlyJson = R"JSON(
+        {
+          "armature": [{
+            "name": "arm",
+            "bone": [ { "name": "root" } ],
+            "skin": [{
+              "slot": [{
+                "name": "body",
+                "display": [{ "type": "image", "name": "body" }]
+              }]
+            }]
+          }]
+        })JSON";
+
+        // Bones deliberately listed child-before-parent, to exercise the m_bonesInOrder flag.
+        constexpr const char* kOutOfOrderBonesJson = R"JSON(
+        {
+          "armature": [{
+            "name": "arm",
+            "bone": [
+              { "name": "child", "parent": "parent" },
+              { "name": "parent" }
+            ]
+          }]
+        })JSON";
+
+        // A real slice of the open you_xin/body sample (DragonBonesJS, Apache-2.0): the
+        // a_head mesh (19 vertices, 1 bone, slotPose identity). Guards the decode against
+        // the real 5.5 format. Global bone index 41 remaps to the single local slot 0.
+        constexpr const char* kRealHeadJson = R"JSON(
+        {
+          "name": "body",
+          "frameRate": 30,
+          "armature": [{
+            "name": "body",
+            "bone": [ { "name": "root" } ],
+            "skin": [{
+              "slot": [{
+                "name": "a_head",
+                "display": [{
+                  "type": "mesh",
+                  "name": "body/a_head",
+                  "vertices": [16.33, -1504.74, 21.98, -1463.91, 35.04, -1439.42, 31.89, -1407.38, 16.33, -1381.63, 4.4, -1379.75, -15.71, -1346.47, -47.11, -1321.84, -66.57, -1321.83, -93.58, -1330.14, -121.21, -1343.95, -131.26, -1369.08, -150.74, -1397.97, -166.33, -1434.39, -166.33, -1484.02, -149.48, -1531.75, -99.23, -1559.83, -18.21, -1559.82, 8.16, -1417.43],
+                  "uvs": [0.90429, 0.23145],
+                  "triangles": [18, 3, 2, 1, 18, 2, 18, 4, 3, 18, 5, 4, 14, 18, 1, 16, 14, 1, 0, 16, 1, 14, 13, 18, 17, 16, 0, 13, 12, 18, 11, 5, 18, 12, 11, 18, 11, 6, 5, 15, 14, 16, 8, 7, 6, 9, 8, 6, 11, 9, 6, 11, 10, 9],
+                  "slotPose": [1, 0, 0, 1, 0, 0],
+                  "bonePose": [41, -0.22937, -0.973339, 0.973339, -0.22937, -36.137286, -1363.886473],
+                  "weights": [1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1, 1, 41, 1]
+                }]
+              }]
+            }]
+          }]
+        })JSON";
+    } // namespace
+
+    TEST(DragonBonesImportTest, ParsesBoneHierarchyAndTransforms)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kDragonBonesJson, doc));
+
+        EXPECT_EQ(doc.m_name, "puppet");
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        EXPECT_TRUE(doc.m_bonesInOrder);
+
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+        EXPECT_EQ(arm.m_name, "arm");
+        EXPECT_NEAR(arm.m_frameRate, 24.0f, 1e-4f); // inherited from the document
+        ASSERT_EQ(arm.m_bones.size(), 3u);
+        EXPECT_EQ(arm.m_bones[0].m_parentIndex, -1);
+        EXPECT_EQ(arm.m_bones[1].m_parentIndex, 0);
+        EXPECT_EQ(arm.m_bones[2].m_parentIndex, 1);
+
+        // "upper" has skX = skY = 90 deg -> a rigid 90-degree rotation, tx = 10.
+        const MeshSkin::Affine2D& upper = arm.m_bones[1].m_bindLocal;
+        EXPECT_NEAR(upper.m_a, 0.0f, 1e-4f);
+        EXPECT_NEAR(upper.m_b, 1.0f, 1e-4f);
+        EXPECT_NEAR(upper.m_c, -1.0f, 1e-4f);
+        EXPECT_NEAR(upper.m_d, 0.0f, 1e-4f);
+        EXPECT_NEAR(upper.m_tx, 10.0f, 1e-4f);
+    }
+
+    TEST(DragonBonesImportTest, RemapsGlobalBonesToLocalSlotsWithBindWorlds)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kDragonBonesJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+
+        ASSERT_EQ(arm.m_meshes.size(), 1u);
+        const Diorama::DragonBones::SkinnedMesh* mesh = Diorama::DragonBones::FindMesh(arm, "limb");
+        ASSERT_NE(mesh, nullptr);
+        EXPECT_EQ(mesh->m_displayName, "puppet/limb");
+
+        // bonePose order defines local slots: global 1 -> slot 0, global 2 -> slot 1.
+        ASSERT_EQ(mesh->m_boneGlobalIndices.size(), 2u);
+        EXPECT_EQ(mesh->m_boneGlobalIndices[0], 1);
+        EXPECT_EQ(mesh->m_boneGlobalIndices[1], 2);
+        ASSERT_EQ(mesh->m_bindWorld.size(), 2u);
+        EXPECT_NEAR(mesh->m_bindWorld[0].m_tx, 10.0f, 1e-4f);
+        EXPECT_NEAR(mesh->m_bindWorld[1].m_tx, 15.0f, 1e-4f);
+
+        // Influences carry LOCAL slot indices, not the global bone indices.
+        ASSERT_EQ(mesh->m_vertices.size(), 3u);
+        const MeshSkin::SkinnedVertex& v0 = mesh->m_vertices[0];
+        ASSERT_EQ(v0.m_influenceCount, 1);
+        EXPECT_EQ(v0.m_influences[0].m_boneIndex, 0);
+        EXPECT_NEAR(v0.m_influences[0].m_weight, 1.0f, 1e-4f);
+
+        const MeshSkin::SkinnedVertex& v1 = mesh->m_vertices[1];
+        ASSERT_EQ(v1.m_influenceCount, 2);
+        EXPECT_EQ(v1.m_influences[0].m_boneIndex, 0);
+        EXPECT_NEAR(v1.m_influences[0].m_weight, 0.25f, 1e-4f);
+        EXPECT_EQ(v1.m_influences[1].m_boneIndex, 1);
+        EXPECT_NEAR(v1.m_influences[1].m_weight, 0.75f, 1e-4f);
+
+        const MeshSkin::SkinnedVertex& v2 = mesh->m_vertices[2];
+        ASSERT_EQ(v2.m_influenceCount, 1);
+        EXPECT_EQ(v2.m_influences[0].m_boneIndex, 1);
+    }
+
+    TEST(DragonBonesImportTest, BakesSlotPoseIntoBindPositionsAndReadsUvsAndIndices)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kDragonBonesJson, doc));
+        const Diorama::DragonBones::SkinnedMesh& mesh = doc.m_armatures[0].m_meshes[0];
+
+        // slotPose translates +100 x, so raw (0,0)/(2,0)/(4,0) -> (100,0)/(102,0)/(104,0).
+        EXPECT_NEAR(mesh.m_vertices[0].m_bindPos.GetX(), 100.0f, 1e-4f);
+        EXPECT_NEAR(mesh.m_vertices[1].m_bindPos.GetX(), 102.0f, 1e-4f);
+        EXPECT_NEAR(mesh.m_vertices[2].m_bindPos.GetX(), 104.0f, 1e-4f);
+        EXPECT_NEAR(mesh.m_vertices[0].m_bindPos.GetY(), 0.0f, 1e-4f);
+
+        EXPECT_NEAR(mesh.m_vertices[1].m_uv.GetX(), 0.5f, 1e-4f);
+
+        ASSERT_EQ(mesh.m_indices.size(), 3u);
+        EXPECT_EQ(mesh.m_indices[0], 0);
+        EXPECT_EQ(mesh.m_indices[1], 1);
+        EXPECT_EQ(mesh.m_indices[2], 2);
+    }
+
+    TEST(DragonBonesImportTest, SkipsRigidDisplaysAndRejectsMalformedJson)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kRigidOnlyJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        EXPECT_TRUE(doc.m_armatures[0].m_meshes.empty()); // the image display is skipped
+
+        Diorama::DragonBones::Document bad;
+        EXPECT_FALSE(Diorama::DragonBones::ParseDocument("{ not valid json", bad));
+        EXPECT_TRUE(bad.m_armatures.empty());
+    }
+
+    TEST(DragonBonesImportTest, FlagsBonesThatAreNotParentFirst)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kOutOfOrderBonesJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        // "child" (index 0) points at "parent" (index 1), which does not precede it.
+        EXPECT_FALSE(doc.m_bonesInOrder);
+        EXPECT_EQ(doc.m_armatures[0].m_bones[0].m_parentIndex, 1);
+    }
+
+    TEST(DragonBonesImportTest, DecodesRealYouXinHeadSlice)
+    {
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kRealHeadJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        const Diorama::DragonBones::SkinnedMesh* mesh = Diorama::DragonBones::FindMesh(doc.m_armatures[0], "a_head");
+        ASSERT_NE(mesh, nullptr);
+
+        EXPECT_EQ(mesh->m_displayName, "body/a_head");
+        EXPECT_EQ(mesh->m_vertices.size(), 19u);
+        EXPECT_EQ(mesh->m_indices.size(), 54u);
+
+        // One bone (global 41) drives every vertex at full weight through local slot 0.
+        ASSERT_EQ(mesh->m_boneGlobalIndices.size(), 1u);
+        EXPECT_EQ(mesh->m_boneGlobalIndices[0], 41);
+        ASSERT_EQ(mesh->m_bindWorld.size(), 1u);
+        EXPECT_NEAR(mesh->m_bindWorld[0].m_a, -0.22937f, 1e-4f);
+        EXPECT_NEAR(mesh->m_bindWorld[0].m_tx, -36.137286f, 1e-3f);
+
+        // slotPose is identity, so bind position 0 equals the raw first vertex.
+        EXPECT_NEAR(mesh->m_vertices[0].m_bindPos.GetX(), 16.33f, 1e-3f);
+        EXPECT_NEAR(mesh->m_vertices[0].m_bindPos.GetY(), -1504.74f, 1e-3f);
+        ASSERT_EQ(mesh->m_vertices[0].m_influenceCount, 1);
+        EXPECT_EQ(mesh->m_vertices[0].m_influences[0].m_boneIndex, 0);
+        EXPECT_NEAR(mesh->m_vertices[0].m_influences[0].m_weight, 1.0f, 1e-4f);
     }
 
     // ---- Aseprite import: JSON parse + playback timeline -----------------------
