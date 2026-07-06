@@ -52,7 +52,7 @@ namespace Diorama
         void StopAnimation() override;
         void SetAnimationSpeed(float speed) override;
         void SetBoneRotation(const AZStd::string& boneName, float degrees) override;
-        void SetBoneTranslation(const AZStd::string& boneName, const AZ::Vector2& offset) override;
+        void SetBoneTranslation(const AZStd::string& boneName, float x, float y) override;
         void ResetPose() override;
         SkinnedSpriteInfo GetSkinnedSpriteInfo() override;
 

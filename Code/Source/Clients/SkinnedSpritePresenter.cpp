@@ -472,12 +472,12 @@ namespace Diorama
         }
     }
 
-    void SkinnedSpritePresenter::SetBoneTranslation(const AZStd::string& boneName, const AZ::Vector2& offset)
+    void SkinnedSpritePresenter::SetBoneTranslation(const AZStd::string& boneName, float x, float y)
     {
         const auto it = m_boneNameToIndex.find(boneName);
         if (it != m_boneNameToIndex.end())
         {
-            m_boneTranslationDelta[it->second] = offset;
+            m_boneTranslationDelta[it->second] = AZ::Vector2(x, y);
         }
     }
 

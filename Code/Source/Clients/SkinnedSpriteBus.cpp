@@ -69,7 +69,9 @@ namespace Diorama
             ->Event(
                 "SetBoneTranslation",
                 &DioramaSkinnedSpriteRequestBus::Events::SetBoneTranslation,
-                { { { "boneName", "Name of the bone to shift." }, { "offset", "Extra translation (armature units) added at the bone." } } })
+                { { { "boneName", "Name of the bone to shift." },
+                    { "x", "Extra X translation (armature units) added at the bone." },
+                    { "y", "Extra Y translation (armature units) added at the bone." } } })
             ->Event("ResetPose", &DioramaSkinnedSpriteRequestBus::Events::ResetPose)
             ->Event("GetSkinnedSpriteInfo", &DioramaSkinnedSpriteRequestBus::Events::GetSkinnedSpriteInfo);
     }

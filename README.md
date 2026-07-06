@@ -40,7 +40,8 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 [VISION.md](VISION.md) for the full rationale and design priorities.
 
 - **2D**: flat content composed in the world. Sprites, tilemaps, sprite-sheet
-  animation, orthographic and pixel-perfect cameras.
+  and skeletal animation (cutout plus DragonBones mesh deform), orthographic and
+  pixel-perfect cameras.
 - **2.5D**: those flat elements living inside a 3D scene, with depth sorting,
   parallax, and free mixing with 3D content. This is the sweet spot pure-2D
   engines cannot reach.
@@ -98,7 +99,8 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Tilemap | Custom rule-tile autotiling (neighbor-mask &rarr; tile offset) | Working |
 | Post | 2D Look: bloom + vignette over Atom's PostProcess | Working |
 | Post | Retro CRT scanline overlay | Working |
-| Animation | Skeletal cutout clip player (keyframed bone hierarchy) + clip cross-fade | Working |
+| Animation | Skeletal cutout clip player (keyframed bone hierarchy) + cross-fade + 1D blend trees | Working |
+| Animation | Skinned Sprite mesh deform (DragonBones weighted-mesh import + CPU skinning + clip playback) | Working |
 | Animation | Aseprite sprite-sheet import (tags + per-frame timing) | Working |
 | Animation | Animation state machine (parameter-driven clip switching) | Working |
 | Asset pipeline | Native `.aseprite` AssetBuilder (packs atlas + sheet metadata) | Working |
@@ -109,8 +111,8 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Asset pipeline | Dedicated tilemap asset + builder (`.dtilemap` JSON or Tiled `.tmj` &rarr; validated `.dtilemapc`), multi-layer + per-tile flip/rotate | Working |
 
 Editor preview scope: components that have a viewport preview (Sprite, Tilemap,
-2D Light, 2D Look, Skeletal, Aseprite) live-update as you edit their Inspector
-properties. Behaviors that only exist at run time (input, collision, particles,
+2D Light, 2D Look, Skeletal, Skinned Sprite, Aseprite) live-update as you edit
+their Inspector properties. Behaviors that only exist at run time (input, collision, particles,
 camera follow, the animation state machine, CRT and parallax scroll) and any
 state set through the runtime request buses are seen in play / game mode, not in
 the static edit-mode preview. This mirrors O3DE's split between authored state

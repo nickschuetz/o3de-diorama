@@ -71,6 +71,7 @@ Each has a written guide and a runnable example.
 | Sound (SFX and music via MiniAudio) | [15-audio.md](15-audio.md) | Written |
 | Retro CRT Overlay (scanlines) | [16-crt.md](16-crt.md) | Written |
 | Skeletal Cutout Animation (keyframed bone rig) | [18-skeletal.md](18-skeletal.md) | Written |
+| Mesh-Deform Characters (DragonBones weighted mesh) | [31-mesh-deform.md](31-mesh-deform.md) | Written |
 | Aseprite Animation Import (tags + per-frame timing) | [19-aseprite.md](19-aseprite.md) | Written |
 | Input Action Mapping (rebindable named actions) | [23-input-actions.md](23-input-actions.md) | Written |
 | Animation State Machine (parameter-driven clip switching) | [22-anim-state-machine.md](22-anim-state-machine.md) | Written |
@@ -103,8 +104,8 @@ the design, see:
   parameter in depth.
 - [API reference](../reference/api.md): the typed request buses for every feature
   (sprite, tilemap, camera, lighting, particles, parallax, collision, UI, audio,
-  post-processing, CRT, skeletal, Aseprite, input actions, animation state machine)
-  for scripts and agents.
+  post-processing, CRT, skeletal, skinned sprite (mesh deform), Aseprite, input
+  actions, animation state machine) for scripts and agents.
 
 ## Runnable examples
 
@@ -123,6 +124,7 @@ the design, see:
 | 2.5D Quick-Start | [../examples/quickstart_demo.py](../examples/quickstart_demo.py) |
 | Day/Night Cycle | [../examples/daynight_demo.py](../examples/daynight_demo.py) |
 | Small Shmup (dogfood) | [../examples/shmup_demo.py](../examples/shmup_demo.py) |
+| Mesh-Deform (seaweed) | [../examples/seaweed_demo.py](../examples/seaweed_demo.py) |
 
 Run an example in the editor:
 
