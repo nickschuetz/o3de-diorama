@@ -38,8 +38,10 @@ namespace Diorama
         ~DioramaSkinnedSpriteConfig() override = default;
 
         //! Path to the DragonBones "*_ske.json" armature, resolved through the file IO
-        //! aliases (e.g. "@projectroot@/Assets/.../body_ske.json"). Provisional: a source
-        //! asset + builder replaces this with an Asset<> reference in a following phase.
+        //! aliases. For a shipped asset use the product path ("@products@/mygame/hero_ske.json"),
+        //! which reads from the asset cache / pak; "@projectroot@/..." also works for a source
+        //! file during authoring. The companion "*_tex.json" atlas is loaded from the same path
+        //! (with "_ske" swapped for "_tex").
         AZStd::string m_sourcePath;
         //! Armature to use from the document; empty selects the first.
         AZStd::string m_armatureName;

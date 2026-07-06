@@ -142,8 +142,14 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   `CrossfadeWeight` cores. **Shipped (1D blend trees)**: a **Blend tree (1D)** of
   clips anchored on a parameter, driven by `SetBlendParam(value)`, blending the two
   bracketing clips phase-synced, on the pure tested `SkeletalClip::ResolveBlend1D`
-  core. Remaining: the DragonBones open-format mesh-deform path (v2, an open
-  MIT-licensed format the builder can parse, reusing the same sampling core).
+  core. **Shipped (mesh deform v2)**: a **Skinned Sprite (mesh deform)** component that
+  imports the open Apache-2.0 **DragonBones** weighted-mesh format (armature + atlas +
+  authored clips) and CPU-skins it through the sprite feature processor's new mesh path,
+  on the pure tested `MeshSkin.h` + `DragonBonesImport.h` cores; plays clips via
+  `DioramaSkinnedSpriteRequestBus` with a live editor preview, ships a generated IP-free
+  seaweed example ([howto/31-mesh-deform.md](howto/31-mesh-deform.md)). Remaining:
+  surface / free-form-FFD deformation (v3) and a proper compiled product asset (the
+  importer currently reads the DragonBones JSON products directly).
 - **2D particle system** (M). A real emitter component (the sample's heart-burst
   pool, generalized): rate/burst, velocity/gravity/drag, size/color over life,
   blend modes. **Design done** ([design/2d-particles.md](design/2d-particles.md)):
