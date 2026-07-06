@@ -65,9 +65,9 @@ namespace Diorama
         m_presenter.SetBoneRotation(boneName, degrees);
     }
 
-    void EditorDioramaSkinnedSpriteComponent::SetBoneTranslation(const AZStd::string& boneName, const AZ::Vector2& offset)
+    void EditorDioramaSkinnedSpriteComponent::SetBoneTranslation(const AZStd::string& boneName, float x, float y)
     {
-        m_presenter.SetBoneTranslation(boneName, offset);
+        m_presenter.SetBoneTranslation(boneName, x, y);
     }
 
     void EditorDioramaSkinnedSpriteComponent::ResetPose()
