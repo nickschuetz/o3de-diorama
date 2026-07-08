@@ -1443,6 +1443,164 @@ namespace Diorama
         EXPECT_NEAR(upper.m_tx, 10.0f, 1e-4f);
     }
 
+    TEST(DragonBonesImportTest, ParsesSurfaceBoneGrid)
+    {
+        constexpr const char* kSurfaceJson = R"JSON(
+        {
+          "name": "surf",
+          "frameRate": 30,
+          "armature": [{
+            "name": "surfaceRig",
+            "bone": [
+              { "name": "root" },
+              { "name": "surfaceA", "type": "surface", "parent": "root",
+                "segmentX": 1, "segmentY": 1,
+                "vertices": [-200,-200, 200,-200, -200,200, 200,200] }
+            ]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kSurfaceJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+        ASSERT_EQ(arm.m_bones.size(), 2u);
+
+        // The regular root is not a surface.
+        EXPECT_FALSE(arm.m_bones[0].m_isSurface);
+
+        // The surface bone carries the grid, resolves its parent, and has no transform.
+        const Diorama::DragonBones::BoneData& surf = arm.m_bones[1];
+        EXPECT_TRUE(surf.m_isSurface);
+        EXPECT_EQ(surf.m_parentIndex, 0);
+        EXPECT_EQ(surf.m_segmentX, 1);
+        EXPECT_EQ(surf.m_segmentY, 1);
+        ASSERT_EQ(surf.m_bindControlPoints.size(), 4u); // (segmentX+1)*(segmentY+1)
+        EXPECT_NEAR(surf.m_bindControlPoints[0].GetX(), -200.0f, 1e-4f);
+        EXPECT_NEAR(surf.m_bindControlPoints[0].GetY(), -200.0f, 1e-4f);
+        EXPECT_NEAR(surf.m_bindControlPoints[3].GetX(), 200.0f, 1e-4f);
+        EXPECT_NEAR(surf.m_bindControlPoints[3].GetY(), 200.0f, 1e-4f);
+    }
+
+    TEST(DragonBonesImportTest, ParsesSurfaceBoundMesh)
+    {
+        constexpr const char* kJson = R"JSON(
+        {
+          "name": "surf",
+          "frameRate": 30,
+          "armature": [{
+            "name": "surfaceRig",
+            "bone": [
+              { "name": "root" },
+              { "name": "surfaceA", "type": "surface", "parent": "root", "segmentX": 1, "segmentY": 1,
+                "vertices": [-200,-200, 200,-200, -200,200, 200,200] }
+            ],
+            "slot": [
+              { "name": "leaf", "parent": "surfaceA" },
+              { "name": "rigid", "parent": "root" }
+            ],
+            "skin": [{
+              "slot": [
+                { "name": "leaf", "display": [
+                  { "type": "mesh", "name": "surf/leaf",
+                    "vertices": [0,0, 50,0, 0,50], "uvs": [0,0, 1,0, 0,1], "triangles": [0,1,2] } ] },
+                { "name": "rigid", "display": [
+                  { "type": "mesh", "name": "surf/rigid",
+                    "vertices": [0,0, 10,0, 0,10], "triangles": [0,1,2] } ] }
+              ]
+            }]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+
+        // The surface-parented slot's mesh is a non-weighted surface mesh bound to bone 1.
+        ASSERT_EQ(arm.m_surfaceMeshes.size(), 1u);
+        const Diorama::DragonBones::SurfaceMesh& sm = arm.m_surfaceMeshes[0];
+        EXPECT_EQ(sm.m_displayName, "surf/leaf");
+        EXPECT_EQ(sm.m_surfaceBoneIndex, 1);
+        ASSERT_EQ(sm.m_bindVertices.size(), 3u);
+        EXPECT_NEAR(sm.m_bindVertices[1].GetX(), 50.0f, 1e-4f);
+        EXPECT_EQ(sm.m_uvs.size(), 3u);
+        EXPECT_EQ(sm.m_indices.size(), 3u);
+
+        // The rigid (regular-bone, weightless) mesh is skipped, not misfiled as skinned.
+        EXPECT_EQ(arm.m_meshes.size(), 0u);
+    }
+
+    TEST(DragonBonesImportTest, ExpandDeform_OffsetPlacesPartialRange)
+    {
+        // 4 vertices (8 floats). offset 2 skips vertex 0; the raw run fills floats 2..5
+        // (vertices 1 and 2); vertex 3 is past the run end and stays zero.
+        Diorama::DragonBones::DeformFrame frame;
+        frame.m_offset = 2;
+        frame.m_rawDeltas = { 5.0f, 6.0f, 7.0f, 8.0f };
+        AZStd::vector<AZ::Vector2> out;
+        Diorama::DragonBones::ExpandDeform(frame, 4, out);
+        ASSERT_EQ(out.size(), 4u);
+        EXPECT_NEAR(out[0].GetX(), 0.0f, 1e-6f); // before the offset
+        EXPECT_NEAR(out[0].GetY(), 0.0f, 1e-6f);
+        EXPECT_NEAR(out[1].GetX(), 5.0f, 1e-6f);
+        EXPECT_NEAR(out[1].GetY(), 6.0f, 1e-6f);
+        EXPECT_NEAR(out[2].GetX(), 7.0f, 1e-6f);
+        EXPECT_NEAR(out[2].GetY(), 8.0f, 1e-6f);
+        EXPECT_NEAR(out[3].GetX(), 0.0f, 1e-6f); // past the raw end
+    }
+
+    TEST(DragonBonesImportTest, ParsesSurfaceDeformChannel)
+    {
+        constexpr const char* kJson = R"JSON(
+        {
+          "name": "surf",
+          "frameRate": 30,
+          "armature": [{
+            "name": "surfaceRig",
+            "bone": [
+              { "name": "root" },
+              { "name": "surfaceA", "type": "surface", "parent": "root", "segmentX": 1, "segmentY": 1,
+                "vertices": [-200,-200, 200,-200, -200,200, 200,200] }
+            ],
+            "animation": [{
+              "name": "wobble", "duration": 10, "playTimes": 0,
+              "timeline": [
+                { "name": "surfaceA", "type": 50, "frame": [
+                  { "duration": 5, "tweenEasing": 0, "offset": 2, "value": [10, 20, 30, 40] },
+                  { "duration": 5 }
+                ]}
+              ]
+            }]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+        ASSERT_EQ(arm.m_animations.size(), 1u);
+        const Diorama::DragonBones::Animation& anim = arm.m_animations[0];
+
+        ASSERT_EQ(anim.m_deforms.size(), 1u);
+        const Diorama::DragonBones::DeformTimeline& dt = anim.m_deforms[0];
+        EXPECT_EQ(dt.m_targetName, "surfaceA");
+        EXPECT_EQ(static_cast<int>(dt.m_kind), static_cast<int>(Diorama::DragonBones::DeformTargetKind::Surface));
+        EXPECT_EQ(dt.m_targetIndex, 1); // resolved to the surface bone
+        ASSERT_EQ(dt.m_frames.size(), 2u);
+        EXPECT_EQ(dt.m_frames[0].m_offset, 2);
+        ASSERT_EQ(dt.m_frames[0].m_rawDeltas.size(), 4u);
+        EXPECT_NEAR(dt.m_frames[0].m_startTime, 0.0f, 1e-4f);
+        EXPECT_NEAR(dt.m_frames[1].m_startTime, 5.0f / 30.0f, 1e-4f); // cumulative frame -> seconds
+
+        // Expanded against the 4 control points: offset 2 zeroes cp0, then cp1/cp2 carry deltas.
+        AZStd::vector<AZ::Vector2> deltas;
+        Diorama::DragonBones::ExpandDeform(dt.m_frames[0], 4, deltas);
+        ASSERT_EQ(deltas.size(), 4u);
+        EXPECT_NEAR(deltas[0].GetX(), 0.0f, 1e-4f);
+        EXPECT_NEAR(deltas[1].GetX(), 10.0f, 1e-4f);
+        EXPECT_NEAR(deltas[1].GetY(), 20.0f, 1e-4f);
+        EXPECT_NEAR(deltas[2].GetY(), 40.0f, 1e-4f);
+        EXPECT_NEAR(deltas[3].GetX(), 0.0f, 1e-4f);
+    }
+
     TEST(DragonBonesImportTest, RemapsGlobalBonesToLocalSlotsWithBindWorlds)
     {
         Diorama::DragonBones::Document doc;

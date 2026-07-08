@@ -83,6 +83,18 @@ namespace Diorama::DragonBones
         float m_skewYDegrees = 0.0f; //!< skY (rotation)
         float m_scaleX = 1.0f;
         float m_scaleY = 1.0f;
+
+        // Surface bones (DragonBones "surface" type) carry a control-point grid instead of a
+        // transform: they warp the meshes parented to them (SurfaceDeform) rather than rigidly
+        // posing them. For a regular bone these stay default. A surface's transform components
+        // above are unused (m_bindLocal is identity); its pose lives in the control points.
+        bool m_isSurface = false;
+        int m_segmentX = 0;
+        int m_segmentY = 0;
+        //! Bind-pose control points, row-major and X-major (point (i,j) at i + j*(segmentX+1)),
+        //! (segmentX+1)*(segmentY+1) of them, in the surface's local space. Feeds a
+        //! SurfaceDeform::SurfaceGrid once per-frame animation deltas are added.
+        AZStd::vector<AZ::Vector2> m_bindControlPoints;
     };
 
     //! One skinned mesh (a DragonBones mesh display with weights). Vertices carry their
@@ -103,6 +115,21 @@ namespace Diorama::DragonBones
         AZStd::vector<AZ::u16> m_indices; //!< triangle list, 3 indices per triangle
         AZStd::vector<int> m_boneGlobalIndices;
         AZStd::vector<MeshSkin::Affine2D> m_bindWorld;
+    };
+
+    //! One surface-bound mesh: a DragonBones mesh display whose slot is parented to a
+    //! "surface" bone. Unlike SkinnedMesh it has no weights; its vertices live in the
+    //! surface's local space and are warped by that surface's control-point grid
+    //! (SurfaceDeform::WarpPoint) rather than skinned to bones.
+    struct SurfaceMesh
+    {
+        AZStd::string m_slotName;
+        AZStd::string m_displayName;
+        int m_drawOrder = 0;
+        int m_surfaceBoneIndex = -1; //!< the surface bone (the slot's parent) that warps this mesh
+        AZStd::vector<AZ::Vector2> m_bindVertices; //!< surface-local space; warped each frame
+        AZStd::vector<AZ::Vector2> m_uvs; //!< parallel to m_bindVertices
+        AZStd::vector<AZ::u16> m_indices; //!< triangle list, 3 indices per triangle
     };
 
     //! How a keyframe eases into the next: hold (stepped), linear, or a cubic bezier curve.
@@ -136,6 +163,58 @@ namespace Diorama::DragonBones
         AZStd::vector<Keyframe> m_scale; //!< value = (scaleX, scaleY), 1 = unchanged
     };
 
+    //! One keyframe of an FFD / surface deform channel. The deltas are stored as authored:
+    //! m_offset leading FLOATS are omitted (they default to 0), then m_rawDeltas holds the
+    //! flat dx,dy,... run. ExpandDeform reconstructs the full per-vertex (dx,dy) array against
+    //! the target's vertex / control-point count. m_tween/m_curve ease to the next frame. The
+    //! float-granular offset (which may be odd) is why the run is kept flat, not paired.
+    struct DeformFrame
+    {
+        float m_startTime = 0.0f; //!< seconds into the clip (cumulative)
+        float m_duration = 0.0f; //!< seconds until the next frame
+        TweenType m_tween = TweenType::Linear;
+        float m_curve[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+        int m_offset = 0; //!< flat FLOAT index in the full delta array where m_rawDeltas begins
+        AZStd::vector<float> m_rawDeltas; //!< flat dx,dy,... floats, from m_offset onward
+    };
+
+    //! What a deform timeline drives: per-vertex offsets on a mesh (FFD), or per-control-point
+    //! offsets on a surface bone's grid.
+    enum class DeformTargetKind : AZ::u8
+    {
+        MeshFfd,
+        Surface
+    };
+
+    //! One FFD / surface deform channel: the target it drives (by name) and its keyframes.
+    //! m_targetIndex resolves the name to a surface mesh / skinned mesh (MeshFfd) or a surface
+    //! bone (Surface); -1 if it did not resolve.
+    struct DeformTimeline
+    {
+        AZStd::string m_targetName;
+        DeformTargetKind m_kind = DeformTargetKind::MeshFfd;
+        int m_targetIndex = -1;
+        AZStd::vector<DeformFrame> m_frames;
+    };
+
+    //! Reconstruct a deform frame's full-length per-vertex (dx, dy) deltas: the first m_offset
+    //! FLOATS are 0, then m_rawDeltas, then 0 for any trailing entries. `vertexCount` is the
+    //! target's vertex (FFD) or control-point (surface) count. Pure; unit tested.
+    inline void ExpandDeform(const DeformFrame& frame, int vertexCount, AZStd::vector<AZ::Vector2>& out)
+    {
+        out.assign(vertexCount < 0 ? 0u : static_cast<size_t>(vertexCount), AZ::Vector2::CreateZero());
+        const int totalFloats = vertexCount * 2;
+        const int rawSize = static_cast<int>(frame.m_rawDeltas.size());
+        for (int i = 0; i + 1 < totalFloats; i += 2)
+        {
+            const int dxi = i - frame.m_offset;
+            const int dyi = i + 1 - frame.m_offset;
+            const float dx = (i < frame.m_offset || dxi >= rawSize) ? 0.0f : frame.m_rawDeltas[dxi];
+            const float dy = (i + 1 < frame.m_offset || dyi >= rawSize) ? 0.0f : frame.m_rawDeltas[dyi];
+            out[i / 2] = AZ::Vector2(dx, dy);
+        }
+    }
+
     //! One authored animation clip: its name, length, whether it loops, and per-bone timelines.
     struct Animation
     {
@@ -143,6 +222,7 @@ namespace Diorama::DragonBones
         float m_durationSeconds = 0.0f;
         bool m_loop = true; //!< DragonBones playTimes 0 loops; >0 plays that many times
         AZStd::vector<BoneTimeline> m_bones;
+        AZStd::vector<DeformTimeline> m_deforms; //!< FFD / surface deform channels
     };
 
     //! The sampled pose delta for one bone: what to add to / multiply the bind components by.
@@ -162,6 +242,7 @@ namespace Diorama::DragonBones
         float m_frameRate = 30.0f;
         AZStd::vector<BoneData> m_bones;
         AZStd::vector<SkinnedMesh> m_meshes;
+        AZStd::vector<SurfaceMesh> m_surfaceMeshes;
         AZStd::vector<Animation> m_animations;
     };
 
