@@ -79,6 +79,29 @@ namespace Diorama::DragonBones
             out.m_bindLocal = TransformToAffine(out.m_x, out.m_y, out.m_skewXDegrees, out.m_skewYDegrees, out.m_scaleX, out.m_scaleY);
         }
 
+        //! Read a DragonBones "surface" bone: its segmentX/segmentY grid dimensions and its flat
+        //! vertices[] (x,y pairs) as bind-pose control points. A surface has no transform block;
+        //! its bind-local stays identity and it warps meshes parented to it (SurfaceDeform).
+        void ReadSurfaceBone(const rapidjson::Value& bone, BoneData& out)
+        {
+            out.m_isSurface = true;
+            out.m_segmentX = static_cast<int>(GetFloat(bone, "segmentX", 0.0f));
+            out.m_segmentY = static_cast<int>(GetFloat(bone, "segmentY", 0.0f));
+            out.m_bindLocal = MeshSkin::Affine2D::Identity();
+
+            const auto vertsIt = bone.FindMember("vertices");
+            if (vertsIt != bone.MemberEnd() && vertsIt->value.IsArray())
+            {
+                const rapidjson::Value& verts = vertsIt->value;
+                const rapidjson::SizeType pairs = verts.Size() / 2;
+                out.m_bindControlPoints.reserve(pairs);
+                for (rapidjson::SizeType v = 0; v < pairs; ++v)
+                {
+                    out.m_bindControlPoints.push_back(AZ::Vector2(ArrayFloat(verts, v * 2), ArrayFloat(verts, v * 2 + 1)));
+                }
+            }
+        }
+
         //! Parse the bone list (two passes: collect bones + their parent names, then resolve
         //! parents by name so a forward parent reference still resolves). Parent names are
         //! captured in the first pass parallel to the bones vector so any skipped non-object
@@ -99,7 +122,14 @@ namespace Diorama::DragonBones
                 }
                 BoneData bone;
                 bone.m_name = GetString(boneArray[i], "name");
-                ReadBoneTransform(boneArray[i], bone);
+                if (GetString(boneArray[i], "type") == "surface")
+                {
+                    ReadSurfaceBone(boneArray[i], bone);
+                }
+                else
+                {
+                    ReadBoneTransform(boneArray[i], bone);
+                }
                 nameToIndex[bone.m_name] = static_cast<int>(armature.m_bones.size());
                 armature.m_bones.push_back(AZStd::move(bone));
                 parentNames.push_back(GetString(boneArray[i], "parent"));
@@ -239,11 +269,64 @@ namespace Diorama::DragonBones
             return true;
         }
 
-        //! Parse skin[].slot[].display[] into the armature's skinned meshes. A slot's mesh
-        //! display is matched by type "mesh"; only weighted ones are kept. Each mesh's draw
+        //! Parse a non-weighted mesh display bound to a surface bone: flat vertices[] (x,y in
+        //! the surface's local space), uvs[], and triangles[]. No weights or bonePose. Returns
+        //! false only if it has no vertices.
+        bool ParseSurfaceMeshDisplay(const rapidjson::Value& display, AZStd::string_view slotName, int surfaceBoneIndex, SurfaceMesh& out)
+        {
+            const auto vertsIt = display.FindMember("vertices");
+            if (vertsIt == display.MemberEnd() || !vertsIt->value.IsArray())
+            {
+                return false;
+            }
+            out.m_slotName = slotName;
+            out.m_displayName = GetString(display, "name");
+            out.m_surfaceBoneIndex = surfaceBoneIndex;
+
+            const rapidjson::Value& verts = vertsIt->value;
+            const rapidjson::SizeType vertPairs = verts.Size() / 2;
+            out.m_bindVertices.reserve(vertPairs);
+            for (rapidjson::SizeType v = 0; v < vertPairs; ++v)
+            {
+                out.m_bindVertices.push_back(AZ::Vector2(ArrayFloat(verts, v * 2), ArrayFloat(verts, v * 2 + 1)));
+            }
+
+            const auto uvsIt = display.FindMember("uvs");
+            if (uvsIt != display.MemberEnd() && uvsIt->value.IsArray())
+            {
+                const rapidjson::Value& uvs = uvsIt->value;
+                const rapidjson::SizeType uvPairs = uvs.Size() / 2;
+                out.m_uvs.reserve(uvPairs);
+                for (rapidjson::SizeType v = 0; v < uvPairs; ++v)
+                {
+                    out.m_uvs.push_back(AZ::Vector2(ArrayFloat(uvs, v * 2), ArrayFloat(uvs, v * 2 + 1)));
+                }
+            }
+
+            const auto trisIt = display.FindMember("triangles");
+            if (trisIt != display.MemberEnd() && trisIt->value.IsArray())
+            {
+                const rapidjson::Value& tris = trisIt->value;
+                out.m_indices.reserve(tris.Size());
+                for (rapidjson::SizeType i = 0; i < tris.Size(); ++i)
+                {
+                    out.m_indices.push_back(static_cast<AZ::u16>(ArrayFloat(tris, i)));
+                }
+            }
+            return true;
+        }
+
+        //! Parse skin[].slot[].display[] into the armature's meshes. A slot whose parent bone is
+        //! a "surface" produces non-weighted SurfaceMeshes (warped by that surface); any other
+        //! slot produces weighted SkinnedMeshes (rigid displays are skipped). Each mesh's draw
         //! order comes from slotOrder (its slot's index in the armature slot list), so parts
         //! layer back-to-front the way DragonBones renders them.
-        void ParseSkins(const rapidjson::Value& skinArray, const AZStd::unordered_map<AZStd::string, int>& slotOrder, Armature& armature)
+        void ParseSkins(
+            const rapidjson::Value& skinArray,
+            const AZStd::unordered_map<AZStd::string, int>& slotOrder,
+            const AZStd::unordered_map<AZStd::string, AZStd::string>& slotParent,
+            const AZStd::unordered_map<AZStd::string, int>& nameToIndex,
+            Armature& armature)
         {
             for (rapidjson::SizeType s = 0; s < skinArray.Size(); ++s)
             {
@@ -262,17 +345,44 @@ namespace Diorama::DragonBones
                     }
                     const auto orderIt = slotOrder.find(slotName);
                     const int drawOrder = (orderIt != slotOrder.end()) ? orderIt->second : 0;
+
+                    // A slot whose parent bone is a surface is warped by it: its mesh displays are
+                    // non-weighted surface meshes rather than skinned meshes.
+                    int surfaceBoneIndex = -1;
+                    const auto parentIt = slotParent.find(slotName);
+                    if (parentIt != slotParent.end())
+                    {
+                        const auto boneIt = nameToIndex.find(parentIt->second);
+                        if (boneIt != nameToIndex.end() && boneIt->second >= 0 &&
+                            boneIt->second < static_cast<int>(armature.m_bones.size()) && armature.m_bones[boneIt->second].m_isSurface)
+                        {
+                            surfaceBoneIndex = boneIt->second;
+                        }
+                    }
+
                     for (const rapidjson::Value& display : displaysIt->value.GetArray())
                     {
                         if (!display.IsObject() || GetString(display, "type") != "mesh")
                         {
                             continue;
                         }
-                        SkinnedMesh mesh;
-                        if (ParseMeshDisplay(display, slotName, mesh))
+                        if (surfaceBoneIndex >= 0)
                         {
-                            mesh.m_drawOrder = drawOrder;
-                            armature.m_meshes.push_back(AZStd::move(mesh));
+                            SurfaceMesh surfaceMesh;
+                            if (ParseSurfaceMeshDisplay(display, slotName, surfaceBoneIndex, surfaceMesh))
+                            {
+                                surfaceMesh.m_drawOrder = drawOrder;
+                                armature.m_surfaceMeshes.push_back(AZStd::move(surfaceMesh));
+                            }
+                        }
+                        else
+                        {
+                            SkinnedMesh mesh;
+                            if (ParseMeshDisplay(display, slotName, mesh))
+                            {
+                                mesh.m_drawOrder = drawOrder;
+                                armature.m_meshes.push_back(AZStd::move(mesh));
+                            }
                         }
                     }
                 }
@@ -292,6 +402,21 @@ namespace Diorama::DragonBones
                 }
             }
             return slotOrder;
+        }
+
+        //! Build slotName -> parent bone name, so a slot bound to a "surface" bone can be
+        //! detected (its meshes are warped rather than skinned).
+        AZStd::unordered_map<AZStd::string, AZStd::string> ReadSlotParents(const rapidjson::Value& slotArray)
+        {
+            AZStd::unordered_map<AZStd::string, AZStd::string> parents;
+            for (rapidjson::SizeType i = 0; i < slotArray.Size(); ++i)
+            {
+                if (slotArray[i].IsObject())
+                {
+                    parents[GetString(slotArray[i], "name")] = GetString(slotArray[i], "parent");
+                }
+            }
+            return parents;
         }
 
         //! Parse one channel's frame array (translate/rotate/scale) into keyframes. Frame
@@ -341,6 +466,152 @@ namespace Diorama::DragonBones
 
                 out.push_back(kf);
                 startFrames += durationFrames;
+            }
+        }
+
+        //! Parse a deform channel's frame array (FFD mesh deform or surface control-point
+        //! deform). Frame durations are cumulative frames -> seconds. The delta run is keyed
+        //! "value" (modern typed timeline) or "vertices" (legacy ffd); "offset" is its flat
+        //! float start index. Tween follows the same curve/tweenEasing/stepped convention.
+        void ParseDeformFrames(const rapidjson::Value& frames, float frameRate, AZStd::vector<DeformFrame>& out)
+        {
+            const float fps = frameRate > 0.0f ? frameRate : 30.0f;
+            float startFrames = 0.0f;
+            for (const rapidjson::Value& frame : frames.GetArray())
+            {
+                if (!frame.IsObject())
+                {
+                    continue;
+                }
+                DeformFrame df;
+                const float durationFrames = GetFloat(frame, "duration", 0.0f);
+                df.m_startTime = startFrames / fps;
+                df.m_duration = durationFrames / fps;
+                df.m_offset = static_cast<int>(GetFloat(frame, "offset", 0.0f));
+
+                auto valIt = frame.FindMember("value");
+                if (valIt == frame.MemberEnd() || !valIt->value.IsArray())
+                {
+                    valIt = frame.FindMember("vertices");
+                }
+                if (valIt != frame.MemberEnd() && valIt->value.IsArray())
+                {
+                    const rapidjson::Value& arr = valIt->value;
+                    df.m_rawDeltas.reserve(arr.Size());
+                    for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
+                    {
+                        df.m_rawDeltas.push_back(ArrayFloat(arr, i));
+                    }
+                }
+
+                const auto curveIt = frame.FindMember("curve");
+                if (curveIt != frame.MemberEnd() && curveIt->value.IsArray() && curveIt->value.Size() >= 4)
+                {
+                    df.m_tween = TweenType::Curve;
+                    for (int k = 0; k < 4; ++k)
+                    {
+                        df.m_curve[k] = ArrayFloat(curveIt->value, static_cast<rapidjson::SizeType>(k));
+                    }
+                }
+                else if (frame.HasMember("tweenEasing"))
+                {
+                    df.m_tween = TweenType::Linear;
+                }
+                else
+                {
+                    df.m_tween = TweenType::Stepped;
+                }
+
+                out.push_back(AZStd::move(df));
+                startFrames += durationFrames;
+            }
+        }
+
+        //! Parse an animation's deform channels into the clip: the legacy ffd[] array (mesh
+        //! FFD) and the modern typed timeline[] entries of type 22 (SlotDeform / mesh FFD) or
+        //! 50 (Surface). Target indices are resolved later, once meshes and surfaces exist.
+        void ParseDeforms(const rapidjson::Value& animValue, float fps, Animation& animation)
+        {
+            const auto ffdIt = animValue.FindMember("ffd");
+            if (ffdIt != animValue.MemberEnd() && ffdIt->value.IsArray())
+            {
+                for (const rapidjson::Value& ffd : ffdIt->value.GetArray())
+                {
+                    if (!ffd.IsObject())
+                    {
+                        continue;
+                    }
+                    DeformTimeline dt;
+                    dt.m_targetName = GetString(ffd, "name");
+                    dt.m_kind = DeformTargetKind::MeshFfd;
+                    const auto framesIt = ffd.FindMember("frame");
+                    if (framesIt != ffd.MemberEnd() && framesIt->value.IsArray())
+                    {
+                        ParseDeformFrames(framesIt->value, fps, dt.m_frames);
+                    }
+                    animation.m_deforms.push_back(AZStd::move(dt));
+                }
+            }
+
+            const auto timelineIt = animValue.FindMember("timeline");
+            if (timelineIt != animValue.MemberEnd() && timelineIt->value.IsArray())
+            {
+                for (const rapidjson::Value& tl : timelineIt->value.GetArray())
+                {
+                    if (!tl.IsObject())
+                    {
+                        continue;
+                    }
+                    const int type = static_cast<int>(GetFloat(tl, "type", -1.0f));
+                    if (type != 22 && type != 50) // 22 = SlotDeform (mesh FFD), 50 = Surface
+                    {
+                        continue;
+                    }
+                    DeformTimeline dt;
+                    dt.m_targetName = GetString(tl, "name");
+                    dt.m_kind = (type == 50) ? DeformTargetKind::Surface : DeformTargetKind::MeshFfd;
+                    const auto framesIt = tl.FindMember("frame");
+                    if (framesIt != tl.MemberEnd() && framesIt->value.IsArray())
+                    {
+                        ParseDeformFrames(framesIt->value, fps, dt.m_frames);
+                    }
+                    animation.m_deforms.push_back(AZStd::move(dt));
+                }
+            }
+        }
+
+        //! Resolve each deform timeline's target name to an index: a Surface target to its
+        //! surface bone, a MeshFfd target to a surface mesh (by display name). Skinned/rigid
+        //! mesh FFD is out of scope, so those stay unresolved (m_targetIndex == -1).
+        void ResolveDeformTargets(Armature& armature)
+        {
+            for (Animation& animation : armature.m_animations)
+            {
+                for (DeformTimeline& dt : animation.m_deforms)
+                {
+                    if (dt.m_kind == DeformTargetKind::Surface)
+                    {
+                        for (size_t i = 0; i < armature.m_bones.size(); ++i)
+                        {
+                            if (armature.m_bones[i].m_isSurface && armature.m_bones[i].m_name == dt.m_targetName)
+                            {
+                                dt.m_targetIndex = static_cast<int>(i);
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (size_t i = 0; i < armature.m_surfaceMeshes.size(); ++i)
+                        {
+                            if (armature.m_surfaceMeshes[i].m_displayName == dt.m_targetName)
+                            {
+                                dt.m_targetIndex = static_cast<int>(i);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -396,6 +667,7 @@ namespace Diorama::DragonBones
                         animation.m_bones.push_back(AZStd::move(timeline));
                     }
                 }
+                ParseDeforms(animValue, fps, animation);
                 armature.m_animations.push_back(AZStd::move(animation));
             }
         }
@@ -513,31 +785,38 @@ namespace Diorama::DragonBones
                 ParseBones(bonesIt->value, armature, out.m_bonesInOrder);
             }
 
-            // The armature "slot" list is the back-to-front draw order; capture it so each
-            // mesh knows how to layer against the others.
+            // Bone name -> index, used to resolve slot surface parents and animation targets.
+            AZStd::unordered_map<AZStd::string, int> nameToIndex;
+            for (size_t i = 0; i < armature.m_bones.size(); ++i)
+            {
+                nameToIndex[armature.m_bones[i].m_name] = static_cast<int>(i);
+            }
+
+            // The armature "slot" list is the back-to-front draw order and each slot's parent
+            // bone; capture both so meshes layer correctly and surface-bound slots are detected.
             AZStd::unordered_map<AZStd::string, int> slotOrder;
+            AZStd::unordered_map<AZStd::string, AZStd::string> slotParent;
             const auto slotsIt = armatureValue.FindMember("slot");
             if (slotsIt != armatureValue.MemberEnd() && slotsIt->value.IsArray())
             {
                 slotOrder = ReadSlotOrder(slotsIt->value);
+                slotParent = ReadSlotParents(slotsIt->value);
             }
 
             const auto skinsIt = armatureValue.FindMember("skin");
             if (skinsIt != armatureValue.MemberEnd() && skinsIt->value.IsArray())
             {
-                ParseSkins(skinsIt->value, slotOrder, armature);
+                ParseSkins(skinsIt->value, slotOrder, slotParent, nameToIndex, armature);
             }
 
             const auto animsIt = armatureValue.FindMember("animation");
             if (animsIt != armatureValue.MemberEnd() && animsIt->value.IsArray())
             {
-                AZStd::unordered_map<AZStd::string, int> nameToIndex;
-                for (size_t i = 0; i < armature.m_bones.size(); ++i)
-                {
-                    nameToIndex[armature.m_bones[i].m_name] = static_cast<int>(i);
-                }
                 ParseAnimations(animsIt->value, armature.m_frameRate, nameToIndex, armature);
             }
+
+            // Resolve deform targets now that bones, surface meshes, and animations all exist.
+            ResolveDeformTargets(armature);
 
             out.m_armatures.push_back(AZStd::move(armature));
         }
