@@ -40,8 +40,8 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 [VISION.md](VISION.md) for the full rationale and design priorities.
 
 - **2D**: flat content composed in the world. Sprites, tilemaps, sprite-sheet
-  and skeletal animation (cutout plus DragonBones mesh deform), orthographic and
-  pixel-perfect cameras.
+  and skeletal animation (cutout, DragonBones weighted-mesh deform, and surface / FFD
+  deform), orthographic and pixel-perfect cameras.
 - **2.5D**: those flat elements living inside a 3D scene, with depth sorting,
   parallax, and free mixing with 3D content. This is the sweet spot pure-2D
   engines cannot reach.
@@ -101,6 +101,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Post | Retro CRT scanline overlay | Working |
 | Animation | Skeletal cutout clip player (keyframed bone hierarchy) + cross-fade + 1D blend trees | Working |
 | Animation | Skinned Sprite mesh deform (DragonBones weighted-mesh import + CPU skinning + clip playback) | Working |
+| Animation | Surface + FFD deform (DragonBones surface rigs: control-point-grid warp, nested surfaces, per-vertex FFD) | Working |
 | Animation | Aseprite sprite-sheet import (tags + per-frame timing) | Working |
 | Animation | Animation state machine (parameter-driven clip switching) | Working |
 | Asset pipeline | Native `.aseprite` AssetBuilder (packs atlas + sheet metadata) | Working |

@@ -258,7 +258,10 @@ sequenceDiagram
 - A **skinned sprite** (DragonBones mesh deform) is not a quad. The feature
   processor also has a mesh path: a component submits a CPU-skinned, variable-vertex
   mesh, and the processor billboards and draws it through the same shader, lighting,
-  and sort as quads, layering its parts back-to-front by their slot order.
+  and sort as quads, layering its parts back-to-front by their slot order. The same
+  component also renders DragonBones **surface** rigs (a mesh warped by a control-point
+  grid instead of bone-skinned), including nested surfaces and per-vertex FFD, through
+  the same mesh path.
 
 The gem registers `SpriteFeatureProcessor` with Atom's
 `FeatureProcessorFactory`. Because that factory only exists once the Atom RPI
@@ -341,7 +344,7 @@ a `Common`-scoped request bus at AI/human parity. The full catalog:
 | 2D Look (post) | `DioramaLookComponent` | `DioramaLookRequestBus` | [14](howto/14-glow.md) |
 | CRT overlay | `DioramaCRTComponent` | `DioramaCRTRequestBus` | [16](howto/16-crt.md) |
 | Skeletal animation | `DioramaSkeletalClipComponent` | `DioramaSkeletalRequestBus` | [18](howto/18-skeletal.md) |
-| Skinned sprite (mesh deform) | `DioramaSkinnedSpriteComponent` | `DioramaSkinnedSpriteRequestBus` | [31](howto/31-mesh-deform.md) |
+| Skinned sprite (mesh deform + surface/FFD) | `DioramaSkinnedSpriteComponent` | `DioramaSkinnedSpriteRequestBus` | [31](howto/31-mesh-deform.md), [32](howto/32-surface-deform.md) |
 | Aseprite animation | `DioramaAsepriteComponent` | `DioramaAsepriteRequestBus` | [19](howto/19-aseprite.md) |
 | Animation state machine | `DioramaAnimStateMachineComponent` | `DioramaAnimStateMachineRequestBus` | [22](howto/22-anim-state-machine.md) |
 | Input actions + motions | `DioramaInputComponent` | `DioramaInputRequestBus` | [23](howto/23-input-actions.md) |
@@ -361,7 +364,7 @@ Look and Skeletal twins add **edit-mode previews** (bloom A/B, pose scrubbing).
 
 The pure, engine-free cores that back these (`SpriteBatchPlan`, `SpriteCull`,
 `SpriteTrail`, `SpritePalette`, `Collision2D`, `Camera2D`, `Particles2D`,
-`TilemapPaint`, `SkeletalClip`, `MeshSkin`, `DragonBonesImport`, `AsepriteImport`,
+`TilemapPaint`, `SkeletalClip`, `MeshSkin`, `SurfaceDeform`, `DragonBonesImport`, `AsepriteImport`,
 `InputActionMap`, `MotionInput`, `HitboxFrames`, `BulletPattern`, `SlopeCollision`,
 `DepthLane`, `Pathfinding`, `MovementRange`, `FieldOfView`, `DayNightCycle`,
 `SimClock`, `SimRandom`, `SimState`)
