@@ -10,6 +10,7 @@
 #include <Clients/DragonBonesImport.h>
 #include <Clients/MeshSkin.h>
 #include <Clients/SpriteFeatureProcessor.h>
+#include <Clients/SurfaceDeform.h>
 #include <Diorama/DioramaSkinnedSpriteBus.h>
 
 #include <Atom/RPI.Reflect/Image/StreamingImageAsset.h>
@@ -123,9 +124,23 @@ namespace Diorama
             AZStd::vector<AZ::u32> m_indices;
         };
 
+        //! A surface-bound mesh: warped by its surface bone's control-point grid rather than
+        //! skinned. m_surfaceBoneIndex indexes m_bones / m_surfaceGrids.
+        struct SurfaceRuntimeMesh
+        {
+            const DragonBones::SurfaceMesh* m_source = nullptr;
+            AZ::u32 m_handle = 0;
+            int m_surfaceBoneIndex = -1;
+            AZStd::vector<AZ::u32> m_indices;
+        };
+
         bool BuildRig();
         bool TryAcquireFeatureProcessor();
         void SkinAndPush();
+        //! Rebuild m_surfaceGrids for each surface bone from its bind control points plus the
+        //! current animated deform deltas; nested surfaces are warped through their parent.
+        //! Pass the posed bone worlds so nested-surface control points land correctly.
+        void BuildSurfaceGrids();
 
         DioramaSkinnedSpriteConfig m_config;
         AZ::EntityId m_entityId;
@@ -135,6 +150,10 @@ namespace Diorama
         AZStd::vector<MeshSkin::Bone> m_bones; //!< parent index per bone (bind local for reference)
         AZStd::unordered_map<AZStd::string, int> m_boneNameToIndex;
         AZStd::vector<RuntimeMesh> m_meshes;
+        AZStd::vector<SurfaceRuntimeMesh> m_surfaceMeshes;
+        //! One grid per bone (only surface bones are populated), rebuilt each frame from bind
+        //! control points + animated deform deltas. Indexed by bone index.
+        AZStd::vector<SurfaceDeform::SurfaceGrid> m_surfaceGrids;
         AZ::Vector2 m_center = AZ::Vector2::CreateZero();
         bool m_rigBuilt = false;
 
@@ -152,6 +171,7 @@ namespace Diorama
         AZStd::vector<MeshSkin::Affine2D> m_localOverrides;
         AZStd::vector<MeshSkin::Affine2D> m_world;
         AZStd::vector<SpriteFeatureProcessor::MeshVertex> m_vertexScratch;
+        AZStd::vector<AZ::Vector2> m_deformScratch; //!< sampled surface control-point deltas
 
         SpriteFeatureProcessor* m_featureProcessor = nullptr;
         bool m_handlesAcquired = false;

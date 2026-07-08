@@ -176,6 +176,14 @@ namespace Diorama
                     mesh.m_handle = 0;
                 }
             }
+            for (SurfaceRuntimeMesh& mesh : m_surfaceMeshes)
+            {
+                if (mesh.m_handle != 0)
+                {
+                    m_featureProcessor->ReleaseMesh(mesh.m_handle);
+                    mesh.m_handle = 0;
+                }
+            }
         }
         m_featureProcessor = nullptr;
         m_handlesAcquired = false;
@@ -192,6 +200,8 @@ namespace Diorama
         m_bones.clear();
         m_boneNameToIndex.clear();
         m_meshes.clear();
+        m_surfaceMeshes.clear();
+        m_surfaceGrids.clear();
         // The clip points into m_document, which is about to be re-parsed; drop it so it can
         // never dangle. SetConfig re-resolves it after the rebuild.
         m_animation = nullptr;
@@ -224,7 +234,7 @@ namespace Diorama
 
         m_armature = m_config.m_armatureName.empty() ? (m_document.m_armatures.empty() ? nullptr : &m_document.m_armatures.front())
                                                      : DragonBones::FindArmature(m_document, m_config.m_armatureName);
-        if (m_armature == nullptr || m_armature->m_meshes.empty())
+        if (m_armature == nullptr || (m_armature->m_meshes.empty() && m_armature->m_surfaceMeshes.empty()))
         {
             m_armature = nullptr;
             return false;
@@ -239,46 +249,47 @@ namespace Diorama
             m_boneNameToIndex[m_armature->m_bones[i].m_name] = static_cast<int>(i);
         }
 
-        // Runtime meshes + the bind-pose bounding box (its center recenters the rig on
-        // the entity origin so scale/placement are predictable).
-        float minX = AZStd::numeric_limits<float>::max();
-        float minY = AZStd::numeric_limits<float>::max();
-        float maxX = -AZStd::numeric_limits<float>::max();
-        float maxY = -AZStd::numeric_limits<float>::max();
+        // Emit each source triangle with both windings so a billboarded mesh is visible
+        // regardless of its authored winding (it always faces the camera, so double-sided is
+        // free of artifacts and removes a class of "culled to invisible" surprises).
+        const auto doubleWind = [](const AZStd::vector<AZ::u16>& src, AZStd::vector<AZ::u32>& dst)
+        {
+            dst.reserve(src.size() * 2);
+            for (size_t t = 0; t + 2 < src.size(); t += 3)
+            {
+                const AZ::u32 a = src[t];
+                const AZ::u32 b = src[t + 1];
+                const AZ::u32 c = src[t + 2];
+                dst.push_back(a);
+                dst.push_back(b);
+                dst.push_back(c);
+                dst.push_back(a);
+                dst.push_back(c);
+                dst.push_back(b);
+            }
+        };
+
+        // Weighted (skinned) meshes and non-weighted surface meshes are built into separate
+        // runtime lists; each is deformed by its own path (bone skinning vs surface warp) and
+        // submitted through the same sprite mesh-draw.
         m_meshes.reserve(m_armature->m_meshes.size());
         for (const DragonBones::SkinnedMesh& mesh : m_armature->m_meshes)
         {
             RuntimeMesh runtime;
             runtime.m_source = &mesh;
             runtime.m_skinMatrices.resize(mesh.m_bindWorld.size());
-            // Emit each triangle with both windings so the billboarded mesh is visible
-            // regardless of the source winding (it always faces the camera, so being
-            // double-sided is free of artifacts and removes a whole class of "culled to
-            // invisible" surprises across differently authored rigs).
-            runtime.m_indices.reserve(mesh.m_indices.size() * 2);
-            for (size_t t = 0; t + 2 < mesh.m_indices.size(); t += 3)
-            {
-                const AZ::u32 a = mesh.m_indices[t];
-                const AZ::u32 b = mesh.m_indices[t + 1];
-                const AZ::u32 c = mesh.m_indices[t + 2];
-                runtime.m_indices.push_back(a);
-                runtime.m_indices.push_back(b);
-                runtime.m_indices.push_back(c);
-                runtime.m_indices.push_back(a);
-                runtime.m_indices.push_back(c);
-                runtime.m_indices.push_back(b);
-            }
+            doubleWind(mesh.m_indices, runtime.m_indices);
             m_meshes.push_back(AZStd::move(runtime));
-
-            for (const MeshSkin::SkinnedVertex& vertex : mesh.m_vertices)
-            {
-                minX = AZ::GetMin(minX, vertex.m_bindPos.GetX());
-                minY = AZ::GetMin(minY, vertex.m_bindPos.GetY());
-                maxX = AZ::GetMax(maxX, vertex.m_bindPos.GetX());
-                maxY = AZ::GetMax(maxY, vertex.m_bindPos.GetY());
-            }
         }
-        m_center = AZ::Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+        m_surfaceMeshes.reserve(m_armature->m_surfaceMeshes.size());
+        for (const DragonBones::SurfaceMesh& mesh : m_armature->m_surfaceMeshes)
+        {
+            SurfaceRuntimeMesh runtime;
+            runtime.m_source = &mesh;
+            runtime.m_surfaceBoneIndex = mesh.m_surfaceBoneIndex;
+            doubleWind(mesh.m_indices, runtime.m_indices);
+            m_surfaceMeshes.push_back(AZStd::move(runtime));
+        }
 
         // Per-frame pose scratch, sized once.
         const size_t boneCount = m_bones.size();
@@ -286,9 +297,117 @@ namespace Diorama
         m_boneTranslationDelta.assign(boneCount, AZ::Vector2::CreateZero());
         m_localOverrides.resize(boneCount);
         m_world.resize(boneCount);
+        m_surfaceGrids.assign(boneCount, SurfaceDeform::SurfaceGrid{});
+
+        // Bind-pose placement for the bounding box (its center recenters the rig on the entity
+        // origin so scale/placement are predictable). Pose the bones at bind and build the
+        // bind-pose surface grids so surface meshes are placed in armature space, not their own
+        // +/-200 local space.
+        for (size_t i = 0; i < boneCount; ++i)
+        {
+            m_localOverrides[i] = m_bones[i].m_local;
+        }
+        MeshSkin::ComputeWorldTransforms(
+            AZStd::span<const MeshSkin::Bone>(m_bones.data(), boneCount),
+            AZStd::span<const MeshSkin::Affine2D>(m_localOverrides.data(), boneCount),
+            AZStd::span<MeshSkin::Affine2D>(m_world.data(), boneCount));
+        BuildSurfaceGrids();
+
+        float minX = AZStd::numeric_limits<float>::max();
+        float minY = AZStd::numeric_limits<float>::max();
+        float maxX = -AZStd::numeric_limits<float>::max();
+        float maxY = -AZStd::numeric_limits<float>::max();
+        const auto expand = [&](const AZ::Vector2& p)
+        {
+            minX = AZ::GetMin(minX, p.GetX());
+            minY = AZ::GetMin(minY, p.GetY());
+            maxX = AZ::GetMax(maxX, p.GetX());
+            maxY = AZ::GetMax(maxY, p.GetY());
+        };
+        for (const DragonBones::SkinnedMesh& mesh : m_armature->m_meshes)
+        {
+            for (const MeshSkin::SkinnedVertex& vertex : mesh.m_vertices)
+            {
+                expand(vertex.m_bindPos);
+            }
+        }
+        for (const SurfaceRuntimeMesh& runtime : m_surfaceMeshes)
+        {
+            const int sb = runtime.m_surfaceBoneIndex;
+            if (sb < 0 || sb >= static_cast<int>(boneCount) || runtime.m_source == nullptr)
+            {
+                continue;
+            }
+            const MeshSkin::Affine2D& world = m_world[sb];
+            const SurfaceDeform::SurfaceGrid& grid = m_surfaceGrids[sb];
+            for (const AZ::Vector2& v : runtime.m_source->m_bindVertices)
+            {
+                expand(world.TransformPoint(SurfaceDeform::WarpPoint(grid, v)));
+            }
+        }
+        if (minX > maxX) // no vertices at all
+        {
+            minX = maxX = minY = maxY = 0.0f;
+        }
+        m_center = AZ::Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
 
         m_rigBuilt = true;
         return true;
+    }
+
+    void SkinnedSpritePresenter::BuildSurfaceGrids()
+    {
+        // Bones are parent-first, so a surface's parent grid is already built when we reach it.
+        for (size_t i = 0; i < m_bones.size(); ++i)
+        {
+            const DragonBones::BoneData& bone = m_armature->m_bones[i];
+            SurfaceDeform::SurfaceGrid& grid = m_surfaceGrids[i];
+            if (!bone.m_isSurface)
+            {
+                grid.m_segmentX = 0;
+                grid.m_segmentY = 0;
+                grid.m_controlPoints.clear();
+                continue;
+            }
+            grid.m_segmentX = bone.m_segmentX;
+            grid.m_segmentY = bone.m_segmentY;
+            grid.m_controlPoints = bone.m_bindControlPoints; // bind, in this surface's local space
+
+            // Add this surface's own animated deform deltas.
+            if (m_animation != nullptr)
+            {
+                const int cpCount = static_cast<int>(bone.m_bindControlPoints.size());
+                for (const DragonBones::DeformTimeline& deform : m_animation->m_deforms)
+                {
+                    if (deform.m_kind != DragonBones::DeformTargetKind::Surface || deform.m_targetIndex != static_cast<int>(i))
+                    {
+                        continue;
+                    }
+                    DragonBones::SampleDeform(deform, m_animTime, cpCount, m_deformScratch);
+                    const size_t n = AZ::GetMin(grid.m_controlPoints.size(), m_deformScratch.size());
+                    for (size_t k = 0; k < n; ++k)
+                    {
+                        grid.m_controlPoints[k] += m_deformScratch[k];
+                    }
+                }
+            }
+
+            // Nesting: if the parent bone is also a surface, warp this surface's control points
+            // through the parent's already-built grid, moving them from this surface's local
+            // space up into the parent chain's space. Recursing this way (parent-first) lands a
+            // deeply nested surface's control points in the space of its nearest regular-bone
+            // ancestor, whose world transform (m_world) then places the warped mesh correctly.
+            const int parent = bone.m_parentIndex;
+            if (parent >= 0 && parent < static_cast<int>(m_surfaceGrids.size()) && parent < static_cast<int>(m_armature->m_bones.size()) &&
+                m_armature->m_bones[parent].m_isSurface)
+            {
+                const SurfaceDeform::SurfaceGrid& parentGrid = m_surfaceGrids[parent];
+                for (AZ::Vector2& cp : grid.m_controlPoints)
+                {
+                    cp = SurfaceDeform::WarpPoint(parentGrid, cp);
+                }
+            }
+        }
     }
 
     bool SkinnedSpritePresenter::TryAcquireFeatureProcessor()
@@ -318,6 +437,13 @@ namespace Diorama
         }
 
         for (RuntimeMesh& mesh : m_meshes)
+        {
+            if (mesh.m_handle == 0)
+            {
+                mesh.m_handle = m_featureProcessor->AcquireMesh();
+            }
+        }
+        for (SurfaceRuntimeMesh& mesh : m_surfaceMeshes)
         {
             if (mesh.m_handle == 0)
             {
@@ -412,6 +538,10 @@ namespace Diorama
             AZStd::span<const MeshSkin::Affine2D>(m_localOverrides.data(), m_localOverrides.size()),
             AZStd::span<MeshSkin::Affine2D>(m_world.data(), m_world.size()));
 
+        // Rebuild the surface grids for this frame's pose (bind control points + animated
+        // deform deltas), so surface meshes warp with the animation.
+        BuildSurfaceGrids();
+
         const float scaleX = m_config.m_scale;
         const float scaleY = m_config.m_flipVertical ? -m_config.m_scale : m_config.m_scale;
         const int worldCount = static_cast<int>(m_world.size());
@@ -461,6 +591,68 @@ namespace Diorama
                 AZStd::span<const SpriteFeatureProcessor::MeshVertex>(m_vertexScratch.data(), m_vertexScratch.size()),
                 AZStd::span<const AZ::u32>(runtime.m_indices.data(), runtime.m_indices.size()));
         }
+
+        // Surface meshes: apply any per-vertex FFD offset, warp each vertex through its
+        // surface's control-point grid, place it by the surface bone's world transform, and
+        // submit through the same mesh-draw.
+        for (size_t smIndex = 0; smIndex < m_surfaceMeshes.size(); ++smIndex)
+        {
+            SurfaceRuntimeMesh& runtime = m_surfaceMeshes[smIndex];
+            const int sb = runtime.m_surfaceBoneIndex;
+            if (runtime.m_handle == 0 || runtime.m_source == nullptr || sb < 0 || sb >= worldCount ||
+                sb >= static_cast<int>(m_surfaceGrids.size()))
+            {
+                continue;
+            }
+            const DragonBones::SurfaceMesh& source = *runtime.m_source;
+            const MeshSkin::Affine2D& surfaceWorld = m_world[sb];
+            const SurfaceDeform::SurfaceGrid& grid = m_surfaceGrids[sb];
+
+            // Sample this mesh's FFD deform channel (per-vertex offsets), if any, applied in the
+            // mesh's local space BEFORE the surface warp.
+            const int vertCount = static_cast<int>(source.m_bindVertices.size());
+            bool hasFfd = false;
+            if (m_animation != nullptr)
+            {
+                for (const DragonBones::DeformTimeline& deform : m_animation->m_deforms)
+                {
+                    if (deform.m_kind == DragonBones::DeformTargetKind::MeshFfd && deform.m_targetIndex == static_cast<int>(smIndex))
+                    {
+                        DragonBones::SampleDeform(deform, m_animTime, vertCount, m_deformScratch);
+                        hasFfd = true;
+                        break;
+                    }
+                }
+            }
+
+            m_vertexScratch.clear();
+            m_vertexScratch.resize(source.m_bindVertices.size());
+            for (size_t v = 0; v < source.m_bindVertices.size(); ++v)
+            {
+                AZ::Vector2 bind = source.m_bindVertices[v];
+                if (hasFfd && v < m_deformScratch.size())
+                {
+                    bind = SurfaceDeform::ApplyDeform(bind, m_deformScratch[v]);
+                }
+                const AZ::Vector2 warped = SurfaceDeform::WarpPoint(grid, bind);
+                const AZ::Vector2 armature = surfaceWorld.TransformPoint(warped);
+                SpriteFeatureProcessor::MeshVertex& out = m_vertexScratch[v];
+                out.m_position = AZ::Vector2((armature.GetX() - m_center.GetX()) * scaleX, (armature.GetY() - m_center.GetY()) * scaleY);
+                out.m_uv = (v < source.m_uvs.size()) ? source.m_uvs[v] : AZ::Vector2::CreateZero();
+            }
+
+            const float partSortOffset = m_config.m_sortOffset + static_cast<float>(source.m_drawOrder) * 0.001f;
+            m_featureProcessor->UpdateMesh(
+                runtime.m_handle,
+                worldTransform,
+                m_config.m_texture,
+                m_config.m_tint,
+                partSortOffset,
+                m_config.m_billboard,
+                m_config.m_pointFilter,
+                AZStd::span<const SpriteFeatureProcessor::MeshVertex>(m_vertexScratch.data(), m_vertexScratch.size()),
+                AZStd::span<const AZ::u32>(runtime.m_indices.data(), runtime.m_indices.size()));
+        }
     }
 
     void SkinnedSpritePresenter::SetBoneRotation(const AZStd::string& boneName, float degrees)
@@ -499,12 +691,19 @@ namespace Diorama
         info.m_loaded = m_rigBuilt;
         info.m_visible = m_handlesAcquired && m_config.m_texture.IsReady();
         info.m_boneCount = static_cast<int>(m_bones.size());
-        info.m_meshCount = static_cast<int>(m_meshes.size());
+        info.m_meshCount = static_cast<int>(m_meshes.size() + m_surfaceMeshes.size());
         for (const RuntimeMesh& mesh : m_meshes)
         {
             if (mesh.m_source != nullptr)
             {
                 info.m_vertexCount += static_cast<int>(mesh.m_source->m_vertices.size());
+            }
+        }
+        for (const SurfaceRuntimeMesh& mesh : m_surfaceMeshes)
+        {
+            if (mesh.m_source != nullptr)
+            {
+                info.m_vertexCount += static_cast<int>(mesh.m_source->m_bindVertices.size());
             }
         }
         return info;

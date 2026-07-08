@@ -1601,6 +1601,38 @@ namespace Diorama
         EXPECT_NEAR(deltas[3].GetX(), 0.0f, 1e-4f);
     }
 
+    TEST(DragonBonesImportTest, SampleDeform_InterpolatesBetweenFrames)
+    {
+        // 2 control points. Frame 0 (t=0..1s) is neutral (no deltas); frame 1 holds
+        // (10,0),(0,10). Sampling ramps from zero to the frame-1 deltas, then holds.
+        Diorama::DragonBones::DeformTimeline dt;
+        Diorama::DragonBones::DeformFrame f0;
+        f0.m_startTime = 0.0f;
+        f0.m_duration = 1.0f;
+        f0.m_tween = Diorama::DragonBones::TweenType::Linear;
+        Diorama::DragonBones::DeformFrame f1;
+        f1.m_startTime = 1.0f;
+        f1.m_duration = 0.0f;
+        f1.m_offset = 0;
+        f1.m_rawDeltas = { 10.0f, 0.0f, 0.0f, 10.0f };
+        dt.m_frames.push_back(f0);
+        dt.m_frames.push_back(f1);
+
+        AZStd::vector<AZ::Vector2> out;
+        Diorama::DragonBones::SampleDeform(dt, 0.0f, 2, out);
+        ASSERT_EQ(out.size(), 2u);
+        EXPECT_NEAR(out[0].GetX(), 0.0f, 1e-4f); // start: neutral
+        EXPECT_NEAR(out[1].GetY(), 0.0f, 1e-4f);
+
+        Diorama::DragonBones::SampleDeform(dt, 0.5f, 2, out); // halfway to frame 1
+        EXPECT_NEAR(out[0].GetX(), 5.0f, 1e-4f);
+        EXPECT_NEAR(out[1].GetY(), 5.0f, 1e-4f);
+
+        Diorama::DragonBones::SampleDeform(dt, 1.5f, 2, out); // past the end: hold frame 1
+        EXPECT_NEAR(out[0].GetX(), 10.0f, 1e-4f);
+        EXPECT_NEAR(out[1].GetY(), 10.0f, 1e-4f);
+    }
+
     TEST(DragonBonesImportTest, RemapsGlobalBonesToLocalSlotsWithBindWorlds)
     {
         Diorama::DragonBones::Document doc;
