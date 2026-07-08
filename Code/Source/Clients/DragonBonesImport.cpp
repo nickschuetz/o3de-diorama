@@ -563,6 +563,18 @@ namespace Diorama::DragonBones
                         continue;
                     }
                     const int type = static_cast<int>(GetFloat(tl, "type", -1.0f));
+                    if (type == 40) // AnimationProgress: drives a named sub-animation's progress
+                    {
+                        ProgressTimeline pt;
+                        pt.m_targetName = GetString(tl, "name");
+                        const auto framesIt = tl.FindMember("frame");
+                        if (framesIt != tl.MemberEnd() && framesIt->value.IsArray())
+                        {
+                            ParseFrameTrack(framesIt->value, fps, "value", "value", 0.0f, pt.m_values);
+                        }
+                        animation.m_progress.push_back(AZStd::move(pt));
+                        continue;
+                    }
                     if (type != 22 && type != 50) // 22 = SlotDeform (mesh FFD), 50 = Surface
                     {
                         continue;
@@ -609,6 +621,19 @@ namespace Diorama::DragonBones
                                 dt.m_targetIndex = static_cast<int>(i);
                                 break;
                             }
+                        }
+                    }
+                }
+
+                // Resolve AnimationProgress targets to the sub-animation they drive, by name.
+                for (ProgressTimeline& pt : animation.m_progress)
+                {
+                    for (size_t i = 0; i < armature.m_animations.size(); ++i)
+                    {
+                        if (armature.m_animations[i].m_name == pt.m_targetName)
+                        {
+                            pt.m_targetIndex = static_cast<int>(i);
+                            break;
                         }
                     }
                 }

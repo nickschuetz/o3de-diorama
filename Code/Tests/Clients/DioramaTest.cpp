@@ -1633,6 +1633,53 @@ namespace Diorama
         EXPECT_NEAR(out[1].GetY(), 10.0f, 1e-4f);
     }
 
+    TEST(DragonBonesImportTest, ParsesAnimationProgressChannel)
+    {
+        constexpr const char* kJson = R"JSON(
+        {
+          "name": "p", "frameRate": 30,
+          "armature": [{
+            "name": "rig",
+            "bone": [
+              { "name": "root" },
+              { "name": "s", "type": "surface", "parent": "root", "segmentX": 1, "segmentY": 1,
+                "vertices": [-200,-200, 200,-200, -200,200, 200,200] }
+            ],
+            "animation": [
+              { "name": "PARAM_X", "duration": 10, "playTimes": 0,
+                "timeline": [ { "name": "s", "type": 50, "frame": [
+                  { "duration": 5, "tweenEasing": 0, "value": [1,2,3,4,5,6,7,8] },
+                  { "duration": 5 } ] } ] },
+              { "name": "idle", "duration": 30, "playTimes": 0,
+                "timeline": [ { "name": "PARAM_X", "type": 40, "frame": [
+                  { "duration": 15, "tweenEasing": 0, "value": 0.0 },
+                  { "duration": 15, "tweenEasing": 0, "value": 1.0 } ] } ] }
+            ]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kJson, doc));
+        ASSERT_EQ(doc.m_armatures.size(), 1u);
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+        ASSERT_EQ(arm.m_animations.size(), 2u);
+
+        // The idle clip has an AnimationProgress channel that resolves to PARAM_X (animation 0).
+        const Diorama::DragonBones::Animation* idle = Diorama::DragonBones::FindAnimation(arm, "idle");
+        ASSERT_NE(idle, nullptr);
+        ASSERT_EQ(idle->m_progress.size(), 1u);
+        const Diorama::DragonBones::ProgressTimeline& pt = idle->m_progress[0];
+        EXPECT_EQ(pt.m_targetName, "PARAM_X");
+        EXPECT_EQ(pt.m_targetIndex, 0);
+        ASSERT_EQ(pt.m_values.size(), 2u);
+        EXPECT_NEAR(pt.m_values[0].m_value.GetX(), 0.0f, 1e-4f);
+        EXPECT_NEAR(pt.m_values[1].m_value.GetX(), 1.0f, 1e-4f);
+
+        // PARAM_X itself carries the surface deform that idle scrubs.
+        const Diorama::DragonBones::Animation* param = Diorama::DragonBones::FindAnimation(arm, "PARAM_X");
+        ASSERT_NE(param, nullptr);
+        ASSERT_EQ(param->m_deforms.size(), 1u);
+    }
+
     TEST(DragonBonesImportTest, RemapsGlobalBonesToLocalSlotsWithBindWorlds)
     {
         Diorama::DragonBones::Document doc;

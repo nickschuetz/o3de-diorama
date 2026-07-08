@@ -141,6 +141,11 @@ namespace Diorama
         //! current animated deform deltas; nested surfaces are warped through their parent.
         //! Pass the posed bone worlds so nested-surface control points land correctly.
         void BuildSurfaceGrids();
+        //! Add `animation`'s surface-deform deltas for one surface bone at `time` into `target`
+        //! (sized cpCount): the clip's own channels plus any it drives via AnimationProgress
+        //! (type-40) sub-animations, composed additively.
+        void AccumulateSurfaceDeltas(
+            const DragonBones::Animation& animation, float time, int surfaceBoneIndex, int cpCount, AZStd::vector<AZ::Vector2>& target);
 
         DioramaSkinnedSpriteConfig m_config;
         AZ::EntityId m_entityId;

@@ -101,7 +101,7 @@ freely mixed with 3D geometry, lighting, particles, and post effects. See
 | Post | Retro CRT scanline overlay | Working |
 | Animation | Skeletal cutout clip player (keyframed bone hierarchy) + cross-fade + 1D blend trees | Working |
 | Animation | Skinned Sprite mesh deform (DragonBones weighted-mesh import + CPU skinning + clip playback) | Working |
-| Animation | Surface + FFD deform (DragonBones surface rigs: control-point-grid warp, nested surfaces, per-vertex FFD) | Working |
+| Animation | Surface + FFD deform (DragonBones surface rigs: control-point-grid warp, nested surfaces, per-vertex FFD, type-40 parameter composition) | Working |
 | Animation | Aseprite sprite-sheet import (tags + per-frame timing) | Working |
 | Animation | Animation state machine (parameter-driven clip switching) | Working |
 | Asset pipeline | Native `.aseprite` AssetBuilder (packs atlas + sheet metadata) | Working |

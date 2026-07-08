@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   decode, `SampleDeform`). Ships with a generated, IP-free rippling-water example
   (`scripts/gen_water_rig.py`, `Docs/examples/water_demo.py`) and
   [how-to 32](Docs/howto/32-surface-deform.md).
+- **Animation-parameter layer for surface rigs.** A playing clip's DragonBones type-40
+  *AnimationProgress* channels each scrub a `PARAM_*` sub-animation, whose surface deforms
+  compose additively onto the character, so a driving idle plays its parameter-driven
+  surface animation (not just a directly-authored clip). The water example's `flow` clip
+  runs the ripple entirely through this path. (Nested progress, type-41/42 weight/blend
+  channels, and parameter-driven bone transforms remain future work.)
 
 ## [0.5.0-beta] - 2026-07-06
 

@@ -106,12 +106,33 @@ def build_ske():
                 }],
             }],
         }],
-        "animation": [{
-            "name": "ripple",
-            "duration": CYCLE_FRAMES,
-            "playTimes": 0,
-            "timeline": [{"name": "water", "type": 50, "frame": frames}],
-        }],
+        "animation": [
+            # Direct: the surface-deform channel plays the traveling wave itself.
+            {
+                "name": "ripple",
+                "duration": CYCLE_FRAMES,
+                "playTimes": 0,
+                "timeline": [{"name": "water", "type": 50, "frame": frames}],
+            },
+            # Parameter-driven: PARAM_WAVE holds the same wave, and the "flow" clip scrubs its
+            # progress 0..1 through a type-40 AnimationProgress channel. Playing "flow" runs the
+            # ripple entirely through the DragonBones animation-parameter layer.
+            {
+                "name": "PARAM_WAVE",
+                "duration": CYCLE_FRAMES,
+                "playTimes": 0,
+                "timeline": [{"name": "water", "type": 50, "frame": frames}],
+            },
+            {
+                "name": "flow",
+                "duration": CYCLE_FRAMES,
+                "playTimes": 0,
+                "timeline": [{"name": "PARAM_WAVE", "type": 40, "frame": [
+                    {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
+                    {"duration": 0, "value": 1.0},
+                ]}],
+            },
+        ],
     }
     return {"frameRate": FRAME_RATE, "name": "water", "armature": [armature]}
 
