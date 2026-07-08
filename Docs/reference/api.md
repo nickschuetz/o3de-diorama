@@ -346,10 +346,14 @@ transform over the clip (how-to [18-skeletal](../howto/18-skeletal.md)).
 ## DioramaSkinnedSpriteRequestBus
 
 Drives the **Skinned Sprite (mesh deform)** component: it imports the open DragonBones
-weighted-mesh format and CPU-skins a textured mesh so it bends and stretches as its bones
-move, drawing the deformed geometry through the sprite feature processor (how-to
-[31-mesh-deform](../howto/31-mesh-deform.md)). Bones are named by the DragonBones armature;
-an unknown bone name is ignored. Pose overrides add on top of the playing (or bind) pose.
+format and deforms a textured mesh through the sprite feature processor. Two deformation
+modes on the same component and bus: **weighted-mesh** skinning (a mesh bent and stretched
+as its bones move, how-to [31-mesh-deform](../howto/31-mesh-deform.md)) and **surface + FFD**
+deformation (a mesh warped by a control-point grid, with nested surfaces and per-vertex FFD,
+how-to [32-surface-deform](../howto/32-surface-deform.md)). The verbs below are the same for
+both: `PlayAnimation` / `StopAnimation` / `SetAnimationSpeed` drive clips (including
+surface-deform clips), and the pose overrides add on top of the playing (or bind) pose.
+Bones are named by the DragonBones armature; an unknown bone name is ignored.
 
 | Verb | Signature (after entity id) | Returns | Clamping | Effect |
 | ---- | --------------------------- | ------- | -------- | ------ |
