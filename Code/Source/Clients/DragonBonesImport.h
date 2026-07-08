@@ -383,6 +383,63 @@ namespace Diorama::DragonBones
         return track.back().m_value;
     }
 
+    //! Sample an FFD / surface deform timeline at timeSeconds into full-length per-vertex
+    //! (dx, dy) deltas (out sized to vertexCount). Brackets the two frames around the time,
+    //! expands each, and interpolates element-wise with the frame's tween (stepped / linear /
+    //! bezier). Holds the ends. Allocation-free (the next frame is expanded inline into the
+    //! lerp), so it is cheap to call for every surface each frame. Pure; unit tested.
+    inline void SampleDeform(const DeformTimeline& timeline, float timeSeconds, int vertexCount, AZStd::vector<AZ::Vector2>& out)
+    {
+        const AZStd::vector<DeformFrame>& frames = timeline.m_frames;
+        if (frames.empty() || vertexCount <= 0)
+        {
+            out.assign(vertexCount < 0 ? 0u : static_cast<size_t>(vertexCount), AZ::Vector2::CreateZero());
+            return;
+        }
+        if (timeSeconds <= frames.front().m_startTime || frames.size() == 1)
+        {
+            ExpandDeform(frames.front(), vertexCount, out);
+            return;
+        }
+        for (size_t i = 0; i < frames.size(); ++i)
+        {
+            const DeformFrame& frame = frames[i];
+            const float end = frame.m_startTime + frame.m_duration;
+            if (timeSeconds >= end || frame.m_duration <= 0.0f || i + 1 >= frames.size())
+            {
+                if (i + 1 >= frames.size())
+                {
+                    ExpandDeform(frame, vertexCount, out); // past the last frame: hold it
+                    return;
+                }
+                continue;
+            }
+            ExpandDeform(frame, vertexCount, out);
+            if (frame.m_tween == TweenType::Stepped)
+            {
+                return;
+            }
+            float local = (timeSeconds - frame.m_startTime) / frame.m_duration;
+            if (frame.m_tween == TweenType::Curve)
+            {
+                local = EvaluateCurve(frame.m_curve, local);
+            }
+            // Lerp out (frame i) toward frame[i+1], expanding the next frame inline so no
+            // second full array is allocated.
+            const DeformFrame& nextFrame = frames[i + 1];
+            const int rawSize = static_cast<int>(nextFrame.m_rawDeltas.size());
+            for (int k = 0; k < vertexCount; ++k)
+            {
+                const int fx = k * 2 - nextFrame.m_offset;
+                const int fy = k * 2 + 1 - nextFrame.m_offset;
+                const float nx = (k * 2 < nextFrame.m_offset || fx >= rawSize) ? 0.0f : nextFrame.m_rawDeltas[fx];
+                const float ny = (k * 2 + 1 < nextFrame.m_offset || fy >= rawSize) ? 0.0f : nextFrame.m_rawDeltas[fy];
+                out[k] = out[k] + (AZ::Vector2(nx, ny) - out[k]) * local;
+            }
+            return;
+        }
+    }
+
     //! Sample a whole animation at timeSeconds into per-bone pose deltas (out sized to
     //! boneCount, indexed by bone). Bones without a timeline get the identity delta. Pure;
     //! implemented in DragonBonesImport.cpp.
