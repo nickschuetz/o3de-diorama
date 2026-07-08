@@ -4,7 +4,9 @@ Status: **v1 (transform-hierarchy cutout) shipped**: `DioramaSkeletalClipCompone
 + [how-to 18](../howto/18-skeletal.md) (with cross-fade and 1D blend trees).
 **v2 (DragonBones mesh deform) shipped**: `DioramaSkinnedSpriteComponent` +
 `DioramaSkinnedSpriteRequestBus` + [how-to 31](../howto/31-mesh-deform.md), on the
-pure `MeshSkin` + `DragonBonesImport` cores. Only v3 (EMotionFX) remains design.
+pure `MeshSkin` + `DragonBonesImport` cores. **v3 (surface + FFD mesh deform)** is
+designed in [2d-surface-deform.md](2d-surface-deform.md); optional EMotionFX evaluation
+also remains design.
 
 ## Goal
 
@@ -94,8 +96,9 @@ sprite shader is a later option if profiling demands it.
 1. **v1**: transform-hierarchy cutout + a small eased clip player + a how-to. No new
    dependency. Covers simple rigs immediately.
 2. **v2**: DragonBones JSON import + 2D mesh deform through the sprite renderer.
-3. **v3**: optional EMotionFX-evaluator integration (advanced), inverse kinematics,
-   and a GPU-skinning path if needed.
+3. **v3**: surface + FFD mesh deformation (see
+   [2d-surface-deform.md](2d-surface-deform.md)); optional EMotionFX-evaluator
+   integration (advanced), inverse kinematics, and a GPU-skinning path if needed.
 
 ## Verification plan (needs the monitor)
 

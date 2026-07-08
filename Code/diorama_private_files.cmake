@@ -15,6 +15,7 @@ set(FILES
     Source/Clients/SpriteBatchPlan.h
     Source/Clients/SkeletalClip.h
     Source/Clients/MeshSkin.h
+    Source/Clients/SurfaceDeform.h
     Source/Clients/DragonBonesImport.h
     Source/Clients/DragonBonesImport.cpp
     Source/Clients/AsepriteImport.h

@@ -38,6 +38,7 @@
 #include <Clients/SpriteComponent.h>
 #include <Clients/SpritePresenter.h>
 #include <Clients/SpriteRequestHandler.h>
+#include <Clients/SurfaceDeform.h>
 #include <Clients/TiledImport.h>
 #include <Clients/TilemapAutotile.h>
 #include <Clients/TilemapComponent.h>
@@ -1146,6 +1147,137 @@ namespace Diorama
         const AZ::Vector2 movedChild = world[1].TransformPoint(AZ::Vector2::CreateZero());
         EXPECT_NEAR(movedChild.GetX(), 20.0f, 1e-4f);
         EXPECT_NEAR(movedChild.GetY(), 5.0f, 1e-4f);
+    }
+
+    // ---- Surface + FFD deformation (v3): control-point grid warp + FFD offsets --
+    // The parser (a later phase) fills SurfaceGrid from a DragonBones "surface" bone;
+    // these pin the pure warp math against hand-computed grids.
+
+    namespace
+    {
+        // Build a bind-pose grid: control point (i, j) at its canonical position
+        // (-200 + i*dX, -200 + j*dY), so an unperturbed grid warps as the identity.
+        SurfaceDeform::SurfaceGrid MakeCanonicalGrid(int segmentX, int segmentY)
+        {
+            SurfaceDeform::SurfaceGrid grid;
+            grid.m_segmentX = segmentX;
+            grid.m_segmentY = segmentY;
+            const float dX = SurfaceDeform::CanonicalSize / static_cast<float>(segmentX);
+            const float dY = SurfaceDeform::CanonicalSize / static_cast<float>(segmentY);
+            for (int j = 0; j <= segmentY; ++j)
+            {
+                for (int i = 0; i <= segmentX; ++i)
+                {
+                    grid.m_controlPoints.push_back(AZ::Vector2(
+                        -SurfaceDeform::CanonicalHalfSize + static_cast<float>(i) * dX,
+                        -SurfaceDeform::CanonicalHalfSize + static_cast<float>(j) * dY));
+                }
+            }
+            return grid;
+        }
+    } // namespace
+
+    TEST(SurfaceDeformTest, ControlPointCount_IsGridNodes)
+    {
+        EXPECT_EQ(SurfaceDeform::ControlPointCount(8, 8), 81);
+        EXPECT_EQ(SurfaceDeform::ControlPointCount(2, 3), 12);
+    }
+
+    TEST(SurfaceDeformTest, WarpPoint_BindGridIsIdentity)
+    {
+        const SurfaceDeform::SurfaceGrid grid = MakeCanonicalGrid(2, 2);
+        // A lower-left-triangle point and an upper-right-triangle point both pass through.
+        const AZ::Vector2 lower = SurfaceDeform::WarpPoint(grid, AZ::Vector2(50.0f, 50.0f));
+        EXPECT_NEAR(lower.GetX(), 50.0f, 1e-3f);
+        EXPECT_NEAR(lower.GetY(), 50.0f, 1e-3f);
+        const AZ::Vector2 upper = SurfaceDeform::WarpPoint(grid, AZ::Vector2(150.0f, 150.0f));
+        EXPECT_NEAR(upper.GetX(), 150.0f, 1e-3f);
+        EXPECT_NEAR(upper.GetY(), 150.0f, 1e-3f);
+        const AZ::Vector2 origin = SurfaceDeform::WarpPoint(grid, AZ::Vector2::CreateZero());
+        EXPECT_NEAR(origin.GetX(), 0.0f, 1e-3f);
+        EXPECT_NEAR(origin.GetY(), 0.0f, 1e-3f);
+    }
+
+    TEST(SurfaceDeformTest, WarpPoint_TranslatedGridShiftsUniformly)
+    {
+        SurfaceDeform::SurfaceGrid grid = MakeCanonicalGrid(2, 2);
+        for (AZ::Vector2& cp : grid.m_controlPoints)
+        {
+            cp += AZ::Vector2(10.0f, -7.0f);
+        }
+        const AZ::Vector2 out = SurfaceDeform::WarpPoint(grid, AZ::Vector2(50.0f, 50.0f));
+        EXPECT_NEAR(out.GetX(), 60.0f, 1e-3f);
+        EXPECT_NEAR(out.GetY(), 43.0f, 1e-3f);
+    }
+
+    TEST(SurfaceDeformTest, WarpPoint_ScaledGridScalesTheVertex)
+    {
+        SurfaceDeform::SurfaceGrid grid = MakeCanonicalGrid(2, 2);
+        for (AZ::Vector2& cp : grid.m_controlPoints)
+        {
+            cp *= 2.0f; // control points at twice their canonical position
+        }
+        // Lower-left triangle...
+        const AZ::Vector2 lower = SurfaceDeform::WarpPoint(grid, AZ::Vector2(50.0f, 50.0f));
+        EXPECT_NEAR(lower.GetX(), 100.0f, 1e-3f);
+        EXPECT_NEAR(lower.GetY(), 100.0f, 1e-3f);
+        // ...and upper-right triangle both scale about the origin.
+        const AZ::Vector2 upper = SurfaceDeform::WarpPoint(grid, AZ::Vector2(150.0f, 150.0f));
+        EXPECT_NEAR(upper.GetX(), 300.0f, 1e-3f);
+        EXPECT_NEAR(upper.GetY(), 300.0f, 1e-3f);
+    }
+
+    TEST(SurfaceDeformTest, WarpPoint_ShearedTopEdgeMatchesHandComputed)
+    {
+        // Shift the top row (j == segmentY) of control points +100 x. The top-center
+        // point sits on the moved node -> +100 x; the bottom-center node is unmoved;
+        // a point halfway up picks up half the shear.
+        SurfaceDeform::SurfaceGrid grid = MakeCanonicalGrid(2, 2);
+        const int stride = grid.m_segmentX + 1;
+        for (int i = 0; i <= grid.m_segmentX; ++i)
+        {
+            grid.m_controlPoints[i + grid.m_segmentY * stride] += AZ::Vector2(100.0f, 0.0f);
+        }
+        const AZ::Vector2 top = SurfaceDeform::WarpPoint(grid, AZ::Vector2(0.0f, 200.0f));
+        EXPECT_NEAR(top.GetX(), 100.0f, 1e-3f);
+        EXPECT_NEAR(top.GetY(), 200.0f, 1e-3f);
+        const AZ::Vector2 bottom = SurfaceDeform::WarpPoint(grid, AZ::Vector2(0.0f, -200.0f));
+        EXPECT_NEAR(bottom.GetX(), 0.0f, 1e-3f);
+        EXPECT_NEAR(bottom.GetY(), -200.0f, 1e-3f);
+        const AZ::Vector2 mid = SurfaceDeform::WarpPoint(grid, AZ::Vector2(0.0f, 100.0f));
+        EXPECT_NEAR(mid.GetX(), 50.0f, 1e-3f);
+        EXPECT_NEAR(mid.GetY(), 100.0f, 1e-3f);
+    }
+
+    TEST(SurfaceDeformTest, WarpPoint_DegenerateAndFarFieldPassThrough)
+    {
+        SurfaceDeform::SurfaceGrid empty; // zero segments, no control points
+        const AZ::Vector2 e = SurfaceDeform::WarpPoint(empty, AZ::Vector2(12.0f, 34.0f));
+        EXPECT_NEAR(e.GetX(), 12.0f, 1e-4f);
+        EXPECT_NEAR(e.GetY(), 34.0f, 1e-4f);
+        // A point far outside the surface passes through even on a valid (scaled) grid.
+        SurfaceDeform::SurfaceGrid grid = MakeCanonicalGrid(2, 2);
+        for (AZ::Vector2& cp : grid.m_controlPoints)
+        {
+            cp *= 2.0f;
+        }
+        const AZ::Vector2 farAway = SurfaceDeform::WarpPoint(grid, AZ::Vector2(5000.0f, 0.0f));
+        EXPECT_NEAR(farAway.GetX(), 5000.0f, 1e-4f);
+        EXPECT_NEAR(farAway.GetY(), 0.0f, 1e-4f);
+    }
+
+    TEST(SurfaceDeformTest, ApplyDeform_OffsetsBindPositions)
+    {
+        const AZ::Vector2 one = SurfaceDeform::ApplyDeform(AZ::Vector2(1.0f, 2.0f), AZ::Vector2(10.0f, -3.0f));
+        EXPECT_NEAR(one.GetX(), 11.0f, 1e-4f);
+        EXPECT_NEAR(one.GetY(), -1.0f, 1e-4f);
+        // The span form offsets the overlapping prefix and leaves the rest at bind.
+        AZ::Vector2 verts[3] = { AZ::Vector2(0.0f, 0.0f), AZ::Vector2(1.0f, 1.0f), AZ::Vector2(2.0f, 2.0f) };
+        const AZ::Vector2 deltas[2] = { AZ::Vector2(5.0f, 0.0f), AZ::Vector2(0.0f, 5.0f) };
+        SurfaceDeform::ApplyDeform(AZStd::span<AZ::Vector2>(verts, 3), AZStd::span<const AZ::Vector2>(deltas, 2));
+        EXPECT_NEAR(verts[0].GetX(), 5.0f, 1e-4f);
+        EXPECT_NEAR(verts[1].GetY(), 6.0f, 1e-4f);
+        EXPECT_NEAR(verts[2].GetX(), 2.0f, 1e-4f); // untouched (no delta supplied)
     }
 
     // ---- DragonBones import: weighted-mesh armature decode ----------------------
