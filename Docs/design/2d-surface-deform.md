@@ -1,9 +1,13 @@
 # Design: surface and FFD mesh deformation (mesh-deform v3)
 
-Status: **design**. Extends the shipped v2 weighted-mesh path
+Status: **shipped** (phases A-D). Extends the v2 weighted-mesh path
 ([2d-skeletal-animation.md](2d-skeletal-animation.md): `DioramaSkinnedSpriteComponent`
-on the pure `MeshSkin` + `DragonBonesImport` cores). This is the "free-form mesh
-deformation" that v2 explicitly deferred to v3.
+on the pure `MeshSkin` + `DragonBonesImport` cores) with the "free-form mesh deformation"
+v2 deferred to v3: the `SurfaceDeform` warp core, the `DragonBonesImport` surface/deform
+decode, per-frame `SampleDeform` + `BuildSurfaceGrids` (incl. nested-surface warping) in
+the presenter, and the [how-to](../howto/32-surface-deform.md) + rippling-water example.
+The DragonBones animation-parameter/progress layer (type-40 `AnimationProgress` driving
+`PARAM_*` sub-animations) is the remaining follow-up; surface-deform clips play directly.
 
 ## Goal
 

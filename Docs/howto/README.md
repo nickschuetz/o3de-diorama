@@ -72,6 +72,7 @@ Each has a written guide and a runnable example.
 | Retro CRT Overlay (scanlines) | [16-crt.md](16-crt.md) | Written |
 | Skeletal Cutout Animation (keyframed bone rig) | [18-skeletal.md](18-skeletal.md) | Written |
 | Mesh-Deform Characters (DragonBones weighted mesh) | [31-mesh-deform.md](31-mesh-deform.md) | Written |
+| Surface + FFD Deformation (DragonBones surface rigs) | [32-surface-deform.md](32-surface-deform.md) | Written |
 | Aseprite Animation Import (tags + per-frame timing) | [19-aseprite.md](19-aseprite.md) | Written |
 | Input Action Mapping (rebindable named actions) | [23-input-actions.md](23-input-actions.md) | Written |
 | Animation State Machine (parameter-driven clip switching) | [22-anim-state-machine.md](22-anim-state-machine.md) | Written |
@@ -125,6 +126,7 @@ the design, see:
 | Day/Night Cycle | [../examples/daynight_demo.py](../examples/daynight_demo.py) |
 | Small Shmup (dogfood) | [../examples/shmup_demo.py](../examples/shmup_demo.py) |
 | Mesh-Deform (seaweed) | [../examples/seaweed_demo.py](../examples/seaweed_demo.py) |
+| Surface Deform (rippling water) | [../examples/water_demo.py](../examples/water_demo.py) |
 
 Run an example in the editor:
 
