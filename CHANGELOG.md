@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+
+- **Surface + FFD deformation (mesh-deform v3).** The `Skinned Sprite (mesh deform)`
+  component now also renders DragonBones **surface** rigs: a mesh bound to a `surface`
+  bone is warped by that bone's control-point grid (a triangulated free-form deform)
+  rather than skinned to bones, and a surface-deform animation channel ripples the grid
+  over time. **Nested surfaces** compose (a surface parented to a surface warps through
+  its parent, parent-first), so a deform on an ancestor surface propagates through a
+  whole stacked character. Per-vertex **FFD** offsets apply before the warp. Built on
+  pure, unit-tested cores (`SurfaceDeform`, the `DragonBonesImport` surface/deform
+  decode, `SampleDeform`). Ships with a generated, IP-free rippling-water example
+  (`scripts/gen_water_rig.py`, `Docs/examples/water_demo.py`) and
+  [how-to 32](Docs/howto/32-surface-deform.md).
+
 ## [0.5.0-beta] - 2026-07-06
 
 ### Added
