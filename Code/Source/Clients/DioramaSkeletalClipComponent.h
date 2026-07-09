@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <Clients/SimStateBus.h>
 #include <Clients/SkeletalClip.h>
+#include <Diorama/DioramaSimClockBus.h>
 #include <Diorama/DioramaSkeletalBus.h>
 
 #include <AzCore/Component/Component.h>
@@ -107,6 +109,10 @@ namespace Diorama
         float m_speed = 1.0f;
         //! Begin playing automatically on activate.
         bool m_autoPlay = true;
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render tick, so the
+        //! animation is deterministic and rollback-exact. With no clock in the level, falls back
+        //! to the render tick (editor preview included).
+        bool m_useSimClock = false;
         //! One track per animated bone.
         AZStd::vector<SkeletalBoneTrackData> m_tracks;
         //! Named alternative clips on the same rig, selectable via CrossFadeTo. Empty
@@ -149,6 +155,8 @@ namespace Diorama
         : public AZ::Component
         , protected AZ::TickBus::Handler
         , protected DioramaSkeletalRequestBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaSkeletalClipComponent, DioramaSkeletalClipComponentTypeId);
@@ -178,8 +186,25 @@ namespace Diorama
         void SetBlendParam(float value) override;
         float GetBlendParam() override;
         bool IsPlaying() override;
+        void SetUseSimClock(bool enabled) override;
+        bool GetUseSimClock() override;
+
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
+        // DioramaSimStateParticipantBus (snapshot / restore of playback position)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
 
     private:
+        static constexpr AZ::u32 SkeletalChunkTag = 0x4C454B53; // 'SKEL' little-endian
+
+        //! Advance the clip by deltaTime (render tick or one sim step) and pose the rig.
+        void Advance(float deltaTime);
+        //! The current clip's effective duration / looping: a runtime SetDuration / SetLooping
+        //! override if set (applies to whichever clip is current), else the clip's authored value.
+        float CurrentDuration() const;
+        bool CurrentLooping() const;
         //! One resolved blend-tree entry: an anchor and which clip backs it
         //! (m_clipIndex into m_config.m_clips, or -1 for the default clip).
         struct ResolvedBlendEntry
@@ -206,6 +231,14 @@ namespace Diorama
         int m_currentClipIndex = -1;
         float m_time = 0.0f;
         bool m_playing = false;
+        // Runtime playback state set via the bus and captured in the rollback snapshot: the speed
+        // (seeded from the config) and optional looping / duration overrides that apply to
+        // whichever clip is current (so SetLooping / SetDuration work after a cross-fade too).
+        float m_speed = 1.0f;
+        bool m_hasLoopOverride = false;
+        bool m_loopOverride = true;
+        bool m_hasDurationOverride = false;
+        float m_durationOverride = 1.0f;
         // Cross-fade state: when m_fadeIndex >= 0 the player blends from the current
         // clip toward m_config.m_clips[m_fadeIndex] over m_fadeDuration seconds, then
         // promotes the target to the current clip.

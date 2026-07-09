@@ -14,6 +14,7 @@
 #include <Clients/DioramaAsepriteComponent.h>
 #include <Clients/DioramaBulletEmitterComponent.h>
 #include <Clients/DioramaSimClockComponent.h>
+#include <Clients/DioramaSkeletalClipComponent.h>
 #include <Clients/SimStateBus.h>
 #include <Clients/SpriteComponent.h>
 
@@ -106,6 +107,7 @@ namespace Diorama
             m_app.RegisterComponentDescriptor(DioramaAsepriteComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaAnimStateMachineComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaBulletEmitterComponent::CreateDescriptor());
+            m_app.RegisterComponentDescriptor(DioramaSkeletalClipComponent::CreateDescriptor());
 
             m_systemEntity->Init();
             m_systemEntity->Activate();
@@ -334,6 +336,77 @@ namespace Diorama
         float speed = 0.0f;
         DioramaAnimStateMachineRequestBus::EventResult(speed, id, &DioramaAnimStateMachineRequests::GetFloat, AZStd::string("speed"));
         EXPECT_FLOAT_EQ(speed, 3.5f);
+        EXPECT_TRUE(SaveMigrationChunks(id) == image);
+    }
+
+    TEST_F(SimClockMigrationTest, SkeletalClockedAdvancesOnStepOnce)
+    {
+        // A short non-looping clip on the sim clock: the fixed steps advance it past its end,
+        // so IsPlaying goes false with no render tick (no bone entities needed to advance time).
+        DioramaSkeletalClipConfig config;
+        config.m_duration = 0.05f; // 3 steps at 60 steps/sec
+        config.m_looping = false;
+        config.m_autoPlay = true;
+        config.m_useSimClock = true;
+        AZ::Entity* e = aznew AZ::Entity("Skeletal");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkeletalClipComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        bool playing = false;
+        DioramaSkeletalRequestBus::EventResult(playing, id, &DioramaSkeletalRequests::IsPlaying);
+        EXPECT_TRUE(playing);
+
+        StepClock(6); // 0.1s > 0.05s duration
+
+        DioramaSkeletalRequestBus::EventResult(playing, id, &DioramaSkeletalRequests::IsPlaying);
+        EXPECT_FALSE(playing);
+        bool useSim = false;
+        DioramaSkeletalRequestBus::EventResult(useSim, id, &DioramaSkeletalRequests::GetUseSimClock);
+        EXPECT_TRUE(useSim);
+    }
+
+    TEST_F(SimClockMigrationTest, SkeletalChunkRoundTripsAndIsCanonical)
+    {
+        DioramaSkeletalClipConfig config;
+        config.m_duration = 1.0f;
+        config.m_looping = true;
+        config.m_autoPlay = true;
+        config.m_clips.resize(2);
+        config.m_clips[0].m_name = "walk";
+        config.m_clips[0].m_duration = 0.5f;
+        config.m_clips[1].m_name = "run";
+        config.m_clips[1].m_duration = 0.3f;
+        AZ::Entity* e = aznew AZ::Entity("Skeletal");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkeletalClipComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        // Drive to a distinctive state: current clip = walk (0), a blend param, a speed, and a
+        // looping override (which only sticks because the current clip is tracked by index).
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::CrossFadeTo, AZStd::string("walk"), 0.0f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.7f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetSpeed, 2.5f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetLooping, false);
+        const AZStd::vector<AZ::u8> image = SaveMigrationChunks(id);
+        ASSERT_FALSE(image.empty());
+
+        // Diverge: switch to run (clip 1) and a different blend param.
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::CrossFadeTo, AZStd::string("run"), 0.0f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.1f);
+        ASSERT_TRUE(RestoreMigrationChunks(id, image));
+
+        float blend = 0.0f;
+        DioramaSkeletalRequestBus::EventResult(blend, id, &DioramaSkeletalRequests::GetBlendParam);
+        EXPECT_FLOAT_EQ(blend, 0.7f);
+        // Canonical: re-saving after restore is byte-identical, so the current clip index, the
+        // speed, and the loop / duration overrides all round-trip, not just the blend param.
         EXPECT_TRUE(SaveMigrationChunks(id) == image);
     }
 } // namespace Diorama

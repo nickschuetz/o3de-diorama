@@ -216,6 +216,7 @@ namespace Diorama
                 ->Field("looping", &DioramaSkeletalClipConfig::m_looping)
                 ->Field("speed", &DioramaSkeletalClipConfig::m_speed)
                 ->Field("autoPlay", &DioramaSkeletalClipConfig::m_autoPlay)
+                ->Field("useSimClock", &DioramaSkeletalClipConfig::m_useSimClock)
                 ->Field("tracks", &DioramaSkeletalClipConfig::m_tracks)
                 ->Field("clips", &DioramaSkeletalClipConfig::m_clips)
                 ->Field("blendTree", &DioramaSkeletalClipConfig::m_blendTree);
@@ -232,6 +233,12 @@ namespace Diorama
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default, &DioramaSkeletalClipConfig::m_speed, "Speed", "Playback rate (negative = reverse)")
                     ->DataElement(AZ::Edit::UIHandlers::CheckBox, &DioramaSkeletalClipConfig::m_autoPlay, "Auto play", "Play on activate")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaSkeletalClipConfig::m_useSimClock,
+                        "Use simulation clock",
+                        "Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) instead of the render "
+                        "tick. Falls back to the render tick with no clock in the level.")
                     ->DataElement(AZ::Edit::UIHandlers::Default, &DioramaSkeletalClipConfig::m_tracks, "Tracks", "One per animated bone")
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
@@ -339,12 +346,20 @@ namespace Diorama
         m_currentClipIndex = -1;
         m_blendPhase = 0.0f;
         m_playing = m_config.m_autoPlay;
+        m_speed = m_config.m_speed; // seed the runtime speed from the config
+        m_hasLoopOverride = false;
+        m_hasDurationOverride = false;
         ResolveBlendTree();
 
         // Apply the opening pose so the rig is posed even before the first tick.
         ApplySkeletalPose(BlendTracks(m_currentClipIndex), m_bones, m_time);
 
         AZ::TickBus::Handler::BusConnect();
+        DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
+        if (m_config.m_useSimClock)
+        {
+            DioramaSimTickNotificationBus::Handler::BusConnect();
+        }
     }
 
     void DioramaSkeletalClipComponent::ResolveBlendTree()
@@ -409,13 +424,41 @@ namespace Diorama
                                                                                          : m_config.m_looping;
     }
 
+    float DioramaSkeletalClipComponent::CurrentDuration() const
+    {
+        return m_hasDurationOverride ? AZ::GetMax(m_durationOverride, AZ::Constants::FloatEpsilon) : BlendClipDuration(m_currentClipIndex);
+    }
+
+    bool DioramaSkeletalClipComponent::CurrentLooping() const
+    {
+        return m_hasLoopOverride ? m_loopOverride : BlendLooping(m_currentClipIndex);
+    }
+
     void DioramaSkeletalClipComponent::Deactivate()
     {
+        DioramaSimStateParticipantBus::Handler::BusDisconnect();
+        DioramaSimTickNotificationBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
         DioramaSkeletalRequestBus::Handler::BusDisconnect();
     }
 
     void DioramaSkeletalClipComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    {
+        // Use Simulation Clock mode: a running clock owns the advance (OnSimTick); with no clock
+        // the render tick advances (editor preview + non-fighting scenes).
+        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
+        {
+            return;
+        }
+        Advance(deltaTime);
+    }
+
+    void DioramaSkeletalClipComponent::OnSimTick([[maybe_unused]] AZ::s64 frame, float stepSeconds)
+    {
+        Advance(stepSeconds);
+    }
+
+    void DioramaSkeletalClipComponent::Advance(float deltaTime)
     {
         if (!m_playing)
         {
@@ -453,7 +496,7 @@ namespace Diorama
             // regardless of differing clip lengths. Advance by the blended duration so
             // the timeline reads smoothly as the parameter (and so the blend) shifts.
             const float blendedDuration = AZ::GetMax(AZ::Lerp(durLow, durHigh, bracket.m_weight), AZ::Constants::FloatEpsilon);
-            m_blendPhase += deltaTime * m_config.m_speed / blendedDuration;
+            m_blendPhase += deltaTime * m_speed / blendedDuration;
             m_blendPhase -= std::floor(m_blendPhase); // wrap into [0,1)
 
             ApplySkeletalPoseBlended(
@@ -466,11 +509,11 @@ namespace Diorama
             return;
         }
 
-        const float duration = AZ::GetMax(BlendClipDuration(m_currentClipIndex), AZ::Constants::FloatEpsilon);
+        const float duration = AZ::GetMax(CurrentDuration(), AZ::Constants::FloatEpsilon);
         const bool fading = m_fadeIndex >= 0 && m_fadeIndex < static_cast<int>(m_config.m_clips.size());
-        m_time += deltaTime * m_config.m_speed;
+        m_time += deltaTime * m_speed;
 
-        if (BlendLooping(m_currentClipIndex))
+        if (CurrentLooping())
         {
             // Wrap into [0, duration) for either play direction.
             m_time = std::fmod(m_time, duration);
@@ -494,7 +537,7 @@ namespace Diorama
         {
             const SkeletalNamedClipData& target = m_config.m_clips[m_fadeIndex];
             const float targetDuration = AZ::GetMax(target.m_duration, AZ::Constants::FloatEpsilon);
-            m_fadeTime += deltaTime * m_config.m_speed;
+            m_fadeTime += deltaTime * m_speed;
             if (target.m_looping)
             {
                 m_fadeTime = std::fmod(m_fadeTime, targetDuration);
@@ -579,23 +622,119 @@ namespace Diorama
     void DioramaSkeletalClipComponent::SetNormalizedTime(float normalizedTime)
     {
         const float clamped = AZ::GetClamp(normalizedTime, 0.0f, 1.0f);
-        m_time = clamped * AZ::GetMax(BlendClipDuration(m_currentClipIndex), AZ::Constants::FloatEpsilon);
+        m_time = clamped * AZ::GetMax(CurrentDuration(), AZ::Constants::FloatEpsilon);
         ApplySkeletalPose(BlendTracks(m_currentClipIndex), m_bones, m_time);
     }
 
     void DioramaSkeletalClipComponent::SetSpeed(float speed)
     {
-        m_config.m_speed = speed;
+        m_speed = speed;
     }
 
     void DioramaSkeletalClipComponent::SetLooping(bool looping)
     {
-        m_config.m_looping = looping;
+        m_hasLoopOverride = true;
+        m_loopOverride = looping;
     }
 
     void DioramaSkeletalClipComponent::SetDuration(float seconds)
     {
-        m_config.m_duration = AZ::GetMax(seconds, AZ::Constants::FloatEpsilon);
+        m_hasDurationOverride = true;
+        m_durationOverride = AZ::GetMax(seconds, AZ::Constants::FloatEpsilon);
+    }
+
+    void DioramaSkeletalClipComponent::SetUseSimClock(bool enabled)
+    {
+        m_config.m_useSimClock = enabled;
+        if (enabled)
+        {
+            if (!DioramaSimTickNotificationBus::Handler::BusIsConnected())
+            {
+                DioramaSimTickNotificationBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
+    }
+
+    bool DioramaSkeletalClipComponent::GetUseSimClock()
+    {
+        return m_config.m_useSimClock;
+    }
+
+    // ---- Snapshot / restore -----------------------------------------------------------
+    // Chunk payload: the runtime play state (which clip, time, fade + blend progress, and the
+    // speed / looping / duration overrides). The tracks and clip library are config, not state.
+
+    void DioramaSkeletalClipComponent::SaveSimState(SimState::Writer& writer)
+    {
+        const size_t sizePos = writer.BeginChunk(SkeletalChunkTag);
+        writer.S64(m_currentClipIndex);
+        writer.F32(m_time);
+        writer.U8(m_playing ? 1 : 0);
+        writer.S64(m_fadeIndex);
+        writer.F32(m_fadeTime);
+        writer.F32(m_fadeElapsed);
+        writer.F32(m_fadeDuration);
+        writer.F32(m_blendParam);
+        writer.F32(m_blendPhase);
+        writer.F32(m_speed);
+        writer.U8(m_hasLoopOverride ? 1 : 0);
+        writer.U8(m_loopOverride ? 1 : 0);
+        writer.U8(m_hasDurationOverride ? 1 : 0);
+        writer.F32(m_durationOverride);
+        writer.EndChunk(sizePos);
+    }
+
+    bool DioramaSkeletalClipComponent::TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload)
+    {
+        if (tag != SkeletalChunkTag)
+        {
+            return false;
+        }
+        AZ::s64 clipIndex = -1;
+        AZ::s64 fadeIndex = -1;
+        float time = 0.0f;
+        float fadeTime = 0.0f;
+        float fadeElapsed = 0.0f;
+        float fadeDuration = 0.0f;
+        float blendParam = 0.0f;
+        float blendPhase = 0.0f;
+        float speed = 1.0f;
+        float durationOverride = 1.0f;
+        AZ::u8 playing = 0;
+        AZ::u8 hasLoop = 0;
+        AZ::u8 loopOverride = 0;
+        AZ::u8 hasDuration = 0;
+        if (!payload.S64(clipIndex) || !payload.F32(time) || !payload.U8(playing) || !payload.S64(fadeIndex) || !payload.F32(fadeTime) ||
+            !payload.F32(fadeElapsed) || !payload.F32(fadeDuration) || !payload.F32(blendParam) || !payload.F32(blendPhase) ||
+            !payload.F32(speed) || !payload.U8(hasLoop) || !payload.U8(loopOverride) || !payload.U8(hasDuration) ||
+            !payload.F32(durationOverride))
+        {
+            return false;
+        }
+        // A re-authored config can shrink the clip list; an out-of-range index falls back to the
+        // default clip (-1) rather than indexing past the end.
+        const int clipCount = static_cast<int>(m_config.m_clips.size());
+        const int restoredClip = static_cast<int>(clipIndex);
+        m_currentClipIndex = (restoredClip >= 0 && restoredClip < clipCount) ? restoredClip : -1;
+        const int restoredFade = static_cast<int>(fadeIndex);
+        m_fadeIndex = (restoredFade >= 0 && restoredFade < clipCount) ? restoredFade : -1;
+        m_time = time;
+        m_playing = playing != 0;
+        m_fadeTime = fadeTime;
+        m_fadeElapsed = fadeElapsed;
+        m_fadeDuration = fadeDuration;
+        m_blendParam = blendParam;
+        m_blendPhase = blendPhase;
+        m_speed = speed;
+        m_hasLoopOverride = hasLoop != 0;
+        m_loopOverride = loopOverride != 0;
+        m_hasDurationOverride = hasDuration != 0;
+        m_durationOverride = durationOverride;
+        return true;
     }
 
     bool DioramaSkeletalClipComponent::IsPlaying()
