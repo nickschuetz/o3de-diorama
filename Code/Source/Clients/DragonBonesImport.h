@@ -18,11 +18,12 @@
 #include <cmath>
 
 // Core for importing DragonBones "*_ske.json" armature data (the open, Apache-2.0
-// 2D skeletal format; Spine is excluded for its proprietary runtime license). This
-// phase decodes the WEIGHTED-MESH family: a bone hierarchy plus meshes whose vertices
-// are skinned to those bones, which is exactly what MeshSkin.h deforms. The result is
-// a data model that drops straight onto MeshSkin's SkinnedVertex / Affine2D, so the
-// runtime component (a later phase) only has to pose the bones and CPU-skin.
+// 2D skeletal format; Spine is excluded for its proprietary runtime license). Decodes
+// both the WEIGHTED-MESH family (a bone hierarchy plus meshes whose vertices are skinned
+// to those bones, which is exactly what MeshSkin.h deforms) and SURFACE / FFD rigs (meshes
+// warped by a control-point grid, with per-vertex deform channels). The result is a data
+// model that drops straight onto MeshSkin's SkinnedVertex / Affine2D and SurfaceDeform's
+// grid, so the runtime component only has to pose the bones and CPU-skin or warp.
 //
 // The data model here and the transform decode are pure and unit tested; the only
 // engine-touching part is ParseDocument, which reads the JSON with AzCore's rapidjson
@@ -509,9 +510,9 @@ namespace Diorama::DragonBones
     }
 
     //! Parse a DragonBones "*_ske.json" armature document. Returns false on malformed JSON
-    //! (out is left cleared). Only mesh displays with weights (the skinned family) are
-    //! imported; rigid image/mesh displays without weights are skipped (a documented later
-    //! phase). Implemented in DragonBonesImport.cpp against AzCore rapidjson.
+    //! (out is left cleared). Weighted-mesh displays (the skinned family) and surface-bound
+    //! meshes are imported; plain rigid image displays (no weights, no surface parent) are
+    //! skipped. Implemented in DragonBonesImport.cpp against AzCore rapidjson.
     bool ParseDocument(AZStd::string_view json, Document& out);
 
     //! Find an armature by name (exact match); nullptr if absent.

@@ -37,10 +37,10 @@ namespace Diorama
     };
 
     //! Typed, agent-facing API for a skinned (mesh-deform) sprite, addressed by its
-    //! entity. Reflected Common, so a script, Script Canvas, or an agent poses the rig
-    //! the same way it drives every other Diorama feature. In this phase the pose is
-    //! driven directly (an extra rotation / offset per named bone); authored DragonBones
-    //! clips are a following phase and will layer under the same bus.
+    //! entity. Reflected Common, so a script, Script Canvas, or an agent drives the rig
+    //! the same way it drives every other Diorama feature: play authored DragonBones clips
+    //! (`PlayAnimation` / `StopAnimation` / `SetAnimationSpeed`) and layer per-bone pose
+    //! overrides (an extra rotation / translation per named bone) on top of the playing pose.
     class DioramaSkinnedSpriteRequests : public AZ::ComponentBus
     {
     public:
