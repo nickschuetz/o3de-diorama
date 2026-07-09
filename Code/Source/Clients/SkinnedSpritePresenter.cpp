@@ -62,7 +62,8 @@ namespace Diorama
                 ->Field("tint", &DioramaSkinnedSpriteConfig::m_tint)
                 ->Field("animationName", &DioramaSkinnedSpriteConfig::m_animationName)
                 ->Field("autoPlay", &DioramaSkinnedSpriteConfig::m_autoPlay)
-                ->Field("speed", &DioramaSkinnedSpriteConfig::m_speed);
+                ->Field("speed", &DioramaSkinnedSpriteConfig::m_speed)
+                ->Field("useSimClock", &DioramaSkinnedSpriteConfig::m_useSimClock);
 
             if (auto* editContext = serializeContext->GetEditContext())
             {
@@ -125,7 +126,13 @@ namespace Diorama
                         AZ::Edit::UIHandlers::Default,
                         &DioramaSkinnedSpriteConfig::m_speed,
                         "Speed",
-                        "Playback rate multiplier (negative plays in reverse).");
+                        "Playback rate multiplier (negative plays in reverse).")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::CheckBox,
+                        &DioramaSkinnedSpriteConfig::m_useSimClock,
+                        "Use simulation clock",
+                        "Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) instead of the render "
+                        "tick. Falls back to the render tick with no clock in the level.");
             }
         }
     }
@@ -739,5 +746,79 @@ namespace Diorama
             }
         }
         return info;
+    }
+
+    void SkinnedSpritePresenter::SaveState(SimState::Writer& writer) const
+    {
+        // The playing clip is a pointer into the armature's animations; store its index.
+        int clipIndex = -1;
+        if (m_animation != nullptr && m_armature != nullptr && !m_armature->m_animations.empty())
+        {
+            clipIndex = static_cast<int>(m_animation - m_armature->m_animations.data());
+        }
+        writer.S64(clipIndex);
+        writer.F32(m_animTime);
+        writer.U8(m_playing ? 1 : 0);
+        writer.U8(m_loop ? 1 : 0);
+        writer.F32(m_config.m_speed);
+        // Per-bone pose overrides (SetBoneRotation / SetBoneTranslation): count, then the rotation
+        // and translation for each bone.
+        const AZ::u32 count = static_cast<AZ::u32>(m_boneRotationDelta.size());
+        writer.U32(count);
+        for (AZ::u32 i = 0; i < count; ++i)
+        {
+            writer.F32(m_boneRotationDelta[i]);
+            const AZ::Vector2 t = (i < m_boneTranslationDelta.size()) ? m_boneTranslationDelta[i] : AZ::Vector2::CreateZero();
+            writer.F32(t.GetX());
+            writer.F32(t.GetY());
+        }
+    }
+
+    bool SkinnedSpritePresenter::RestoreState(SimState::Reader& reader)
+    {
+        AZ::s64 clipIndex = -1;
+        float animTime = 0.0f;
+        float speed = 1.0f;
+        AZ::u8 playing = 0;
+        AZ::u8 loop = 1;
+        AZ::u32 count = 0;
+        if (!reader.S64(clipIndex) || !reader.F32(animTime) || !reader.U8(playing) || !reader.U8(loop) || !reader.F32(speed) ||
+            !reader.U32(count))
+        {
+            return false;
+        }
+        // A re-authored rig can change the animation list; an out-of-range index clears the clip
+        // rather than indexing past the end.
+        if (m_armature != nullptr && clipIndex >= 0 && clipIndex < static_cast<AZ::s64>(m_armature->m_animations.size()))
+        {
+            m_animation = &m_armature->m_animations[static_cast<size_t>(clipIndex)];
+        }
+        else
+        {
+            m_animation = nullptr;
+        }
+        m_animTime = animTime;
+        m_playing = playing != 0;
+        m_loop = loop != 0;
+        m_config.m_speed = speed;
+        for (AZ::u32 i = 0; i < count; ++i)
+        {
+            float rot = 0.0f;
+            float tx = 0.0f;
+            float ty = 0.0f;
+            if (!reader.F32(rot) || !reader.F32(tx) || !reader.F32(ty))
+            {
+                return false;
+            }
+            if (i < m_boneRotationDelta.size())
+            {
+                m_boneRotationDelta[i] = rot;
+            }
+            if (i < m_boneTranslationDelta.size())
+            {
+                m_boneTranslationDelta[i] = AZ::Vector2(tx, ty);
+            }
+        }
+        return true;
     }
 } // namespace Diorama

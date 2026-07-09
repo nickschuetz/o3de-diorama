@@ -15,6 +15,7 @@
 #include <Clients/DioramaBulletEmitterComponent.h>
 #include <Clients/DioramaSimClockComponent.h>
 #include <Clients/DioramaSkeletalClipComponent.h>
+#include <Clients/DioramaSkinnedSpriteComponent.h>
 #include <Clients/SimStateBus.h>
 #include <Clients/SpriteComponent.h>
 
@@ -108,6 +109,7 @@ namespace Diorama
             m_app.RegisterComponentDescriptor(DioramaAnimStateMachineComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaBulletEmitterComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaSkeletalClipComponent::CreateDescriptor());
+            m_app.RegisterComponentDescriptor(DioramaSkinnedSpriteComponent::CreateDescriptor());
 
             m_systemEntity->Init();
             m_systemEntity->Activate();
@@ -408,5 +410,49 @@ namespace Diorama
         // Canonical: re-saving after restore is byte-identical, so the current clip index, the
         // speed, and the loop / duration overrides all round-trip, not just the blend param.
         EXPECT_TRUE(SaveMigrationChunks(id) == image);
+    }
+
+    TEST_F(SimClockMigrationTest, SkinnedSpriteChunkRoundTripsAndIsCanonical)
+    {
+        // No rig is loaded here (a real DragonBones armature needs an asset), so the play state
+        // is minimal; but the 'SKIN' chunk mechanism and the runtime scalars (incl. the speed set
+        // via the bus) must round-trip byte-identically. A rig-driven determinism check is a
+        // monitor verify (Phase C).
+        DioramaSkinnedSpriteConfig config;
+        AZ::Entity* e = aznew AZ::Entity("Skinned");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkinnedSpriteComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetAnimationSpeed, 2.5f);
+        const AZStd::vector<AZ::u8> image = SaveMigrationChunks(id);
+        ASSERT_FALSE(image.empty());
+
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetAnimationSpeed, 1.0f);
+        ASSERT_TRUE(RestoreMigrationChunks(id, image));
+        EXPECT_TRUE(SaveMigrationChunks(id) == image);
+    }
+
+    TEST_F(SimClockMigrationTest, SkinnedSpriteUseSimClockVerbToggles)
+    {
+        DioramaSkinnedSpriteConfig config;
+        config.m_useSimClock = false;
+        AZ::Entity* e = aznew AZ::Entity("Skinned");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkinnedSpriteComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        bool useSim = true;
+        DioramaSkinnedSpriteRequestBus::EventResult(useSim, id, &DioramaSkinnedSpriteRequests::GetUseSimClock);
+        EXPECT_FALSE(useSim);
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetUseSimClock, true);
+        DioramaSkinnedSpriteRequestBus::EventResult(useSim, id, &DioramaSkinnedSpriteRequests::GetUseSimClock);
+        EXPECT_TRUE(useSim);
     }
 } // namespace Diorama

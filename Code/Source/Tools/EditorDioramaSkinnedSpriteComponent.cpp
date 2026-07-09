@@ -80,6 +80,18 @@ namespace Diorama
         return m_presenter.GetInfo();
     }
 
+    void EditorDioramaSkinnedSpriteComponent::SetUseSimClock(bool enabled)
+    {
+        // Editor preview always advances on the render tick; store the flag so it carries into
+        // the built game entity.
+        m_config.m_useSimClock = enabled;
+    }
+
+    bool EditorDioramaSkinnedSpriteComponent::GetUseSimClock()
+    {
+        return m_config.m_useSimClock;
+    }
+
     void EditorDioramaSkinnedSpriteComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
     {
         m_presenter.Tick(deltaTime);

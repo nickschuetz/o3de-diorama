@@ -9,6 +9,7 @@
 
 #include <Clients/DragonBonesImport.h>
 #include <Clients/MeshSkin.h>
+#include <Clients/SimState.h>
 #include <Clients/SpriteFeatureProcessor.h>
 #include <Clients/SurfaceDeform.h>
 #include <Diorama/DioramaSkinnedSpriteBus.h>
@@ -68,6 +69,10 @@ namespace Diorama
         bool m_autoPlay = true;
         //! Playback rate multiplier (negative plays in reverse).
         float m_speed = 1.0f;
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render tick, so the
+        //! animation is deterministic and rollback-exact. Falls back to the render tick with no
+        //! clock in the level (editor preview included).
+        bool m_useSimClock = false;
     };
 
     //! Shared helper that turns a DragonBones weighted-mesh config into deformed geometry on
@@ -114,6 +119,12 @@ namespace Diorama
 
         //! Read-only snapshot of the loaded rig and draw state.
         SkinnedSpriteInfo GetInfo() const;
+
+        //! Write / read the runtime play state (current clip, time, playing, loop, speed, and the
+        //! per-bone pose overrides) for the 2D Simulation Clock's rollback snapshot. The armature
+        //! and meshes are config, not state.
+        void SaveState(SimState::Writer& writer) const;
+        bool RestoreState(SimState::Reader& reader);
 
     private:
         struct RuntimeMesh

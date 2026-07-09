@@ -71,6 +71,12 @@ namespace Diorama
 
         //! Read-only snapshot of the loaded rig and draw state.
         virtual SkinnedSpriteInfo GetSkinnedSpriteInfo() = 0;
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render tick, so the
+        //! animation is deterministic and rollback-exact. With no clock in the level, falls back
+        //! to the render tick (editor preview included).
+        virtual void SetUseSimClock(bool enabled) = 0;
+        //! Whether the rig advances on the simulation clock (see SetUseSimClock).
+        virtual bool GetUseSimClock() = 0;
     };
 
     using DioramaSkinnedSpriteRequestBus = AZ::EBus<DioramaSkinnedSpriteRequests>;

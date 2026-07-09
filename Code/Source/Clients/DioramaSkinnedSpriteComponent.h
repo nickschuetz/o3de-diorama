@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <Clients/SimStateBus.h>
 #include <Clients/SkinnedSpritePresenter.h>
+#include <Diorama/DioramaSimClockBus.h>
 #include <Diorama/DioramaSkinnedSpriteBus.h>
 
 #include <AzCore/Component/Component.h>
@@ -25,6 +27,8 @@ namespace Diorama
         : public AZ::Component
         , protected AZ::TickBus::Handler
         , protected DioramaSkinnedSpriteRequestBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaSkinnedSpriteComponent, DioramaSkinnedSpriteComponentTypeId);
@@ -55,8 +59,19 @@ namespace Diorama
         void SetBoneTranslation(const AZStd::string& boneName, float x, float y) override;
         void ResetPose() override;
         SkinnedSpriteInfo GetSkinnedSpriteInfo() override;
+        void SetUseSimClock(bool enabled) override;
+        bool GetUseSimClock() override;
+
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
+        // DioramaSimStateParticipantBus (snapshot / restore of playback position)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
 
     private:
+        static constexpr AZ::u32 SkinnedChunkTag = 0x4E494B53; // 'SKIN' little-endian
+
         DioramaSkinnedSpriteConfig m_config;
         SkinnedSpritePresenter m_presenter;
     };

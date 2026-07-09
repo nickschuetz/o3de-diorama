@@ -55,6 +55,8 @@ namespace Diorama
         void SetBoneTranslation(const AZStd::string& boneName, float x, float y) override;
         void ResetPose() override;
         SkinnedSpriteInfo GetSkinnedSpriteInfo() override;
+        void SetUseSimClock(bool enabled) override;
+        bool GetUseSimClock() override;
 
     private:
         //! Rebuild the preview rig when a property changes.
