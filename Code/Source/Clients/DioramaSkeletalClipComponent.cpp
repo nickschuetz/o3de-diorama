@@ -258,16 +258,16 @@ namespace Diorama
         return bones;
     }
 
-    void ApplySkeletalPose(const DioramaSkeletalClipConfig& config, const AZStd::vector<AZ::EntityId>& bones, float timeSeconds)
+    void ApplySkeletalPose(const AZStd::vector<SkeletalBoneTrackData>& tracks, const AZStd::vector<AZ::EntityId>& bones, float timeSeconds)
     {
-        const size_t count = AZ::GetMin(bones.size(), config.m_tracks.size());
+        const size_t count = AZ::GetMin(bones.size(), tracks.size());
         for (size_t i = 0; i < count; ++i)
         {
             if (!bones[i].IsValid())
             {
                 continue;
             }
-            const AZStd::vector<SkeletalClip::Keyframe> keys = BuildPureTrack(config.m_tracks[i]);
+            const AZStd::vector<SkeletalClip::Keyframe> keys = BuildPureTrack(tracks[i]);
             const SkeletalClip::Pose pose =
                 SkeletalClip::SampleTrack(AZStd::span<const SkeletalClip::Keyframe>(keys.data(), keys.size()), timeSeconds);
 
@@ -336,12 +336,13 @@ namespace Diorama
 
         m_bones = ResolveSkeletalBones(GetEntityId(), m_config);
         m_time = 0.0f;
+        m_currentClipIndex = -1;
         m_blendPhase = 0.0f;
         m_playing = m_config.m_autoPlay;
         ResolveBlendTree();
 
         // Apply the opening pose so the rig is posed even before the first tick.
-        ApplySkeletalPose(m_config, m_bones, m_time);
+        ApplySkeletalPose(BlendTracks(m_currentClipIndex), m_bones, m_time);
 
         AZ::TickBus::Handler::BusConnect();
     }
@@ -402,6 +403,12 @@ namespace Diorama
         return AZ::GetMax(duration, AZ::Constants::FloatEpsilon);
     }
 
+    bool DioramaSkeletalClipComponent::BlendLooping(int clipIndex) const
+    {
+        return (clipIndex >= 0 && clipIndex < static_cast<int>(m_config.m_clips.size())) ? m_config.m_clips[clipIndex].m_looping
+                                                                                         : m_config.m_looping;
+    }
+
     void DioramaSkeletalClipComponent::Deactivate()
     {
         AZ::TickBus::Handler::BusDisconnect();
@@ -459,11 +466,11 @@ namespace Diorama
             return;
         }
 
-        const float duration = AZ::GetMax(m_config.m_duration, AZ::Constants::FloatEpsilon);
+        const float duration = AZ::GetMax(BlendClipDuration(m_currentClipIndex), AZ::Constants::FloatEpsilon);
         const bool fading = m_fadeIndex >= 0 && m_fadeIndex < static_cast<int>(m_config.m_clips.size());
         m_time += deltaTime * m_config.m_speed;
 
-        if (m_config.m_looping)
+        if (BlendLooping(m_currentClipIndex))
         {
             // Wrap into [0, duration) for either play direction.
             m_time = std::fmod(m_time, duration);
@@ -503,21 +510,21 @@ namespace Diorama
 
             m_fadeElapsed += deltaTime >= 0.0f ? deltaTime : -deltaTime; // fade by wall-time magnitude
             const float weight = SkeletalClip::CrossfadeWeight(m_fadeElapsed, m_fadeDuration);
-            ApplySkeletalPoseBlended(m_config.m_tracks, m_time, target.m_tracks, m_fadeTime, m_bones, weight);
+            ApplySkeletalPoseBlended(BlendTracks(m_currentClipIndex), m_time, target.m_tracks, m_fadeTime, m_bones, weight);
 
             if (weight >= 1.0f)
             {
-                // The fade finished: promote the target to the current clip.
-                m_config.m_tracks = target.m_tracks;
-                m_config.m_duration = target.m_duration;
-                m_config.m_looping = target.m_looping;
+                // The fade finished: the target becomes the current clip, tracked by index so
+                // the authored config is never mutated (which would drift the "default" clip and
+                // break rollback restore).
+                m_currentClipIndex = m_fadeIndex;
                 m_time = m_fadeTime;
                 m_fadeIndex = -1;
             }
             return;
         }
 
-        ApplySkeletalPose(m_config, m_bones, m_time);
+        ApplySkeletalPose(BlendTracks(m_currentClipIndex), m_bones, m_time);
     }
 
     void DioramaSkeletalClipComponent::CrossFadeTo(const AZStd::string& clipName, float durationSeconds)
@@ -532,13 +539,12 @@ namespace Diorama
             const float fadeDuration = durationSeconds > 0.0f ? durationSeconds : 0.0f;
             if (fadeDuration <= 0.0f)
             {
-                // Instant switch: promote immediately and pose the target's start.
-                m_config.m_duration = m_config.m_clips[i].m_duration;
-                m_config.m_looping = m_config.m_clips[i].m_looping;
-                m_config.m_tracks = m_config.m_clips[i].m_tracks;
+                // Instant switch: the target becomes the current clip (by index) and we pose its
+                // start, without mutating the authored config.
+                m_currentClipIndex = static_cast<int>(i);
                 m_time = 0.0f;
                 m_fadeIndex = -1;
-                ApplySkeletalPose(m_config, m_bones, m_time);
+                ApplySkeletalPose(BlendTracks(m_currentClipIndex), m_bones, m_time);
                 return;
             }
             m_fadeIndex = static_cast<int>(i);
@@ -573,8 +579,8 @@ namespace Diorama
     void DioramaSkeletalClipComponent::SetNormalizedTime(float normalizedTime)
     {
         const float clamped = AZ::GetClamp(normalizedTime, 0.0f, 1.0f);
-        m_time = clamped * AZ::GetMax(m_config.m_duration, AZ::Constants::FloatEpsilon);
-        ApplySkeletalPose(m_config, m_bones, m_time);
+        m_time = clamped * AZ::GetMax(BlendClipDuration(m_currentClipIndex), AZ::Constants::FloatEpsilon);
+        ApplySkeletalPose(BlendTracks(m_currentClipIndex), m_bones, m_time);
     }
 
     void DioramaSkeletalClipComponent::SetSpeed(float speed)

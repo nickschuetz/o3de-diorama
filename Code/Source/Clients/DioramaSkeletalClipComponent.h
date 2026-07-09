@@ -124,9 +124,9 @@ namespace Diorama
     //! order; an unmatched name yields an invalid id (that track is skipped).
     AZStd::vector<AZ::EntityId> ResolveSkeletalBones(AZ::EntityId root, const DioramaSkeletalClipConfig& config);
 
-    //! Sample the config at timeSeconds and apply each track's local transform to its
-    //! resolved bone entity via TransformBus. bones must align with config.m_tracks.
-    void ApplySkeletalPose(const DioramaSkeletalClipConfig& config, const AZStd::vector<AZ::EntityId>& bones, float timeSeconds);
+    //! Sample the given tracks at timeSeconds and apply each track's local transform to its
+    //! resolved bone entity via TransformBus. bones must align with tracks (index order).
+    void ApplySkeletalPose(const AZStd::vector<SkeletalBoneTrackData>& tracks, const AZStd::vector<AZ::EntityId>& bones, float timeSeconds);
 
     //! Apply a per-bone cross-fade of two clips: sample tracksA at timeA and tracksB at
     //! timeB, blend each bone's pose by weight (0 = A, 1 = B) with SkeletalClip::BlendPose,
@@ -191,12 +191,19 @@ namespace Diorama
         //! Build m_blendEntries / m_blendAnchors from m_config.m_blendTree (sorted by
         //! anchor, names resolved to clip indices). Sets m_blendActive.
         void ResolveBlendTree();
-        //! Tracks / duration backing a resolved blend entry's clip index (-1 = default).
+        //! Tracks / duration / looping backing a clip index (-1 = the default clip). Used both
+        //! by the blend tree and to read the current clip without mutating the authored config.
         const AZStd::vector<SkeletalBoneTrackData>& BlendTracks(int clipIndex) const;
         float BlendClipDuration(int clipIndex) const;
+        bool BlendLooping(int clipIndex) const;
 
         DioramaSkeletalClipConfig m_config;
         AZStd::vector<AZ::EntityId> m_bones;
+        //! Which clip is currently playing: -1 = the default (config's own tracks), else an index
+        //! into m_config.m_clips. A finished cross-fade / instant switch sets this instead of
+        //! overwriting the config, so the authored clips never drift and the state is a single int
+        //! the rollback snapshot can hold.
+        int m_currentClipIndex = -1;
         float m_time = 0.0f;
         bool m_playing = false;
         // Cross-fade state: when m_fadeIndex >= 0 the player blends from the current
