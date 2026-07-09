@@ -9,6 +9,10 @@
 
 #include <AzCore/Component/ComponentApplication.h>
 #include <AzCore/Component/Entity.h>
+#include <AzCore/IO/FileIO.h>
+#include <AzFramework/IO/LocalFileIO.h>
+
+#include <filesystem>
 
 #include <Clients/DioramaAnimStateMachineComponent.h>
 #include <Clients/DioramaAsepriteComponent.h>
@@ -90,6 +94,59 @@ namespace Diorama
             }
             return reader.Ok();
         }
+
+        //! Write text to a path through the file IO (the fixture installs a LocalFileIO), so a
+        //! component that loads a source file can be exercised headlessly.
+        bool WriteTextFile(const char* path, const AZStd::string& text)
+        {
+            AZ::IO::FileIOBase* io = AZ::IO::FileIOBase::GetInstance();
+            if (io == nullptr)
+            {
+                return false;
+            }
+            AZ::IO::HandleType handle = AZ::IO::InvalidHandle;
+            if (!io->Open(path, AZ::IO::OpenMode::ModeWrite, handle))
+            {
+                return false;
+            }
+            AZ::u64 written = 0;
+            io->Write(handle, text.data(), text.size(), &written);
+            io->Close(handle);
+            return written == text.size();
+        }
+
+        //! A minimal DragonBones weighted-mesh armature (root -> upper -> lower, one skinned
+        //! mesh) so SkinnedSpritePresenter::BuildRig produces a real bone map; without a loaded
+        //! rig, SetBoneRotation has no bone to address and the pose-override path is untestable.
+        constexpr const char* kSkinnedRigJson = R"JSON(
+        {
+          "name": "puppet",
+          "frameRate": 24,
+          "armature": [{
+            "name": "arm",
+            "bone": [
+              { "name": "root" },
+              { "name": "upper", "parent": "root", "transform": { "x": 10, "y": 0, "skX": 90, "skY": 90 } },
+              { "name": "lower", "parent": "upper", "transform": { "x": 5, "y": 0 } }
+            ],
+            "slot": [ { "name": "behind" }, { "name": "limb" } ],
+            "skin": [{
+              "slot": [{
+                "name": "limb",
+                "display": [{
+                  "type": "mesh",
+                  "name": "puppet/limb",
+                  "vertices": [0, 0, 2, 0, 4, 0],
+                  "uvs": [0, 0, 0.5, 0, 1, 0],
+                  "triangles": [0, 1, 2],
+                  "slotPose": [1, 0, 0, 1, 100, 0],
+                  "bonePose": [1, 1, 0, 0, 1, 10, 0, 2, 1, 0, 0, 1, 15, 0],
+                  "weights": [1, 1, 1, 2, 1, 0.25, 2, 0.75, 1, 2, 1]
+                }]
+              }]
+            }]
+          }]
+        })JSON";
     } // namespace
 
     class SimClockMigrationTest : public ::testing::Test
@@ -116,6 +173,16 @@ namespace Diorama
             m_systemEntity->Init();
             m_systemEntity->Activate();
 
+            // A component that loads a source file (the skinned rig) needs a FileIOBase; the
+            // bare ComponentApplication does not install the plain instance. File-less tests are
+            // unaffected (they pass empty paths, which short-circuit before any IO).
+            m_prevFileIO = AZ::IO::FileIOBase::GetInstance();
+            if (m_prevFileIO != nullptr)
+            {
+                AZ::IO::FileIOBase::SetInstance(nullptr);
+            }
+            AZ::IO::FileIOBase::SetInstance(&m_fileIO);
+
             DioramaSimClockConfig clockConfig;
             clockConfig.m_startPaused = true; // every step is an explicit StepOnce
             m_clockEntity = aznew AZ::Entity("SimClock");
@@ -134,6 +201,12 @@ namespace Diorama
             m_entities.clear();
             m_clockEntity->Deactivate();
             delete m_clockEntity;
+
+            AZ::IO::FileIOBase::SetInstance(nullptr);
+            if (m_prevFileIO != nullptr)
+            {
+                AZ::IO::FileIOBase::SetInstance(m_prevFileIO);
+            }
             m_app.Destroy();
         }
 
@@ -146,6 +219,8 @@ namespace Diorama
         }
 
         AZ::ComponentApplication m_app;
+        AZ::IO::LocalFileIO m_fileIO;
+        AZ::IO::FileIOBase* m_prevFileIO = nullptr;
         AZ::Entity* m_systemEntity = nullptr;
         AZ::Entity* m_clockEntity = nullptr;
         AZStd::vector<AZ::Entity*> m_entities;
@@ -472,6 +547,56 @@ namespace Diorama
         float blend = 0.0f;
         DioramaSkeletalRequestBus::EventResult(blend, id, &DioramaSkeletalRequests::GetBlendParam);
         EXPECT_FLOAT_EQ(blend, 0.7f);
+    }
+
+    TEST_F(SimClockMigrationTest, SkinnedPoseOverrideRoundTripsThroughClockSlotCapture)
+    {
+        // A skinned character's per-bone pose overrides (SetBoneRotation, e.g. a fighting-move
+        // pin) are part of the rollback snapshot. With a real loaded rig, pose a bone, capture
+        // through the clock (SaveToSlot -> CaptureFrame walks the marker registry), diverge, and
+        // restore (RestoreFromSlot): the exact pose comes back. This exercises the 'SKIN' chunk's
+        // per-bone override path end to end, which the no-rig round-trip above cannot reach
+        // (SetBoneRotation needs the bone map that only a loaded armature provides).
+        const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "diorama_skinned_rollback_ske.json";
+        const AZStd::string rigPath(tmp.string().c_str());
+        ASSERT_TRUE(WriteTextFile(rigPath.c_str(), kSkinnedRigJson));
+
+        DioramaSkinnedSpriteConfig config;
+        config.m_sourcePath = rigPath;
+        config.m_useSimClock = true;
+        AZ::Entity* e = aznew AZ::Entity("SkinnedFighter");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkinnedSpriteComponent>(config);
+        e->CreateComponent<DioramaSimStateComponent>(); // marker: enrolls this entity in capture
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        // The rig must actually be loaded, or SetBoneRotation is a no-op and the test is vacuous.
+        SkinnedSpriteInfo info;
+        DioramaSkinnedSpriteRequestBus::EventResult(info, id, &DioramaSkinnedSpriteRequests::GetSkinnedSpriteInfo);
+        ASSERT_TRUE(info.m_loaded);
+        ASSERT_EQ(info.m_boneCount, 3);
+
+        // Baseline (bind pose) vs a posed chunk: the override must actually change the snapshot.
+        const AZStd::vector<AZ::u8> baseline = SaveMigrationChunks(id);
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetBoneRotation, AZStd::string("upper"), 45.0f);
+        const AZStd::vector<AZ::u8> posed = SaveMigrationChunks(id);
+        ASSERT_FALSE(posed == baseline);
+
+        // Capture the posed frame through the clock, diverge the pose, then restore through it.
+        DioramaSimClockRequestBus::Broadcast(&DioramaSimClockRequests::SaveToSlot, 0);
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetBoneRotation, AZStd::string("upper"), -30.0f);
+        bool restored = false;
+        DioramaSimClockRequestBus::BroadcastResult(restored, &DioramaSimClockRequests::RestoreFromSlot, 0);
+        EXPECT_TRUE(restored);
+
+        // The pose override is back to exactly what the clock captured (byte-identical chunk).
+        const AZStd::vector<AZ::u8> afterRestore = SaveMigrationChunks(id);
+        EXPECT_TRUE(afterRestore == posed);
+
+        m_fileIO.Remove(rigPath.c_str());
     }
 
     TEST_F(SimClockMigrationTest, SkinnedSpriteUseSimClockVerbToggles)
