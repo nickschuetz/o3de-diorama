@@ -44,10 +44,12 @@ The clock is driven over `DioramaSimClockRequestBus`: `GetSimFrame`, `SetPaused`
 
 ## Putting Diorama components on the clock
 
-Five gameplay-relevant components carry a **Use Simulation Clock** checkbox (and a
+Seven gameplay-relevant components carry a **Use Simulation Clock** checkbox (and a
 matching `SetUseSimClock` verb on their request bus): the Sprite's sheet playback,
-the Aseprite player, the animation state machine, the frame-data hitbox rig, and
-the bullet emitter. Flagged on, they advance on the clock's fixed steps; the render
+the Aseprite player, the animation state machine, the frame-data hitbox rig, the
+bullet emitter, and the two character-animation players (the Skeletal Clip cutout
+player and the Skinned Sprite mesh-deform player). Flagged on, they advance on the
+clock's fixed steps; the render
 tick stands down while a clock is running (and takes back over if no clock exists,
 so an editor preview still plays). The bullet emitter's render tick keeps pushing
 the current pool to the renderer; firing, integration, and hit-testing move to the

@@ -328,10 +328,12 @@ Missing table-stakes (no design doc yet):
   tie-breaks), the per-sim-frame input ring with `InjectActionState`, a rewind
   sample, and a headless determinism proof that runs in CI on every PR. The netcode
   itself stays with O3DE Multiplayer / middleware. The sim-clock migration followed:
-  the five render-tick gameplay components (Sprite playback, Aseprite, the state
-  machine, the hitbox rig, the bullet emitter) carry a **Use Simulation Clock**
-  flag (+ `SetUseSimClock` verb) that advances them on the fixed step, with
-  snapshot chunks for the three playback positions. (2)
+  seven render-tick gameplay components (Sprite playback, Aseprite, the state
+  machine, the hitbox rig, the bullet emitter, and the Skeletal Clip + Skinned Sprite
+  character-animation players) carry a **Use Simulation Clock** flag (+ `SetUseSimClock`
+  verb) that advances them on the fixed step, each with a snapshot chunk for its playback
+  position - so a mesh-deform / cutout character and its bone-attached hitboxes are
+  rollback-exact. (2)
   [design/2d-box-interactions.md](design/2d-box-interactions.md) **Shipped**
   ([howto/21-fighting.md](howto/21-fighting.md)): the hitbox rig grew typed kinds
   (pushbox, throwbox/throwable, armor, proximity), per-box **attack payloads** (damage,

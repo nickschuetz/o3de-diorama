@@ -3,7 +3,8 @@
 Status: **shipped** (phases A-D, PRs #112/#115/#114; see
 [howto/30-deterministic-sim.md](../howto/30-deterministic-sim.md)). The render-tick
 components (Sprite playback, Aseprite, the animation state machine, the hitbox rig,
-the bullet emitter) have since been migrated onto the sim clock via a per-component
+the bullet emitter, and the Skeletal Clip + Skinned Sprite character-animation players)
+have since been migrated onto the sim clock via a per-component
 **Use Simulation Clock** flag, and the clock gained a timed **super-freeze**
 (`FreezeFor`). Companion doc:
 [2d-box-interactions.md](2d-box-interactions.md) (typed boxes + attack payloads).

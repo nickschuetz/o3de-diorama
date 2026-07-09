@@ -67,6 +67,16 @@ DioramaSkeletalRequestBus.Event.Stop(self.entityId)
 `IsPlaying` reads back whether the clip is advancing, so a script can sequence one clip
 after another without a screenshot.
 
+## Deterministic playback (fighting / rollback)
+
+Tick the **Use Simulation Clock** checkbox (or call `SetUseSimClock(true)`) to advance the
+rig on the [2D Simulation Clock](30-deterministic-sim.md)'s fixed steps instead of the
+render tick. The play state (current clip, time, cross-fade / blend progress, speed) then
+lives in the clock's rollback snapshot, so the animation is deterministic and rewinds
+exactly, and a [bone-attached hitbox](21-fighting.md) riding the rig is rollback-exact too.
+With no clock in the level it falls back to the render tick, so the editor preview and
+non-fighting scenes are unchanged.
+
 ## Cross-fade between clips
 
 A character usually has more than one animation on the same rig (idle, walk, attack).
