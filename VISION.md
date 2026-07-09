@@ -10,7 +10,7 @@ Diorama is a gem that makes O3DE a credible engine for 2D and 2.5D games by addi
 
 ## What 2D and 2.5D mean here
 
-- 2D: flat content composed in the world. Sprites, tilemaps, sprite-sheet animation, orthographic and pixel-perfect cameras.
+- 2D: flat content composed in the world. Sprites, tilemaps, sprite-sheet and skeletal animation (cutout, DragonBones weighted-mesh and surface / FFD deform), orthographic and pixel-perfect cameras.
 - 2.5D: those flat elements living inside a real 3D scene. Camera-facing billboards, depth-sorted layers, parallax, and free mixing of sprites with 3D geometry, lighting, physics, and post effects.
 
 The same components serve both. 2.5D is what you get for free by rendering 2D through a 3D renderer instead of maintaining a separate 2D pipeline.
@@ -50,4 +50,4 @@ Concretely, success means:
 
 - **Real and trusted.** The gem builds with its unit tests green on both Linux and Windows, ships an SBOM and a security policy, and stays a clean, upstreamable gem: no engine fork, and no Qt or AzToolsFramework in shipped clients.
 - **Every feature reachable two ways.** Each runtime knob is in the Inspector and on a typed request bus, so a human authors in the editor and a script or an AI agent drives the exact same API. That parity is a deliberate bet that a lot of new 2D/2.5D games will be built with AI assistance.
-- **Broad enough to earn its place upstream.** Sprites, tilemaps with autotiling, 2.5D depth and parallax, dynamic lighting, particles, post, a 2D camera, collision, and animation (including native Aseprite import) cover what indie, mobile, and education projects actually need, making O3DE a credible 2D/2.5D choice, with fixes found along the way contributed back to the engine.
+- **Broad enough to earn its place upstream.** Sprites, tilemaps with autotiling, 2.5D depth and parallax, dynamic lighting, particles, post, a 2D camera, collision, and animation (skeletal cutout, DragonBones mesh and surface / FFD deform, and native Aseprite import) cover what indie, mobile, and education projects actually need, making O3DE a credible 2D/2.5D choice, with fixes found along the way contributed back to the engine.
