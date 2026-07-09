@@ -18,8 +18,8 @@ namespace Diorama
     //! DioramaTilemapAsset product (*.dtilemapc) a TilemapComponent can reference, so
     //! a large map no longer inlines its tile array into the prefab/level.
     //!
-    //! The source format is Diorama's own open JSON; a Tiled (.tmj) importer emitting
-    //! the same product is the planned follow-up.
+    //! Two source formats emit the same product: Diorama's own open JSON and Tiled's
+    //! (.tmj) map export.
     class DioramaTilemapBuilder final : public AssetBuilderSDK::AssetBuilderCommandBus::Handler
     {
     public:
