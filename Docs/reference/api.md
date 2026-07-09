@@ -5,9 +5,10 @@ This is the programmer and agent view of Diorama: the typed EBuses that scripts
 tilemaps, the 2D camera, lights, particles, parallax, collision, UI, audio, and the
 CRT overlay. It is organized by call and signature. For the same parameters organized by visual
 effect (what each value looks like on screen, with screenshots and ranges), see
-the parameter references: [Sprite component](./sprite-component.md) and
-[Tilemap component](./tilemap-component.md). This document cross-links to those
-rather than repeating the effect descriptions.
+the parameter references: [Sprite component](./sprite-component.md),
+[Tilemap component](./tilemap-component.md), and
+[Skinned Sprite component](./skinned-sprite-component.md). This document cross-links to
+those rather than repeating the effect descriptions.
 
 ## The buses are the front door
 
@@ -354,7 +355,9 @@ how-to [32-surface-deform](../howto/32-surface-deform.md)). The verbs below are 
 both: `PlayAnimation` / `StopAnimation` / `SetAnimationSpeed` drive clips (including
 surface-deform clips and type-40 parameter-driven clips), and the pose overrides add on
 top of the playing (or bind) pose.
-Bones are named by the DragonBones armature; an unknown bone name is ignored.
+Bones are named by the DragonBones armature; an unknown bone name is ignored. For the
+component's author-time parameters (source, texture, scale, tint, and the rest), see the
+[Skinned Sprite component reference](./skinned-sprite-component.md).
 
 | Verb | Signature (after entity id) | Returns | Clamping | Effect |
 | ---- | --------------------------- | ------- | -------- | ------ |
