@@ -352,7 +352,8 @@ as its bones move, how-to [31-mesh-deform](../howto/31-mesh-deform.md)) and **su
 deformation (a mesh warped by a control-point grid, with nested surfaces and per-vertex FFD,
 how-to [32-surface-deform](../howto/32-surface-deform.md)). The verbs below are the same for
 both: `PlayAnimation` / `StopAnimation` / `SetAnimationSpeed` drive clips (including
-surface-deform clips), and the pose overrides add on top of the playing (or bind) pose.
+surface-deform clips and type-40 parameter-driven clips), and the pose overrides add on
+top of the playing (or bind) pose.
 Bones are named by the DragonBones armature; an unknown bone name is ignored.
 
 | Verb | Signature (after entity id) | Returns | Clamping | Effect |

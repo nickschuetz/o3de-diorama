@@ -151,10 +151,12 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   deform v3)**: the same component also renders DragonBones **surface** rigs (a mesh warped
   by a control-point grid instead of skinned to bones), with animated surface-deform
   channels, nested-surface composition, and per-vertex FFD, on the pure `SurfaceDeform`
-  core; ships a generated IP-free rippling-water example
-  ([howto/32-surface-deform.md](howto/32-surface-deform.md)). Remaining: the DragonBones
-  animation-parameter/progress layer, and a proper compiled product asset (the importer
-  currently reads the DragonBones JSON products directly).
+  core, plus the DragonBones type-40 `AnimationProgress` composition (a clip scrubs its
+  `PARAM_*` sub-animations and their surface deforms add); ships a generated IP-free
+  rippling-water example ([howto/32-surface-deform.md](howto/32-surface-deform.md)).
+  Remaining: nested progress + type-41/42 weight/blend channels + parameter-driven bone
+  transforms, and a proper compiled product asset (the importer currently reads the
+  DragonBones JSON products directly).
 - **2D particle system** (M). A real emitter component (the sample's heart-burst
   pool, generalized): rate/burst, velocity/gravity/drag, size/color over life,
   blend modes. **Design done** ([design/2d-particles.md](design/2d-particles.md)):

@@ -215,6 +215,18 @@ namespace Diorama::DragonBones
         }
     }
 
+    //! One AnimationProgress channel (DragonBones type 40): drives the normalized progress
+    //! (0..1) of a named sub-animation over time. A driving clip (e.g. an idle) scrubs several
+    //! `PARAM_*` sub-animations this way; each sub-animation's deform is sampled at
+    //! progress * its duration and the results compose additively onto the character. The
+    //! keyframe value (`.x`) is the progress; a missing value defaults to 0.
+    struct ProgressTimeline
+    {
+        AZStd::string m_targetName;
+        int m_targetIndex = -1; //!< resolved against the armature's animations; -1 if absent
+        AZStd::vector<Keyframe> m_values;
+    };
+
     //! One authored animation clip: its name, length, whether it loops, and per-bone timelines.
     struct Animation
     {
@@ -223,6 +235,7 @@ namespace Diorama::DragonBones
         bool m_loop = true; //!< DragonBones playTimes 0 loops; >0 plays that many times
         AZStd::vector<BoneTimeline> m_bones;
         AZStd::vector<DeformTimeline> m_deforms; //!< FFD / surface deform channels
+        AZStd::vector<ProgressTimeline> m_progress; //!< AnimationProgress (type 40) channels
     };
 
     //! The sampled pose delta for one bone: what to add to / multiply the bind components by.

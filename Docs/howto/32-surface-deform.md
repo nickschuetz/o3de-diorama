@@ -62,9 +62,18 @@ and limbs stacked on it).
   per-control-point offsets. For a seamless loop, make the number of wave samples divide the
   cycle length and close the loop with a final frame equal to the first.
 
-## Scope note
+## The animation-parameter layer
 
-DragonBones' animation-parameter layer (a `type 40` *AnimationProgress* channel that drives
-separate `PARAM_*` sub-animations, used by some exported idle clips) is not implemented;
-play a surface-deform clip directly by name. That parameter/progress blending is an
-orthogonal animation feature, tracked as future work.
+Modern DragonBones idle clips rarely deform surfaces directly. They use a `type 40`
+*AnimationProgress* channel to scrub separate `PARAM_*` sub-animations, and those hold the
+surface deform. Diorama drives this: when the playing clip has type-40 channels, each
+scrubs its target `PARAM_*` to `progress * duration`, that sub-animation's surface deltas
+are sampled, and all of them compose **additively** onto the bind control points (so
+parameters at their neutral value contribute nothing). The generated `flow` clip in
+`scripts/gen_water_rig.py` demonstrates it: `flow` ripples the water entirely through a
+type-40 channel driving `PARAM_WAVE`.
+
+Not yet handled (future work): nested progress (a param driving another param), the type-41
+*AnimationWeight* and type-42 *AnimationParameter* (blend) channels, and composing a
+sub-animation's *bone* transforms (only its surface deform is composed). So a complex idle
+animates its surface-deform parameters but not its bone-driven or nested ones.

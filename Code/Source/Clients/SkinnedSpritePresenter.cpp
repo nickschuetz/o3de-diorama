@@ -373,23 +373,13 @@ namespace Diorama
             grid.m_segmentY = bone.m_segmentY;
             grid.m_controlPoints = bone.m_bindControlPoints; // bind, in this surface's local space
 
-            // Add this surface's own animated deform deltas.
+            // Add the active clip's animated surface-deform deltas for this surface: its own
+            // deforms plus any it drives through AnimationProgress sub-animations, composed
+            // additively onto the bind control points.
             if (m_animation != nullptr)
             {
                 const int cpCount = static_cast<int>(bone.m_bindControlPoints.size());
-                for (const DragonBones::DeformTimeline& deform : m_animation->m_deforms)
-                {
-                    if (deform.m_kind != DragonBones::DeformTargetKind::Surface || deform.m_targetIndex != static_cast<int>(i))
-                    {
-                        continue;
-                    }
-                    DragonBones::SampleDeform(deform, m_animTime, cpCount, m_deformScratch);
-                    const size_t n = AZ::GetMin(grid.m_controlPoints.size(), m_deformScratch.size());
-                    for (size_t k = 0; k < n; ++k)
-                    {
-                        grid.m_controlPoints[k] += m_deformScratch[k];
-                    }
-                }
+                AccumulateSurfaceDeltas(*m_animation, m_animTime, static_cast<int>(i), cpCount, grid.m_controlPoints);
             }
 
             // Nesting: if the parent bone is also a surface, warp this surface's control points
@@ -405,6 +395,53 @@ namespace Diorama
                 for (AZ::Vector2& cp : grid.m_controlPoints)
                 {
                     cp = SurfaceDeform::WarpPoint(parentGrid, cp);
+                }
+            }
+        }
+    }
+
+    void SkinnedSpritePresenter::AccumulateSurfaceDeltas(
+        const DragonBones::Animation& animation, float time, int surfaceBoneIndex, int cpCount, AZStd::vector<AZ::Vector2>& target)
+    {
+        // The clip's own surface-deform channels for this surface.
+        for (const DragonBones::DeformTimeline& deform : animation.m_deforms)
+        {
+            if (deform.m_kind != DragonBones::DeformTargetKind::Surface || deform.m_targetIndex != surfaceBoneIndex)
+            {
+                continue;
+            }
+            DragonBones::SampleDeform(deform, time, cpCount, m_deformScratch);
+            const size_t n = AZ::GetMin(target.size(), m_deformScratch.size());
+            for (size_t k = 0; k < n; ++k)
+            {
+                target[k] += m_deformScratch[k];
+            }
+        }
+
+        // AnimationProgress (type 40): each channel scrubs a PARAM_* sub-animation to
+        // progress * its duration; that sub-animation's surface deform for this surface adds
+        // onto the same base (bind-relative offsets, so contributions simply sum). One level of
+        // indirection (a driving idle -> leaf PARAM clips), which is how these rigs are authored.
+        for (const DragonBones::ProgressTimeline& progress : animation.m_progress)
+        {
+            if (progress.m_targetIndex < 0 || progress.m_targetIndex >= static_cast<int>(m_armature->m_animations.size()))
+            {
+                continue;
+            }
+            const DragonBones::Animation& sub = m_armature->m_animations[progress.m_targetIndex];
+            const float v = DragonBones::SampleTrack(progress.m_values, time, AZ::Vector2::CreateZero()).GetX();
+            const float subTime = v * sub.m_durationSeconds;
+            for (const DragonBones::DeformTimeline& deform : sub.m_deforms)
+            {
+                if (deform.m_kind != DragonBones::DeformTargetKind::Surface || deform.m_targetIndex != surfaceBoneIndex)
+                {
+                    continue;
+                }
+                DragonBones::SampleDeform(deform, subTime, cpCount, m_deformScratch);
+                const size_t n = AZ::GetMin(target.size(), m_deformScratch.size());
+                for (size_t k = 0; k < n; ++k)
+                {
+                    target[k] += m_deformScratch[k];
                 }
             }
         }
