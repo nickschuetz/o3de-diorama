@@ -14,6 +14,7 @@
 #include <Clients/DioramaAsepriteComponent.h>
 #include <Clients/DioramaBulletEmitterComponent.h>
 #include <Clients/DioramaSimClockComponent.h>
+#include <Clients/DioramaSimStateComponent.h>
 #include <Clients/DioramaSkeletalClipComponent.h>
 #include <Clients/DioramaSkinnedSpriteComponent.h>
 #include <Clients/SimStateBus.h>
@@ -110,6 +111,7 @@ namespace Diorama
             m_app.RegisterComponentDescriptor(DioramaBulletEmitterComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaSkeletalClipComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaSkinnedSpriteComponent::CreateDescriptor());
+            m_app.RegisterComponentDescriptor(DioramaSimStateComponent::CreateDescriptor());
 
             m_systemEntity->Init();
             m_systemEntity->Activate();
@@ -434,6 +436,42 @@ namespace Diorama
         DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetAnimationSpeed, 1.0f);
         ASSERT_TRUE(RestoreMigrationChunks(id, image));
         EXPECT_TRUE(SaveMigrationChunks(id) == image);
+    }
+
+    TEST_F(SimClockMigrationTest, CharacterStateRoundTripsThroughClockSlotCapture)
+    {
+        // The REAL rollback path, not a direct SaveSimState: a character enrolled via the
+        // Simulation State marker is captured by the clock's SaveToSlot (CaptureFrame walks the
+        // registry) and restored by RestoreFromSlot. This is what a rollback game actually runs,
+        // and what the direct-chunk round-trips above do not exercise.
+        DioramaSkeletalClipConfig config;
+        config.m_duration = 1.0f;
+        config.m_looping = true;
+        config.m_useSimClock = true;
+        AZ::Entity* e = aznew AZ::Entity("Fighter");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkeletalClipComponent>(config);
+        e->CreateComponent<DioramaSimStateComponent>(); // the marker: enrolls this entity in capture
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        // Distinctive state, then capture the whole frame through the clock.
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.7f);
+        DioramaSimClockRequestBus::Broadcast(&DioramaSimClockRequests::SaveToSlot, 0);
+
+        // Diverge, then restore through the clock.
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.1f);
+        bool restored = false;
+        DioramaSimClockRequestBus::BroadcastResult(restored, &DioramaSimClockRequests::RestoreFromSlot, 0);
+        EXPECT_TRUE(restored);
+
+        // If the clock's capture reached the component (via the marker's enrollment), the blend
+        // parameter is back to the saved value; if enrollment is broken, it stays diverged.
+        float blend = 0.0f;
+        DioramaSkeletalRequestBus::EventResult(blend, id, &DioramaSkeletalRequests::GetBlendParam);
+        EXPECT_FLOAT_EQ(blend, 0.7f);
     }
 
     TEST_F(SimClockMigrationTest, SkinnedSpriteUseSimClockVerbToggles)
