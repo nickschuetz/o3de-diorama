@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Animated 2D character example (bone-driven puppet).** A generated, IP-free humanoid
+  puppet - head with a face, torso, jointed arms and legs - rigged as rigid quads each
+  weighted fully to one bone, with an `idle` clip that sways, swings the arms, and bobs. It
+  gives the skeletal / bone-animation path a readable, textured figure to show it off (the
+  bone-driven counterpart to the surface-deform water demo). `scripts/gen_puppet_rig.py`,
+  `Docs/examples/puppet_demo.py`, and [how-to 33](Docs/howto/33-puppet-character.md).
 - **Full parameter-driven idles for surface rigs.** The type-40 animation-parameter layer
   now composes a playing clip's whole progress tree, not just one level of surface deforms:
   it walks the tree once per frame into a flat list of contributions (nested progress
