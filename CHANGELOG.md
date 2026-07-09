@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+## [0.6.0-beta] - 2026-07-08
+
 ### Added
 
 - **Surface + FFD deformation (mesh-deform v3).** The `Skinned Sprite (mesh deform)`
