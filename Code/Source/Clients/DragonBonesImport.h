@@ -473,9 +473,9 @@ namespace Diorama::DragonBones
     }
 
     //! Parse a DragonBones "*_ske.json" armature document. Returns false on malformed JSON
-    //! (out is left cleared). Only mesh displays with weights (the skinned family) are
-    //! imported; rigid image/mesh displays without weights are skipped (a documented later
-    //! phase). Implemented in DragonBonesImport.cpp against AzCore rapidjson.
+    //! (out is left cleared). Weighted-mesh displays (the skinned family) and surface-bound
+    //! meshes are imported; plain rigid image displays (no weights, no surface parent) are
+    //! skipped. Implemented in DragonBonesImport.cpp against AzCore rapidjson.
     bool ParseDocument(AZStd::string_view json, Document& out);
 
     //! Find an armature by name (exact match); nullptr if absent.
