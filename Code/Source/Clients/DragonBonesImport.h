@@ -471,6 +471,43 @@ namespace Diorama::DragonBones
         return nullptr;
     }
 
+    //! One (animation, time) contribution: an animation index paired with the time to sample it.
+    struct AnimationSample
+    {
+        int m_animIndex = -1;
+        float m_time = 0.0f;
+    };
+
+    //! Expand the type-40 AnimationProgress tree rooted at `rootIndex` (sampled at `rootTime`)
+    //! into `out`: the root itself, then, for each of its progress channels, the PARAM_*
+    //! sub-animation it scrubs sampled at (progress * that sub-animation's duration), recursively.
+    //! `maxDepth` bounds the recursion (and so guards against cyclic progress references). The
+    //! playing clip's bone deltas and surface deforms then compose over `out`. Pure; unit tested.
+    inline void CollectProgressContributions(
+        const Armature& armature, int rootIndex, float rootTime, int maxDepth, AZStd::vector<AnimationSample>& out)
+    {
+        if (rootIndex < 0 || rootIndex >= static_cast<int>(armature.m_animations.size()))
+        {
+            return;
+        }
+        out.push_back(AnimationSample{ rootIndex, rootTime });
+        if (maxDepth <= 0)
+        {
+            return;
+        }
+        const Animation& anim = armature.m_animations[rootIndex];
+        for (const ProgressTimeline& progress : anim.m_progress)
+        {
+            if (progress.m_targetIndex < 0 || progress.m_targetIndex >= static_cast<int>(armature.m_animations.size()))
+            {
+                continue;
+            }
+            const Animation& sub = armature.m_animations[progress.m_targetIndex];
+            const float v = SampleTrack(progress.m_values, rootTime, AZ::Vector2::CreateZero()).GetX();
+            CollectProgressContributions(armature, progress.m_targetIndex, v * sub.m_durationSeconds, maxDepth - 1, out);
+        }
+    }
+
     //! Parse a DragonBones "*_ske.json" armature document. Returns false on malformed JSON
     //! (out is left cleared). Only mesh displays with weights (the skinned family) are
     //! imported; rigid image/mesh displays without weights are skipped (a documented later

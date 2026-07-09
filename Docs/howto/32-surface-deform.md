@@ -66,14 +66,17 @@ and limbs stacked on it).
 
 Modern DragonBones idle clips rarely deform surfaces directly. They use a `type 40`
 *AnimationProgress* channel to scrub separate `PARAM_*` sub-animations, and those hold the
-surface deform. Diorama drives this: when the playing clip has type-40 channels, each
-scrubs its target `PARAM_*` to `progress * duration`, that sub-animation's surface deltas
-are sampled, and all of them compose **additively** onto the bind control points (so
-parameters at their neutral value contribute nothing). The generated `flow` clip in
-`scripts/gen_water_rig.py` demonstrates it: `flow` ripples the water entirely through a
-type-40 channel driving `PARAM_WAVE`.
+motion. Diorama drives this: once per frame it walks the playing clip's progress tree into a
+flat list of `(sub-animation, time)` contributions (each `PARAM_*` sampled at
+`progress * duration`), recursively, so **nested** progress (a param that itself drives
+further params) composes too. Both the **bone transforms** and the **surface deltas** of
+every contribution then compose over the base: bone translate / rotate / skew add and scale
+multiplies, surface deltas add onto the bind control points; parameters at their neutral
+value contribute nothing. So a full authored idle plays, its bone-driven and surface-driven
+parameters together. The generated `flow` clip in `scripts/gen_water_rig.py` demonstrates
+the surface path: `flow` ripples the water entirely through a type-40 channel driving
+`PARAM_WAVE`.
 
-Not yet handled (future work): nested progress (a param driving another param), the type-41
-*AnimationWeight* and type-42 *AnimationParameter* (blend) channels, and composing a
-sub-animation's *bone* transforms (only its surface deform is composed). So a complex idle
-animates its surface-deform parameters but not its bone-driven or nested ones.
+Not yet handled (future work): the type-41 *AnimationWeight* (per-parameter strength
+envelope) and type-42 *AnimationParameter* (1D blend) channels. Every parameter composes at
+full weight; that suffices for a straight idle.

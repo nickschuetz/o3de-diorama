@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 
 ## [Unreleased]
 
+### Added
+- **Full parameter-driven idles for surface rigs.** The type-40 animation-parameter layer
+  now composes a playing clip's whole progress tree, not just one level of surface deforms:
+  it walks the tree once per frame into a flat list of contributions (nested progress
+  included, a param that drives further params), and composes both the **bone transforms**
+  and the surface deltas of every contribution (bone translate / rotate / skew add, scale
+  multiplies; surface deltas add). A real authored idle now plays its bone-driven and
+  surface-driven parameters together instead of only its direct surface deforms. The
+  progress-tree walk is a new pure `CollectProgressContributions` core (unit tested), and
+  the per-frame walk replaces the old per-surface re-sampling. (type-41 weight and type-42
+  blend channels remain future work.)
+
 ## [0.6.0-beta] - 2026-07-08
 
 ### Added
