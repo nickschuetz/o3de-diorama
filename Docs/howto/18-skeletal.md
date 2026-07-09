@@ -121,8 +121,10 @@ components rather than introducing a new asset type, so it composes with every o
 Diorama 2D feature and stays fully open source (Apache-2.0 OR MIT, matching O3DE) with no
 third-party runtime.
 
-Mesh-deform skeletal animation (skinned bones that bend a single sprite, as authored in
-tools that export the open DragonBones JSON format) is a planned follow-up. It will reuse
-the same keyframe-sampling core (`SkeletalClip.h`) this player is built on; only the
-deform step is new. We will parse the open format ourselves rather than bundle any
-third-party runtime, keeping the licensing clean.
+Mesh-deform animation (a textured mesh that bends and stretches as its bones move, or is
+warped by a control-point grid, as authored in tools that export the open DragonBones JSON
+format) shipped as the **Skinned Sprite (mesh deform)** component: see
+[how-to 31](31-mesh-deform.md) for weighted-mesh deform and
+[how-to 32](32-surface-deform.md) for surface + FFD deform. It reuses the same
+keyframe-sampling approach this player is built on; the open format is parsed in-gem rather
+than bundling any third-party runtime, keeping the licensing clean.
