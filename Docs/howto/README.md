@@ -73,6 +73,7 @@ Each has a written guide and a runnable example.
 | Skeletal Cutout Animation (keyframed bone rig) | [18-skeletal.md](18-skeletal.md) | Written |
 | Mesh-Deform Characters (DragonBones weighted mesh) | [31-mesh-deform.md](31-mesh-deform.md) | Written |
 | Surface + FFD Deformation (DragonBones surface rigs) | [32-surface-deform.md](32-surface-deform.md) | Written |
+| Animated 2D Character (bone-driven puppet) | [33-puppet-character.md](33-puppet-character.md) | Written |
 | Aseprite Animation Import (tags + per-frame timing) | [19-aseprite.md](19-aseprite.md) | Written |
 | Input Action Mapping (rebindable named actions) | [23-input-actions.md](23-input-actions.md) | Written |
 | Animation State Machine (parameter-driven clip switching) | [22-anim-state-machine.md](22-anim-state-machine.md) | Written |
@@ -127,6 +128,7 @@ the design, see:
 | Small Shmup (dogfood) | [../examples/shmup_demo.py](../examples/shmup_demo.py) |
 | Mesh-Deform (seaweed) | [../examples/seaweed_demo.py](../examples/seaweed_demo.py) |
 | Surface Deform (rippling water) | [../examples/water_demo.py](../examples/water_demo.py) |
+| Animated Character (bone-driven puppet) | [../examples/puppet_demo.py](../examples/puppet_demo.py) |
 
 Run an example in the editor:
 

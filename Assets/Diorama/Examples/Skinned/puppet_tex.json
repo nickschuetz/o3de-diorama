@@ -1,0 +1,15 @@
+{
+  "width": 256,
+  "height": 256,
+  "name": "puppet",
+  "imagePath": "puppet_tex.png",
+  "SubTexture": [
+    {
+      "name": "puppet/body",
+      "x": 0,
+      "y": 0,
+      "width": 256,
+      "height": 256
+    }
+  ]
+}

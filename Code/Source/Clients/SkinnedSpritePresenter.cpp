@@ -311,6 +311,7 @@ namespace Diorama
             AZStd::span<const MeshSkin::Bone>(m_bones.data(), boneCount),
             AZStd::span<const MeshSkin::Affine2D>(m_localOverrides.data(), boneCount),
             AZStd::span<MeshSkin::Affine2D>(m_world.data(), boneCount));
+        m_activeContribs.clear(); // bind-pose bbox: no animated deform
         BuildSurfaceGrids();
 
         float minX = AZStd::numeric_limits<float>::max();
@@ -373,14 +374,11 @@ namespace Diorama
             grid.m_segmentY = bone.m_segmentY;
             grid.m_controlPoints = bone.m_bindControlPoints; // bind, in this surface's local space
 
-            // Add the active clip's animated surface-deform deltas for this surface: its own
-            // deforms plus any it drives through AnimationProgress sub-animations, composed
-            // additively onto the bind control points.
-            if (m_animation != nullptr)
-            {
-                const int cpCount = static_cast<int>(bone.m_bindControlPoints.size());
-                AccumulateSurfaceDeltas(*m_animation, m_animTime, static_cast<int>(i), cpCount, grid.m_controlPoints);
-            }
+            // Add this frame's animated surface-deform deltas for this surface, composed
+            // additively onto the bind control points. Driven by m_activeContribs (empty during
+            // the bind-pose bbox build, so that pass stays pure bind).
+            const int cpCount = static_cast<int>(bone.m_bindControlPoints.size());
+            AccumulateSurfaceDeltas(static_cast<int>(i), cpCount, grid.m_controlPoints);
 
             // Nesting: if the parent bone is also a surface, warp this surface's control points
             // through the parent's already-built grid, moving them from this surface's local
@@ -400,44 +398,33 @@ namespace Diorama
         }
     }
 
-    void SkinnedSpritePresenter::AccumulateSurfaceDeltas(
-        const DragonBones::Animation& animation, float time, int surfaceBoneIndex, int cpCount, AZStd::vector<AZ::Vector2>& target)
+    void SkinnedSpritePresenter::BuildActiveContributions()
     {
-        // The clip's own surface-deform channels for this surface.
-        for (const DragonBones::DeformTimeline& deform : animation.m_deforms)
+        m_activeContribs.clear();
+        if (m_animation == nullptr || m_armature == nullptr || m_armature->m_animations.empty())
         {
-            if (deform.m_kind != DragonBones::DeformTargetKind::Surface || deform.m_targetIndex != surfaceBoneIndex)
-            {
-                continue;
-            }
-            DragonBones::SampleDeform(deform, time, cpCount, m_deformScratch);
-            const size_t n = AZ::GetMin(target.size(), m_deformScratch.size());
-            for (size_t k = 0; k < n; ++k)
-            {
-                target[k] += m_deformScratch[k];
-            }
+            return;
         }
+        // m_animation always points into m_armature->m_animations (FindAnimation), so its index
+        // is the pointer offset. CollectProgressContributions walks the type-40 tree from there.
+        const int rootIndex = static_cast<int>(m_animation - m_armature->m_animations.data());
+        DragonBones::CollectProgressContributions(*m_armature, rootIndex, m_animTime, kMaxProgressDepth, m_activeContribs);
+    }
 
-        // AnimationProgress (type 40): each channel scrubs a PARAM_* sub-animation to
-        // progress * its duration; that sub-animation's surface deform for this surface adds
-        // onto the same base (bind-relative offsets, so contributions simply sum). One level of
-        // indirection (a driving idle -> leaf PARAM clips), which is how these rigs are authored.
-        for (const DragonBones::ProgressTimeline& progress : animation.m_progress)
+    void SkinnedSpritePresenter::AccumulateSurfaceDeltas(int surfaceBoneIndex, int cpCount, AZStd::vector<AZ::Vector2>& target)
+    {
+        // Every active contribution (the playing clip and each PARAM_* it scrubs) adds its
+        // surface-deform deltas for this surface onto the same bind-relative base, so they sum.
+        for (const DragonBones::AnimationSample& contrib : m_activeContribs)
         {
-            if (progress.m_targetIndex < 0 || progress.m_targetIndex >= static_cast<int>(m_armature->m_animations.size()))
-            {
-                continue;
-            }
-            const DragonBones::Animation& sub = m_armature->m_animations[progress.m_targetIndex];
-            const float v = DragonBones::SampleTrack(progress.m_values, time, AZ::Vector2::CreateZero()).GetX();
-            const float subTime = v * sub.m_durationSeconds;
-            for (const DragonBones::DeformTimeline& deform : sub.m_deforms)
+            const DragonBones::Animation& anim = m_armature->m_animations[contrib.m_animIndex];
+            for (const DragonBones::DeformTimeline& deform : anim.m_deforms)
             {
                 if (deform.m_kind != DragonBones::DeformTargetKind::Surface || deform.m_targetIndex != surfaceBoneIndex)
                 {
                     continue;
                 }
-                DragonBones::SampleDeform(deform, subTime, cpCount, m_deformScratch);
+                DragonBones::SampleDeform(deform, contrib.m_time, cpCount, m_deformScratch);
                 const size_t n = AZ::GetMin(target.size(), m_deformScratch.size());
                 for (size_t k = 0; k < n; ++k)
                 {
@@ -542,15 +529,23 @@ namespace Diorama
         AZ::Transform worldTransform = AZ::Transform::CreateIdentity();
         AZ::TransformBus::EventResult(worldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
 
-        // Sample the active clip into per-bone deltas (identity when nothing is playing).
+        // Compose the active clip and every PARAM_* it scrubs (the type-40 progress tree, walked
+        // once here) into per-bone deltas: translate / rotate / skew add, scale multiplies, over an
+        // identity base (so a parameter at its neutral value contributes nothing). Identity when
+        // nothing is playing. The surface grids below reuse the same contribution list.
         const int boneCount = static_cast<int>(m_bones.size());
-        if (m_animation != nullptr)
+        BuildActiveContributions();
+        m_poseScratch.assign(static_cast<size_t>(boneCount), DragonBones::BonePoseDelta{});
+        for (const DragonBones::AnimationSample& contrib : m_activeContribs)
         {
-            DragonBones::SampleAnimation(*m_animation, m_animTime, boneCount, m_poseScratch);
-        }
-        else
-        {
-            m_poseScratch.assign(static_cast<size_t>(boneCount), DragonBones::BonePoseDelta{});
+            DragonBones::SampleAnimation(m_armature->m_animations[contrib.m_animIndex], contrib.m_time, boneCount, m_poseAccum);
+            for (int i = 0; i < boneCount; ++i)
+            {
+                m_poseScratch[i].m_translate += m_poseAccum[i].m_translate;
+                m_poseScratch[i].m_rotateDegrees += m_poseAccum[i].m_rotateDegrees;
+                m_poseScratch[i].m_skewDegrees += m_poseAccum[i].m_skewDegrees;
+                m_poseScratch[i].m_scale *= m_poseAccum[i].m_scale;
+            }
         }
 
         // Rebuild each bone's local from its bind COMPONENTS plus the animation delta and any

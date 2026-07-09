@@ -6,9 +6,10 @@ on the pure `MeshSkin` + `DragonBonesImport` cores) with the "free-form mesh def
 v2 deferred to v3: the `SurfaceDeform` warp core, the `DragonBonesImport` surface/deform
 decode, per-frame `SampleDeform` + `BuildSurfaceGrids` (incl. nested-surface warping) in
 the presenter, and the [how-to](../howto/32-surface-deform.md) + rippling-water example.
-The DragonBones type-40 `AnimationProgress` layer is composed too: a clip scrubs its
-`PARAM_*` sub-animations and their surface deforms add. Remaining follow-up: nested
-progress, type-41/42 weight/blend channels, and parameter-driven bone transforms.
+The DragonBones type-40 `AnimationProgress` layer is composed too: a clip's whole progress
+tree (nested params included) is walked once per frame, and each contribution's bone
+transforms and surface deforms compose over the base. Remaining follow-up: type-41/42
+weight/blend channels.
 
 ## Goal
 

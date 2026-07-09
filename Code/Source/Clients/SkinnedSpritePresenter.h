@@ -141,11 +141,14 @@ namespace Diorama
         //! current animated deform deltas; nested surfaces are warped through their parent.
         //! Pass the posed bone worlds so nested-surface control points land correctly.
         void BuildSurfaceGrids();
-        //! Add `animation`'s surface-deform deltas for one surface bone at `time` into `target`
-        //! (sized cpCount): the clip's own channels plus any it drives via AnimationProgress
-        //! (type-40) sub-animations, composed additively.
-        void AccumulateSurfaceDeltas(
-            const DragonBones::Animation& animation, float time, int surfaceBoneIndex, int cpCount, AZStd::vector<AZ::Vector2>& target);
+        //! Add every active contribution's surface-deform deltas for one surface bone into
+        //! `target` (sized cpCount), composed additively onto the bind control points.
+        void AccumulateSurfaceDeltas(int surfaceBoneIndex, int cpCount, AZStd::vector<AZ::Vector2>& target);
+        //! Walk the playing clip's AnimationProgress (type-40) tree once per frame into
+        //! m_activeContribs: the clip itself, then each PARAM_* it scrubs (sampled at
+        //! progress * duration), recursively (bounded by kMaxProgressDepth). Bone posing and
+        //! surface deforms both read this list, so the tree is walked once, not per surface.
+        void BuildActiveContributions();
 
         DioramaSkinnedSpriteConfig m_config;
         AZ::EntityId m_entityId;
@@ -171,8 +174,15 @@ namespace Diorama
         // Bus pose overrides (degrees / armature units), added on top of the animated pose.
         AZStd::vector<float> m_boneRotationDelta;
         AZStd::vector<AZ::Vector2> m_boneTranslationDelta;
+        // The playing clip and each PARAM_* it scrubs through the type-40 progress tree, built
+        // once per frame by BuildActiveContributions; bone deltas and surface deforms both
+        // compose over this list (so the tree is walked once, not per surface).
+        static constexpr int kMaxProgressDepth = 4; //!< bounds nested progress (guards cycles too)
+        AZStd::vector<DragonBones::AnimationSample> m_activeContribs;
+
         // Reused per-frame scratch.
-        AZStd::vector<DragonBones::BonePoseDelta> m_poseScratch;
+        AZStd::vector<DragonBones::BonePoseDelta> m_poseScratch; //!< composed pose (all contributions)
+        AZStd::vector<DragonBones::BonePoseDelta> m_poseAccum; //!< one contribution, before folding in
         AZStd::vector<MeshSkin::Affine2D> m_localOverrides;
         AZStd::vector<MeshSkin::Affine2D> m_world;
         AZStd::vector<SpriteFeatureProcessor::MeshVertex> m_vertexScratch;

@@ -1680,6 +1680,47 @@ namespace Diorama
         ASSERT_EQ(param->m_deforms.size(), 1u);
     }
 
+    TEST(DragonBonesImportTest, CollectProgressContributionsWalksNestedTree)
+    {
+        constexpr const char* kJson = R"JSON(
+        {
+          "name": "p", "frameRate": 1,
+          "armature": [{
+            "name": "rig",
+            "bone": [ { "name": "root" } ],
+            "animation": [
+              { "name": "PARAM_B", "duration": 10, "playTimes": 0 },
+              { "name": "PARAM_A", "duration": 20, "playTimes": 0,
+                "timeline": [ { "name": "PARAM_B", "type": 40, "frame": [ { "value": 0.5 } ] } ] },
+              { "name": "idle", "duration": 30, "playTimes": 0,
+                "timeline": [ { "name": "PARAM_A", "type": 40, "frame": [ { "value": 0.5 } ] } ] }
+            ]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kJson, doc));
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+        ASSERT_EQ(arm.m_animations.size(), 3u); // PARAM_B=0, PARAM_A=1, idle=2
+
+        // idle (2) scrubs PARAM_A (1) to 0.5 * 20 = 10, which scrubs PARAM_B (0) to 0.5 * 10 = 5.
+        AZStd::vector<Diorama::DragonBones::AnimationSample> out;
+        Diorama::DragonBones::CollectProgressContributions(arm, 2, 0.0f, 4, out);
+        ASSERT_EQ(out.size(), 3u);
+        EXPECT_EQ(out[0].m_animIndex, 2);
+        EXPECT_NEAR(out[0].m_time, 0.0f, 1e-4f);
+        EXPECT_EQ(out[1].m_animIndex, 1);
+        EXPECT_NEAR(out[1].m_time, 10.0f, 1e-3f);
+        EXPECT_EQ(out[2].m_animIndex, 0);
+        EXPECT_NEAR(out[2].m_time, 5.0f, 1e-3f);
+
+        // The depth cap bounds the recursion: maxDepth 1 yields idle + PARAM_A only.
+        out.clear();
+        Diorama::DragonBones::CollectProgressContributions(arm, 2, 0.0f, 1, out);
+        ASSERT_EQ(out.size(), 2u);
+        EXPECT_EQ(out[0].m_animIndex, 2);
+        EXPECT_EQ(out[1].m_animIndex, 1);
+    }
+
     TEST(DragonBonesImportTest, RemapsGlobalBonesToLocalSlotsWithBindWorlds)
     {
         Diorama::DragonBones::Document doc;

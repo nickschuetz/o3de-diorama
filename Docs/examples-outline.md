@@ -80,7 +80,8 @@ piece, and ship one tiny demo per new feature for the docs. See
   [howto/README.md](howto/README.md)): Lighting, Camera (follow/shake/pixel-perfect),
   Particles, Materials (flash/outline), Glow (post-processing), CRT overlay,
   Skeletal cutout animation, DragonBones mesh-deform characters, surface + FFD
-  deformation (rippling water), and Aseprite
+  deformation (rippling water), a bone-driven animated character (humanoid puppet), and
+  Aseprite
   import; plus the in-editor tilemap paint tool and the `Diorama2DGame` project
   template. Still on the list: a dedicated
   Collision demo. Cheap, crisp, and ideal for documentation.
