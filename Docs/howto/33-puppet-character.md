@@ -62,3 +62,30 @@ DioramaSkinnedSpriteRequestBus.Event.SetBoneRotation(self.entityId, "armL_up", 4
 
 See the [Skinned Sprite component reference](../reference/skinned-sprite-component.md) for
 every parameter and verb.
+
+## Rollback demo (rewind-exact pose)
+
+A pose laid on with `SetBoneRotation` is part of the character's rollback snapshot, so a
+[2D Simulation Clock](30-deterministic-sim.md) can save it, let the animation move on, and
+restore it exactly. This is what a fighting game does on a rollback frame, applied to a
+skinned character.
+
+```
+<engine>/bin/Linux/profile/Default/Editor \
+  --project-path=/path/to/YourProject \
+  --runpython /path/to/o3de-diorama/Docs/examples/puppet_rollback_demo.py
+```
+
+builds a `DioramaPuppetRollback` level: the puppet plus a **Simulation State** marker (which
+enrolls it in frame capture), a free-running **2D Simulation Clock**, and the
+`puppet_rollback.lua` controller. Be `DemoCamera` and enter game mode (Ctrl+G) to watch a
+three-beat loop, no input needed:
+
+1. the arms **raise**, and the script `SaveToSlot`s that pose,
+2. the arms **drop** (the simulation diverges from the saved pose),
+3. `RestoreFromSlot` brings the arms **snapping back** to the saved pose.
+
+The Console narrates each beat. Because the per-bone overrides ride the clock's snapshot
+(the `'SKIN'` chunk), beat 3 restores the exact pose captured at beat 1: the pose rewind is
+frame-exact, not re-computed. The script drives the loop off its own tick counter rather than
+the clock frame, since `RestoreFromSlot` rewinds the clock frame with everything else.
