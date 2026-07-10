@@ -136,9 +136,9 @@ position each frame, with **Offset** applied as a local nudge. Put the hitbox on
 fist bone and it stays on the fist through the whole swing, no per-frame offset
 authoring. An empty bone name (the default) keeps the static offset; an unresolved
 name falls back to it, so a missing bone never breaks the box. (The bone's position
-comes from the skeletal animation, which runs on the render tick, so a bone-attached
-box is rollback-exact only once the skeletal component moves onto the simulation
-clock; static boxes are unaffected.)
+comes from the skeletal animation. Turn on **Use Simulation Clock** on the Skeletal Clip
+player so it advances on the fixed step, and the bone-attached box is rollback-exact along
+with it; on the render tick it tracks the bone visually but is not rollback-exact.)
 
 Demo: `Docs/examples/bone_demo.py` builds a runnable `DioramaBoneDemo` level with the
 overlay on - a static green hurtbox plus a red hitbox whose **Bone** is a sliding child

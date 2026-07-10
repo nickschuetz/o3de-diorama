@@ -73,6 +73,12 @@ namespace Diorama
                     { "x", "Extra X translation (armature units) added at the bone." },
                     { "y", "Extra Y translation (armature units) added at the bone." } } })
             ->Event("ResetPose", &DioramaSkinnedSpriteRequestBus::Events::ResetPose)
-            ->Event("GetSkinnedSpriteInfo", &DioramaSkinnedSpriteRequestBus::Events::GetSkinnedSpriteInfo);
+            ->Event("GetSkinnedSpriteInfo", &DioramaSkinnedSpriteRequestBus::Events::GetSkinnedSpriteInfo)
+            ->Event(
+                "SetUseSimClock",
+                &DioramaSkinnedSpriteRequestBus::Events::SetUseSimClock,
+                { { { "enabled",
+                      "Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) vs the render tick." } } })
+            ->Event("GetUseSimClock", &DioramaSkinnedSpriteRequestBus::Events::GetUseSimClock);
     }
 } // namespace Diorama

@@ -173,6 +173,16 @@ below take over.
 | Default | `1.0` |
 | Notes | Playback rate multiplier. Negative plays in reverse. |
 
+#### Use simulation clock
+
+| | |
+| --- | --- |
+| Inspector label | `Use simulation clock` |
+| Config field | `m_useSimClock` (`bool`) |
+| Bus setter | `SetUseSimClock(enabled)` (read back with `GetUseSimClock`) |
+| Default | `false` |
+| Notes | Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) instead of the render tick, and capture the play state in the clock's snapshot. Falls back to the render tick with no clock in the level (editor preview included). See [how-to 30](../howto/30-deterministic-sim.md). |
+
 ## Runtime API
 
 `DioramaSkinnedSpriteRequestBus` is reflected `Common`, so a script, Script Canvas, or an
@@ -187,6 +197,8 @@ agent drives the rig by entity id, the same way it drives every other Diorama fe
 | `SetBoneTranslation` | `boneName: string, x: float, y: float` | void | Add an extra translation (armature units) at the named bone, on top of its bind pose. Unknown bone names are ignored. |
 | `ResetPose` | -- | void | Clear every pose override, returning the rig to its bind (or animated) pose. |
 | `GetSkinnedSpriteInfo` | -- | `SkinnedSpriteInfo` | Read-only snapshot of the loaded rig and draw state. |
+| `SetUseSimClock` | `enabled: bool` | void | Advance on the 2D Simulation Clock (deterministic / rollback-exact) vs the render tick; see the [Use simulation clock](#use-simulation-clock) parameter. |
+| `GetUseSimClock` | -- | `bool` | Whether the rig advances on the simulation clock. |
 
 Pose overrides (`SetBoneRotation` / `SetBoneTranslation`) layer *on top of* the playing
 clip each frame, so gameplay can nudge a limb while an animation runs; `ResetPose` clears

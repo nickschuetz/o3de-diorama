@@ -343,6 +343,8 @@ transform over the clip (how-to [18-skeletal](../howto/18-skeletal.md)).
 | `SetDuration` | `seconds: float` | void | `> 0`. | Clip length the normalized time maps onto. |
 | `CrossFadeTo` | `clipName: string, durationSeconds: float` | void | Unknown name ignored; non-positive duration switches instantly. | Blend to a named clip from the config's clip library, easing each bone's pose across the transition, then continue on the target clip. |
 | `IsPlaying` | (none) | `bool` | n/a | True while the clip is advancing. |
+| `SetUseSimClock` | `enabled: bool` | void | None. | Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) instead of the render tick; makes bone-attached hitboxes rollback-exact (no clock: render tick still advances). |
+| `GetUseSimClock` | (none) | `bool` | n/a | Whether the clip advances on the simulation clock. |
 
 ## DioramaSkinnedSpriteRequestBus
 
@@ -368,6 +370,8 @@ component's author-time parameters (source, texture, scale, tint, and the rest),
 | `SetBoneTranslation` | `boneName: string, x: float, y: float` | void | Unknown bone ignored. | Add an extra translation (armature units) at the bone, on top of the animated pose. |
 | `ResetPose` | (none) | void | None. | Clear every bone override, returning to the animated (or bind) pose. |
 | `GetSkinnedSpriteInfo` | (none) | `SkinnedSpriteInfo` | n/a | Snapshot: `loaded` (rig parsed), `visible` (registered + drawing), `boneCount`, `meshCount`, `vertexCount`. |
+| `SetUseSimClock` | `enabled: bool` | void | None. | Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) instead of the render tick (no clock: render tick still advances). |
+| `GetUseSimClock` | (none) | `bool` | n/a | Whether the rig advances on the simulation clock. |
 
 ## DioramaAsepriteRequestBus
 

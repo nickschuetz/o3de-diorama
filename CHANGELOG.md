@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Character animation is rollback-exact (sim-clock migration).** The **Skeletal Clip**
+  cutout player and the **Skinned Sprite (mesh deform)** player each gained a **Use
+  Simulation Clock** option (Inspector + `SetUseSimClock` / `GetUseSimClock` bus verbs), so
+  a character advances on the 2D Simulation Clock's fixed steps and its play state
+  (current clip, time, cross-fade / blend progress, speed, pose overrides) is captured in
+  the rollback snapshot. With no clock in the level they fall back to the render tick
+  (editor preview unchanged). This also makes **bone-attached hitboxes** rollback-exact
+  (the box tracks a bone whose motion is now deterministic). As a side fix, the Skeletal
+  player no longer mutates its authored config to track the current clip (a cross-fade no
+  longer drifts the default clip), and `SetLooping` / `SetDuration` / `SetSpeed` are now
+  runtime overrides that apply to whichever clip is current.
 - **Animated 2D character example (bone-driven puppet).** A generated, IP-free humanoid
   puppet - head with a face, torso, jointed arms and legs - rigged as rigid quads each
   weighted fully to one bone, with an `idle` clip that sways, swings the arms, and bobs. It

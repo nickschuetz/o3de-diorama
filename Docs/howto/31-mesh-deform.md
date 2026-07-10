@@ -70,6 +70,12 @@ DioramaSkinnedSpriteRequestBus.Event.ResetPose(self.entityId)
 `GetSkinnedSpriteInfo` returns whether the rig loaded and is drawing, plus its bone, mesh,
 and vertex counts.
 
+For a fighting game or any deterministic scene, tick **Use Simulation Clock** (or call
+`SetUseSimClock(true)`) so the character advances on the
+[2D Simulation Clock](30-deterministic-sim.md)'s fixed steps and its play state rewinds
+exactly; with no clock in the level it falls back to the render tick (editor preview
+unchanged).
+
 ## Notes
 
 - **Editor preview**: the character animates live in the viewport, but the O3DE editor only

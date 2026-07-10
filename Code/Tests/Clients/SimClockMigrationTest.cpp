@@ -9,11 +9,18 @@
 
 #include <AzCore/Component/ComponentApplication.h>
 #include <AzCore/Component/Entity.h>
+#include <AzCore/IO/FileIO.h>
+#include <AzFramework/IO/LocalFileIO.h>
+
+#include <filesystem>
 
 #include <Clients/DioramaAnimStateMachineComponent.h>
 #include <Clients/DioramaAsepriteComponent.h>
 #include <Clients/DioramaBulletEmitterComponent.h>
 #include <Clients/DioramaSimClockComponent.h>
+#include <Clients/DioramaSimStateComponent.h>
+#include <Clients/DioramaSkeletalClipComponent.h>
+#include <Clients/DioramaSkinnedSpriteComponent.h>
 #include <Clients/SimStateBus.h>
 #include <Clients/SpriteComponent.h>
 
@@ -87,6 +94,59 @@ namespace Diorama
             }
             return reader.Ok();
         }
+
+        //! Write text to a path through the file IO (the fixture installs a LocalFileIO), so a
+        //! component that loads a source file can be exercised headlessly.
+        bool WriteTextFile(const char* path, const AZStd::string& text)
+        {
+            AZ::IO::FileIOBase* io = AZ::IO::FileIOBase::GetInstance();
+            if (io == nullptr)
+            {
+                return false;
+            }
+            AZ::IO::HandleType handle = AZ::IO::InvalidHandle;
+            if (!io->Open(path, AZ::IO::OpenMode::ModeWrite, handle))
+            {
+                return false;
+            }
+            AZ::u64 written = 0;
+            io->Write(handle, text.data(), text.size(), &written);
+            io->Close(handle);
+            return written == text.size();
+        }
+
+        //! A minimal DragonBones weighted-mesh armature (root -> upper -> lower, one skinned
+        //! mesh) so SkinnedSpritePresenter::BuildRig produces a real bone map; without a loaded
+        //! rig, SetBoneRotation has no bone to address and the pose-override path is untestable.
+        constexpr const char* kSkinnedRigJson = R"JSON(
+        {
+          "name": "puppet",
+          "frameRate": 24,
+          "armature": [{
+            "name": "arm",
+            "bone": [
+              { "name": "root" },
+              { "name": "upper", "parent": "root", "transform": { "x": 10, "y": 0, "skX": 90, "skY": 90 } },
+              { "name": "lower", "parent": "upper", "transform": { "x": 5, "y": 0 } }
+            ],
+            "slot": [ { "name": "behind" }, { "name": "limb" } ],
+            "skin": [{
+              "slot": [{
+                "name": "limb",
+                "display": [{
+                  "type": "mesh",
+                  "name": "puppet/limb",
+                  "vertices": [0, 0, 2, 0, 4, 0],
+                  "uvs": [0, 0, 0.5, 0, 1, 0],
+                  "triangles": [0, 1, 2],
+                  "slotPose": [1, 0, 0, 1, 100, 0],
+                  "bonePose": [1, 1, 0, 0, 1, 10, 0, 2, 1, 0, 0, 1, 15, 0],
+                  "weights": [1, 1, 1, 2, 1, 0.25, 2, 0.75, 1, 2, 1]
+                }]
+              }]
+            }]
+          }]
+        })JSON";
     } // namespace
 
     class SimClockMigrationTest : public ::testing::Test
@@ -106,9 +166,22 @@ namespace Diorama
             m_app.RegisterComponentDescriptor(DioramaAsepriteComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaAnimStateMachineComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaBulletEmitterComponent::CreateDescriptor());
+            m_app.RegisterComponentDescriptor(DioramaSkeletalClipComponent::CreateDescriptor());
+            m_app.RegisterComponentDescriptor(DioramaSkinnedSpriteComponent::CreateDescriptor());
+            m_app.RegisterComponentDescriptor(DioramaSimStateComponent::CreateDescriptor());
 
             m_systemEntity->Init();
             m_systemEntity->Activate();
+
+            // A component that loads a source file (the skinned rig) needs a FileIOBase; the
+            // bare ComponentApplication does not install the plain instance. File-less tests are
+            // unaffected (they pass empty paths, which short-circuit before any IO).
+            m_prevFileIO = AZ::IO::FileIOBase::GetInstance();
+            if (m_prevFileIO != nullptr)
+            {
+                AZ::IO::FileIOBase::SetInstance(nullptr);
+            }
+            AZ::IO::FileIOBase::SetInstance(&m_fileIO);
 
             DioramaSimClockConfig clockConfig;
             clockConfig.m_startPaused = true; // every step is an explicit StepOnce
@@ -128,6 +201,12 @@ namespace Diorama
             m_entities.clear();
             m_clockEntity->Deactivate();
             delete m_clockEntity;
+
+            AZ::IO::FileIOBase::SetInstance(nullptr);
+            if (m_prevFileIO != nullptr)
+            {
+                AZ::IO::FileIOBase::SetInstance(m_prevFileIO);
+            }
             m_app.Destroy();
         }
 
@@ -140,6 +219,8 @@ namespace Diorama
         }
 
         AZ::ComponentApplication m_app;
+        AZ::IO::LocalFileIO m_fileIO;
+        AZ::IO::FileIOBase* m_prevFileIO = nullptr;
         AZ::Entity* m_systemEntity = nullptr;
         AZ::Entity* m_clockEntity = nullptr;
         AZStd::vector<AZ::Entity*> m_entities;
@@ -335,5 +416,206 @@ namespace Diorama
         DioramaAnimStateMachineRequestBus::EventResult(speed, id, &DioramaAnimStateMachineRequests::GetFloat, AZStd::string("speed"));
         EXPECT_FLOAT_EQ(speed, 3.5f);
         EXPECT_TRUE(SaveMigrationChunks(id) == image);
+    }
+
+    TEST_F(SimClockMigrationTest, SkeletalClockedAdvancesOnStepOnce)
+    {
+        // A short non-looping clip on the sim clock: the fixed steps advance it past its end,
+        // so IsPlaying goes false with no render tick (no bone entities needed to advance time).
+        DioramaSkeletalClipConfig config;
+        config.m_duration = 0.05f; // 3 steps at 60 steps/sec
+        config.m_looping = false;
+        config.m_autoPlay = true;
+        config.m_useSimClock = true;
+        AZ::Entity* e = aznew AZ::Entity("Skeletal");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkeletalClipComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        bool playing = false;
+        DioramaSkeletalRequestBus::EventResult(playing, id, &DioramaSkeletalRequests::IsPlaying);
+        EXPECT_TRUE(playing);
+
+        StepClock(6); // 0.1s > 0.05s duration
+
+        DioramaSkeletalRequestBus::EventResult(playing, id, &DioramaSkeletalRequests::IsPlaying);
+        EXPECT_FALSE(playing);
+        bool useSim = false;
+        DioramaSkeletalRequestBus::EventResult(useSim, id, &DioramaSkeletalRequests::GetUseSimClock);
+        EXPECT_TRUE(useSim);
+    }
+
+    TEST_F(SimClockMigrationTest, SkeletalChunkRoundTripsAndIsCanonical)
+    {
+        DioramaSkeletalClipConfig config;
+        config.m_duration = 1.0f;
+        config.m_looping = true;
+        config.m_autoPlay = true;
+        config.m_clips.resize(2);
+        config.m_clips[0].m_name = "walk";
+        config.m_clips[0].m_duration = 0.5f;
+        config.m_clips[1].m_name = "run";
+        config.m_clips[1].m_duration = 0.3f;
+        AZ::Entity* e = aznew AZ::Entity("Skeletal");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkeletalClipComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        // Drive to a distinctive state: current clip = walk (0), a blend param, a speed, and a
+        // looping override (which only sticks because the current clip is tracked by index).
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::CrossFadeTo, AZStd::string("walk"), 0.0f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.7f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetSpeed, 2.5f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetLooping, false);
+        const AZStd::vector<AZ::u8> image = SaveMigrationChunks(id);
+        ASSERT_FALSE(image.empty());
+
+        // Diverge: switch to run (clip 1) and a different blend param.
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::CrossFadeTo, AZStd::string("run"), 0.0f);
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.1f);
+        ASSERT_TRUE(RestoreMigrationChunks(id, image));
+
+        float blend = 0.0f;
+        DioramaSkeletalRequestBus::EventResult(blend, id, &DioramaSkeletalRequests::GetBlendParam);
+        EXPECT_FLOAT_EQ(blend, 0.7f);
+        // Canonical: re-saving after restore is byte-identical, so the current clip index, the
+        // speed, and the loop / duration overrides all round-trip, not just the blend param.
+        EXPECT_TRUE(SaveMigrationChunks(id) == image);
+    }
+
+    TEST_F(SimClockMigrationTest, SkinnedSpriteChunkRoundTripsAndIsCanonical)
+    {
+        // No rig is loaded here (a real DragonBones armature needs an asset), so the play state
+        // is minimal; but the 'SKIN' chunk mechanism and the runtime scalars (incl. the speed set
+        // via the bus) must round-trip byte-identically. A rig-driven determinism check is a
+        // monitor verify (Phase C).
+        DioramaSkinnedSpriteConfig config;
+        AZ::Entity* e = aznew AZ::Entity("Skinned");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkinnedSpriteComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetAnimationSpeed, 2.5f);
+        const AZStd::vector<AZ::u8> image = SaveMigrationChunks(id);
+        ASSERT_FALSE(image.empty());
+
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetAnimationSpeed, 1.0f);
+        ASSERT_TRUE(RestoreMigrationChunks(id, image));
+        EXPECT_TRUE(SaveMigrationChunks(id) == image);
+    }
+
+    TEST_F(SimClockMigrationTest, CharacterStateRoundTripsThroughClockSlotCapture)
+    {
+        // The REAL rollback path, not a direct SaveSimState: a character enrolled via the
+        // Simulation State marker is captured by the clock's SaveToSlot (CaptureFrame walks the
+        // registry) and restored by RestoreFromSlot. This is what a rollback game actually runs,
+        // and what the direct-chunk round-trips above do not exercise.
+        DioramaSkeletalClipConfig config;
+        config.m_duration = 1.0f;
+        config.m_looping = true;
+        config.m_useSimClock = true;
+        AZ::Entity* e = aznew AZ::Entity("Fighter");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkeletalClipComponent>(config);
+        e->CreateComponent<DioramaSimStateComponent>(); // the marker: enrolls this entity in capture
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        // Distinctive state, then capture the whole frame through the clock.
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.7f);
+        DioramaSimClockRequestBus::Broadcast(&DioramaSimClockRequests::SaveToSlot, 0);
+
+        // Diverge, then restore through the clock.
+        DioramaSkeletalRequestBus::Event(id, &DioramaSkeletalRequests::SetBlendParam, 0.1f);
+        bool restored = false;
+        DioramaSimClockRequestBus::BroadcastResult(restored, &DioramaSimClockRequests::RestoreFromSlot, 0);
+        EXPECT_TRUE(restored);
+
+        // If the clock's capture reached the component (via the marker's enrollment), the blend
+        // parameter is back to the saved value; if enrollment is broken, it stays diverged.
+        float blend = 0.0f;
+        DioramaSkeletalRequestBus::EventResult(blend, id, &DioramaSkeletalRequests::GetBlendParam);
+        EXPECT_FLOAT_EQ(blend, 0.7f);
+    }
+
+    TEST_F(SimClockMigrationTest, SkinnedPoseOverrideRoundTripsThroughClockSlotCapture)
+    {
+        // A skinned character's per-bone pose overrides (SetBoneRotation, e.g. a fighting-move
+        // pin) are part of the rollback snapshot. With a real loaded rig, pose a bone, capture
+        // through the clock (SaveToSlot -> CaptureFrame walks the marker registry), diverge, and
+        // restore (RestoreFromSlot): the exact pose comes back. This exercises the 'SKIN' chunk's
+        // per-bone override path end to end, which the no-rig round-trip above cannot reach
+        // (SetBoneRotation needs the bone map that only a loaded armature provides).
+        const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "diorama_skinned_rollback_ske.json";
+        const AZStd::string rigPath(tmp.string().c_str());
+        ASSERT_TRUE(WriteTextFile(rigPath.c_str(), kSkinnedRigJson));
+
+        DioramaSkinnedSpriteConfig config;
+        config.m_sourcePath = rigPath;
+        config.m_useSimClock = true;
+        AZ::Entity* e = aznew AZ::Entity("SkinnedFighter");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkinnedSpriteComponent>(config);
+        e->CreateComponent<DioramaSimStateComponent>(); // marker: enrolls this entity in capture
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        // The rig must actually be loaded, or SetBoneRotation is a no-op and the test is vacuous.
+        SkinnedSpriteInfo info;
+        DioramaSkinnedSpriteRequestBus::EventResult(info, id, &DioramaSkinnedSpriteRequests::GetSkinnedSpriteInfo);
+        ASSERT_TRUE(info.m_loaded);
+        ASSERT_EQ(info.m_boneCount, 3);
+
+        // Baseline (bind pose) vs a posed chunk: the override must actually change the snapshot.
+        const AZStd::vector<AZ::u8> baseline = SaveMigrationChunks(id);
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetBoneRotation, AZStd::string("upper"), 45.0f);
+        const AZStd::vector<AZ::u8> posed = SaveMigrationChunks(id);
+        ASSERT_FALSE(posed == baseline);
+
+        // Capture the posed frame through the clock, diverge the pose, then restore through it.
+        DioramaSimClockRequestBus::Broadcast(&DioramaSimClockRequests::SaveToSlot, 0);
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetBoneRotation, AZStd::string("upper"), -30.0f);
+        bool restored = false;
+        DioramaSimClockRequestBus::BroadcastResult(restored, &DioramaSimClockRequests::RestoreFromSlot, 0);
+        EXPECT_TRUE(restored);
+
+        // The pose override is back to exactly what the clock captured (byte-identical chunk).
+        const AZStd::vector<AZ::u8> afterRestore = SaveMigrationChunks(id);
+        EXPECT_TRUE(afterRestore == posed);
+
+        m_fileIO.Remove(rigPath.c_str());
+    }
+
+    TEST_F(SimClockMigrationTest, SkinnedSpriteUseSimClockVerbToggles)
+    {
+        DioramaSkinnedSpriteConfig config;
+        config.m_useSimClock = false;
+        AZ::Entity* e = aznew AZ::Entity("Skinned");
+        e->CreateComponent<MigrationTransformStub>();
+        e->CreateComponent<DioramaSkinnedSpriteComponent>(config);
+        e->Init();
+        e->Activate();
+        m_entities.push_back(e);
+        const AZ::EntityId id = e->GetId();
+
+        bool useSim = true;
+        DioramaSkinnedSpriteRequestBus::EventResult(useSim, id, &DioramaSkinnedSpriteRequests::GetUseSimClock);
+        EXPECT_FALSE(useSim);
+        DioramaSkinnedSpriteRequestBus::Event(id, &DioramaSkinnedSpriteRequests::SetUseSimClock, true);
+        DioramaSkinnedSpriteRequestBus::EventResult(useSim, id, &DioramaSkinnedSpriteRequests::GetUseSimClock);
+        EXPECT_TRUE(useSim);
     }
 } // namespace Diorama

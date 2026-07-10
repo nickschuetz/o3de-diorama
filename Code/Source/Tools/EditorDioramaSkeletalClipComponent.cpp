@@ -110,7 +110,7 @@ namespace Diorama
 
         const float seconds =
             AZ::GetClamp(m_previewNormalizedTime, 0.0f, 1.0f) * AZ::GetMax(m_config.m_duration, AZ::Constants::FloatEpsilon);
-        ApplySkeletalPose(m_config, m_previewBones, seconds);
+        ApplySkeletalPose(m_config.m_tracks, m_previewBones, seconds);
     }
 
     void EditorDioramaSkeletalClipComponent::RemovePreview()

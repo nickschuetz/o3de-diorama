@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <Clients/SimStateBus.h>
 #include <Clients/SkeletalClip.h>
+#include <Diorama/DioramaSimClockBus.h>
 #include <Diorama/DioramaSkeletalBus.h>
 
 #include <AzCore/Component/Component.h>
@@ -107,6 +109,10 @@ namespace Diorama
         float m_speed = 1.0f;
         //! Begin playing automatically on activate.
         bool m_autoPlay = true;
+        //! Advance on the 2D Simulation Clock's fixed steps instead of the render tick, so the
+        //! animation is deterministic and rollback-exact. With no clock in the level, falls back
+        //! to the render tick (editor preview included).
+        bool m_useSimClock = false;
         //! One track per animated bone.
         AZStd::vector<SkeletalBoneTrackData> m_tracks;
         //! Named alternative clips on the same rig, selectable via CrossFadeTo. Empty
@@ -124,9 +130,9 @@ namespace Diorama
     //! order; an unmatched name yields an invalid id (that track is skipped).
     AZStd::vector<AZ::EntityId> ResolveSkeletalBones(AZ::EntityId root, const DioramaSkeletalClipConfig& config);
 
-    //! Sample the config at timeSeconds and apply each track's local transform to its
-    //! resolved bone entity via TransformBus. bones must align with config.m_tracks.
-    void ApplySkeletalPose(const DioramaSkeletalClipConfig& config, const AZStd::vector<AZ::EntityId>& bones, float timeSeconds);
+    //! Sample the given tracks at timeSeconds and apply each track's local transform to its
+    //! resolved bone entity via TransformBus. bones must align with tracks (index order).
+    void ApplySkeletalPose(const AZStd::vector<SkeletalBoneTrackData>& tracks, const AZStd::vector<AZ::EntityId>& bones, float timeSeconds);
 
     //! Apply a per-bone cross-fade of two clips: sample tracksA at timeA and tracksB at
     //! timeB, blend each bone's pose by weight (0 = A, 1 = B) with SkeletalClip::BlendPose,
@@ -149,6 +155,8 @@ namespace Diorama
         : public AZ::Component
         , protected AZ::TickBus::Handler
         , protected DioramaSkeletalRequestBus::Handler
+        , protected DioramaSimTickNotificationBus::Handler
+        , protected DioramaSimStateParticipantBus::Handler
     {
     public:
         AZ_COMPONENT(Diorama::DioramaSkeletalClipComponent, DioramaSkeletalClipComponentTypeId);
@@ -178,8 +186,25 @@ namespace Diorama
         void SetBlendParam(float value) override;
         float GetBlendParam() override;
         bool IsPlaying() override;
+        void SetUseSimClock(bool enabled) override;
+        bool GetUseSimClock() override;
+
+        // DioramaSimTickNotifications (Use Simulation Clock mode)
+        void OnSimTick(AZ::s64 frame, float stepSeconds) override;
+
+        // DioramaSimStateParticipantBus (snapshot / restore of playback position)
+        void SaveSimState(SimState::Writer& writer) override;
+        bool TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload) override;
 
     private:
+        static constexpr AZ::u32 SkeletalChunkTag = 0x4C454B53; // 'SKEL' little-endian
+
+        //! Advance the clip by deltaTime (render tick or one sim step) and pose the rig.
+        void Advance(float deltaTime);
+        //! The current clip's effective duration / looping: a runtime SetDuration / SetLooping
+        //! override if set (applies to whichever clip is current), else the clip's authored value.
+        float CurrentDuration() const;
+        bool CurrentLooping() const;
         //! One resolved blend-tree entry: an anchor and which clip backs it
         //! (m_clipIndex into m_config.m_clips, or -1 for the default clip).
         struct ResolvedBlendEntry
@@ -191,14 +216,29 @@ namespace Diorama
         //! Build m_blendEntries / m_blendAnchors from m_config.m_blendTree (sorted by
         //! anchor, names resolved to clip indices). Sets m_blendActive.
         void ResolveBlendTree();
-        //! Tracks / duration backing a resolved blend entry's clip index (-1 = default).
+        //! Tracks / duration / looping backing a clip index (-1 = the default clip). Used both
+        //! by the blend tree and to read the current clip without mutating the authored config.
         const AZStd::vector<SkeletalBoneTrackData>& BlendTracks(int clipIndex) const;
         float BlendClipDuration(int clipIndex) const;
+        bool BlendLooping(int clipIndex) const;
 
         DioramaSkeletalClipConfig m_config;
         AZStd::vector<AZ::EntityId> m_bones;
+        //! Which clip is currently playing: -1 = the default (config's own tracks), else an index
+        //! into m_config.m_clips. A finished cross-fade / instant switch sets this instead of
+        //! overwriting the config, so the authored clips never drift and the state is a single int
+        //! the rollback snapshot can hold.
+        int m_currentClipIndex = -1;
         float m_time = 0.0f;
         bool m_playing = false;
+        // Runtime playback state set via the bus and captured in the rollback snapshot: the speed
+        // (seeded from the config) and optional looping / duration overrides that apply to
+        // whichever clip is current (so SetLooping / SetDuration work after a cross-fade too).
+        float m_speed = 1.0f;
+        bool m_hasLoopOverride = false;
+        bool m_loopOverride = true;
+        bool m_hasDurationOverride = false;
+        float m_durationOverride = 1.0f;
         // Cross-fade state: when m_fadeIndex >= 0 the player blends from the current
         // clip toward m_config.m_clips[m_fadeIndex] over m_fadeDuration seconds, then
         // promotes the target to the current clip.

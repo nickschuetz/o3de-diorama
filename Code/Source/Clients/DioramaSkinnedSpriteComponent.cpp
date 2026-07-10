@@ -51,10 +51,17 @@ namespace Diorama
         m_presenter.Connect(GetEntityId());
         DioramaSkinnedSpriteRequestBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
+        DioramaSimStateParticipantBus::Handler::BusConnect(GetEntityId());
+        if (m_config.m_useSimClock)
+        {
+            DioramaSimTickNotificationBus::Handler::BusConnect();
+        }
     }
 
     void DioramaSkinnedSpriteComponent::Deactivate()
     {
+        DioramaSimStateParticipantBus::Handler::BusDisconnect();
+        DioramaSimTickNotificationBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
         DioramaSkinnedSpriteRequestBus::Handler::BusDisconnect();
         m_presenter.Disconnect();
@@ -62,7 +69,18 @@ namespace Diorama
 
     void DioramaSkinnedSpriteComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
     {
+        // Use Simulation Clock mode: a running clock owns the advance (OnSimTick); with no clock
+        // the render tick advances (editor preview + non-fighting scenes).
+        if (m_config.m_useSimClock && DioramaSimClockRequestBus::HasHandlers())
+        {
+            return;
+        }
         m_presenter.Tick(deltaTime);
+    }
+
+    void DioramaSkinnedSpriteComponent::OnSimTick([[maybe_unused]] AZ::s64 frame, float stepSeconds)
+    {
+        m_presenter.Tick(stepSeconds);
     }
 
     void DioramaSkinnedSpriteComponent::PlayAnimation(const AZStd::string& name, bool looping)
@@ -98,5 +116,42 @@ namespace Diorama
     SkinnedSpriteInfo DioramaSkinnedSpriteComponent::GetSkinnedSpriteInfo()
     {
         return m_presenter.GetInfo();
+    }
+
+    void DioramaSkinnedSpriteComponent::SetUseSimClock(bool enabled)
+    {
+        m_config.m_useSimClock = enabled;
+        if (enabled)
+        {
+            if (!DioramaSimTickNotificationBus::Handler::BusIsConnected())
+            {
+                DioramaSimTickNotificationBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            DioramaSimTickNotificationBus::Handler::BusDisconnect();
+        }
+    }
+
+    bool DioramaSkinnedSpriteComponent::GetUseSimClock()
+    {
+        return m_config.m_useSimClock;
+    }
+
+    void DioramaSkinnedSpriteComponent::SaveSimState(SimState::Writer& writer)
+    {
+        const size_t sizePos = writer.BeginChunk(SkinnedChunkTag);
+        m_presenter.SaveState(writer);
+        writer.EndChunk(sizePos);
+    }
+
+    bool DioramaSkinnedSpriteComponent::TryRestoreChunk(AZ::u32 tag, SimState::Reader& payload)
+    {
+        if (tag != SkinnedChunkTag)
+        {
+            return false;
+        }
+        return m_presenter.RestoreState(payload);
     }
 } // namespace Diorama

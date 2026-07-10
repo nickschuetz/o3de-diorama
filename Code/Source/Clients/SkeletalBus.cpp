@@ -51,6 +51,12 @@ namespace Diorama
                 &DioramaSkeletalRequestBus::Events::SetBlendParam,
                 { { { "value", "Blend-tree parameter (e.g. walk speed); blends the two bracketing clips." } } })
             ->Event("GetBlendParam", &DioramaSkeletalRequestBus::Events::GetBlendParam)
-            ->Event("IsPlaying", &DioramaSkeletalRequestBus::Events::IsPlaying);
+            ->Event("IsPlaying", &DioramaSkeletalRequestBus::Events::IsPlaying)
+            ->Event(
+                "SetUseSimClock",
+                &DioramaSkeletalRequestBus::Events::SetUseSimClock,
+                { { { "enabled",
+                      "Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) vs the render tick." } } })
+            ->Event("GetUseSimClock", &DioramaSkeletalRequestBus::Events::GetUseSimClock);
     }
 } // namespace Diorama
