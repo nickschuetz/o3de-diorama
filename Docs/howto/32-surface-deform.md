@@ -10,10 +10,11 @@ It rides on the **same** `Skinned Sprite (mesh deform)` component as the weighte
 path ([how-to 31](31-mesh-deform.md)); a surface rig just loads. See the design in
 [Docs/design/2d-surface-deform.md](../design/2d-surface-deform.md).
 
-Demo: `Docs/examples/water_demo.py` builds a runnable `DioramaWaterDemo` level with a
-rippling water panel -- a flat quad bound to one surface bone, with a `ripple` clip that
-runs a horizontal traveling wave across the control-point grid. The rig is generated
-(IP-free) by `scripts/gen_water_rig.py`.
+Demo: `Docs/examples/water_demo.py` builds a runnable `DioramaWaterDemo` level with three
+rippling water panels side by side -- the same flat quad bound to one surface bone, each
+playing a different animation-parameter clip: `flow` (type-40 progress), `surge` (type-41
+weight envelope: calm, full ripple, settle), and `seastate` (type-42 1D blend: gentle
+morphing to choppy and back). The rig is generated (IP-free) by `scripts/gen_water_rig.py`.
 
 ## What surface deformation is
 
@@ -86,7 +87,10 @@ blend position (the `x` on their progress entry) and the parameter picks the nea
 splitting the weight by proximity (a parameter outside the range gives the nearest child the
 full weight). Weights multiply down the tree, and near-zero contributions are pruned rather
 than sampled. Bone scale blends toward identity (`(s - 1) * w + 1`), matching the reference
-runtime; translate, rotate, skew, and deform deltas scale linearly. The generated `surge`
-clip in the water rig demonstrates the envelope: it scrubs the same `PARAM_WAVE` as `flow`
-under a type-41 channel that swells 0 to 1 and back, so the water starts calm, ripples at
-full strength mid-clip, and settles again. Set the component's Animation to `surge` to see it.
+runtime; translate, rotate, skew, and deform deltas scale linearly. The generated water rig
+demonstrates both: the `surge` clip scrubs the same `PARAM_WAVE` as `flow` under a type-41
+channel that swells 0 to 1 and back (calm, full ripple, settle), and the `seastate` clip
+scrubs a `blendType: "1D"` host (`SEA_BLEND`, children `PARAM_WAVE` at position -1 and the
+taller, tighter `PARAM_CHOP` at +1) while a type-42 channel sweeps the parameter -1 to +1
+and back, morphing the water gentle to choppy to gentle. The demo level stages all three
+clips side by side.
