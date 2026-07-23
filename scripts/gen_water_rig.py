@@ -32,6 +32,8 @@ FRAMES_PER_SAMPLE = 4
 CYCLE_FRAMES = SAMPLES * FRAMES_PER_SAMPLE
 AMPLITUDE = 34.0       # control-point Y offset (on the +/-200 grid)
 WAVES = 2.0            # horizontal wavelengths across the panel
+CHOP_AMPLITUDE = 55.0  # the "choppy" sea state: taller waves...
+CHOP_WAVES = 4.0       # ...with a shorter wavelength
 
 TEX_W, TEX_H = 256, 128
 
@@ -73,17 +75,29 @@ def build_ske():
 
     # Ripple: a traveling wave on the control-point Y. Frame s at phase 2*pi*s/SAMPLES; a
     # closing frame equal to frame 0 (phase 2*pi) makes the loop seamless.
-    frames = []
-    for s in range(SAMPLES + 1):
-        phase = 2.0 * math.pi * s / SAMPLES
-        value = []
-        for j in range(NY):
-            for i in range(NX):
-                dy = AMPLITUDE * math.sin(2.0 * math.pi * WAVES * i / SEG_X + phase)
-                value += [0.0, dy]
-        duration = FRAMES_PER_SAMPLE if s < SAMPLES else 0
-        frame = {"duration": duration, "tweenEasing": 0, "value": [round(v, 3) for v in value]}
-        frames.append(frame)
+    def wave_frames(amplitude, waves):
+        frames = []
+        for s in range(SAMPLES + 1):
+            phase = 2.0 * math.pi * s / SAMPLES
+            value = []
+            for j in range(NY):
+                for i in range(NX):
+                    dy = amplitude * math.sin(2.0 * math.pi * waves * i / SEG_X + phase)
+                    value += [0.0, dy]
+            duration = FRAMES_PER_SAMPLE if s < SAMPLES else 0
+            frames.append({"duration": duration, "tweenEasing": 0, "value": [round(v, 3) for v in value]})
+        return frames
+
+    frames = wave_frames(AMPLITUDE, WAVES)
+    chop_frames = wave_frames(CHOP_AMPLITUDE, CHOP_WAVES)
+
+    # A progress triangle (0 -> 1 -> 0 over two cycles): the wave plays forward one cycle then
+    # back, so multi-cycle clips stay continuous without a sawtooth wrap glitch.
+    tri = [
+        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
+        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 1.0},
+        {"duration": 0, "value": 0.0},
+    ]
 
     armature = {
         "name": "water",
@@ -131,6 +145,64 @@ def build_ske():
                     {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
                     {"duration": 0, "value": 1.0},
                 ]}],
+            },
+            # Enveloped: "surge" runs the same wave under a type-41 AnimationWeight channel
+            # that swells 0 -> 1 -> 0 over the clip, so the water starts calm, ripples at
+            # full strength mid-clip, and settles again. Demos the weight envelope.
+            {
+                "name": "surge",
+                "duration": 2 * CYCLE_FRAMES,
+                "playTimes": 0,
+                "timeline": [
+                    {"name": "PARAM_WAVE", "type": 40, "frame": [
+                        {"duration": 2 * CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
+                        {"duration": 0, "value": 1.0},
+                    ]},
+                    {"name": "PARAM_WAVE", "type": 41, "frame": [
+                        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
+                        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 1.0},
+                        {"duration": 0, "value": 0.0},
+                    ]},
+                ],
+            },
+            # The choppy sea state: the same traveling wave, taller and tighter.
+            {
+                "name": "PARAM_CHOP",
+                "duration": CYCLE_FRAMES,
+                "playTimes": 0,
+                "timeline": [{"name": "water", "type": 50, "frame": chop_frames}],
+            },
+            # 1D blend host: its two children carry blend positions (the timeline "x"), and a
+            # parameter picks the nearest pair to blend. Both children scrub their wave with
+            # the progress triangle so the host stays continuous over its two cycles.
+            {
+                "name": "SEA_BLEND",
+                "duration": 2 * CYCLE_FRAMES,
+                "playTimes": 0,
+                "blendType": "1D",
+                "timeline": [
+                    {"name": "PARAM_WAVE", "type": 40, "x": -1.0, "frame": tri},
+                    {"name": "PARAM_CHOP", "type": 40, "x": 1.0, "frame": tri},
+                ],
+            },
+            # Blended: "seastate" scrubs the 1D host while a type-42 AnimationParameter channel
+            # sweeps the blend parameter -1 -> +1 -> -1, so the water morphs gentle -> choppy
+            # -> gentle. Demos 1D blending.
+            {
+                "name": "seastate",
+                "duration": 2 * CYCLE_FRAMES,
+                "playTimes": 0,
+                "timeline": [
+                    {"name": "SEA_BLEND", "type": 40, "frame": [
+                        {"duration": 2 * CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
+                        {"duration": 0, "value": 1.0},
+                    ]},
+                    {"name": "SEA_BLEND", "type": 42, "frame": [
+                        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "x": -1.0, "y": 0.0},
+                        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "x": 1.0, "y": 0.0},
+                        {"duration": 0, "x": -1.0, "y": 0.0},
+                    ]},
+                ],
             },
         ],
     }

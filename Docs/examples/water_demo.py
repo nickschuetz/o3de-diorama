@@ -1,20 +1,24 @@
 """
-Surface-deform demo: a rippling water panel.
+Surface-deform demo: three rippling water panels, one per animation-parameter layer.
 
-Builds a Character with the Diorama **Skinned Sprite (mesh deform)** component pointed at
+Builds three entities with the Diorama **Skinned Sprite (mesh deform)** component pointed at
 the generated water rig (scripts/gen_water_rig.py -> Assets/Diorama/Examples/Skinned/). The
-rig is a single flat quad bound to one DragonBones "surface" bone; the "ripple" animation is
-a surface-deform channel that offsets the surface's control-point grid in a horizontal
-traveling wave, so the panel undulates like water. This is the clean single-surface case of
-surface deformation (no bones-skinning, no nesting).
+rig is a single flat quad bound to one DragonBones "surface" bone whose control-point grid
+carries a horizontal traveling wave. The panels differ only in which clip they play:
+
+- WaterFlow ("flow"): the wave scrubbed through a type-40 AnimationProgress channel.
+- WaterSurge ("surge"): the same wave under a type-41 AnimationWeight envelope that swells
+  0 -> 1 -> 0, so the water starts calm, ripples at full strength, and settles.
+- WaterSea ("seastate"): a type-42 AnimationParameter 1D blend sweeping between a gentle
+  and a choppy wave, so the water morphs gentle -> choppy -> gentle.
 
 The component reads the DragonBones "*_ske.json" + "*_tex.json" from the product cache via
 the @products@ alias (so it works packaged), and the atlas PNG is a normal texture asset.
 Those refs plus the animation name are baked into the saved prefab (live string-property
 edits are unreliable in this build).
 
-After running, be DemoCamera (or Game -> Simulate) to watch the ripple loop; in edit mode
-the animated geometry keeps the viewport live, so it also plays in the editor preview.
+After running, be DemoCamera (or Game -> Simulate) to watch the panels side by side; in edit
+mode the animated geometry keeps the viewport live, so it also plays in the editor preview.
 
 Run in the editor:
   <engine>/bin/Linux/profile/Default/Editor \
@@ -36,6 +40,14 @@ diorama = azlmbr.diorama
 LEVEL_NAME = "DioramaWaterDemo"
 SKE_SOURCE = "@products@/diorama/examples/skinned/water_ske.json"
 TEX_PRODUCT = "diorama/examples/skinned/water_tex.png.streamingimage"
+
+# Panel entity name -> the rig clip it plays (config baked into the saved prefab).
+PANELS = {
+    "WaterFlow": "flow",
+    "WaterSurge": "surge",
+    "WaterSea": "seastate",
+}
+PANEL_SPACING = 4.7
 
 
 def log(msg):
@@ -104,22 +116,23 @@ def resolve_texture(product_path):
 
 def bake_config(doc):
     tex = resolve_texture(TEX_PRODUCT)
+    if tex is None:
+        log("NOTE: water texture not found; reprocess assets and re-run")
     for entity in doc.get("Entities", {}).values():
-        if (entity.get("Name") or "") != "Water":
+        clip = PANELS.get(entity.get("Name") or "")
+        if clip is None:
             continue
         for comp in entity.get("Components", {}).values():
             if "SkinnedSprite" in comp.get("$type", ""):
                 cfg = comp.setdefault("Config", {})
                 cfg["sourcePath"] = SKE_SOURCE
-                cfg["scale"] = 0.02
-                cfg["animationName"] = "ripple"
+                cfg["scale"] = 0.011
+                cfg["animationName"] = clip
                 cfg["autoPlay"] = True
                 cfg["flipVertical"] = False
                 if tex is not None:
                     cfg["texture"] = tex
-                else:
-                    log("NOTE: water texture not found; reprocess assets and re-run")
-                return
+                break
 
 
 def patch_prefab(level_name, patch):
@@ -157,19 +170,22 @@ def main():
         log("FAIL: Skinned Sprite component not found (gem built + enabled?)")
         return
 
-    # The water panel (config baked below).
-    make_entity("Water", math.Vector3(0.0, 0.0, 0.0), [skinned])
+    # The three water panels, side by side (configs baked below): plain progress, weight
+    # envelope, and 1D blend.
+    for index, name in enumerate(PANELS):
+        x = (index - 1) * PANEL_SPACING
+        make_entity(name, math.Vector3(x, 0.0, 0.0), [skinned])
 
-    # A dim backdrop so the rippling panel reads against something.
+    # A dim backdrop so the rippling panels read against something.
     if sprite is not None:
         back = make_entity("Backdrop", math.Vector3(0.0, 0.0, -0.2), [sprite])
         diorama.DioramaSpriteRequestBus(bus.Event, "SetTextureByPath", back, "diorama/textures/white_sprite.png")
-        diorama.DioramaSpriteRequestBus(bus.Event, "SetSize", back, 14.0, 8.0)
+        diorama.DioramaSpriteRequestBus(bus.Event, "SetSize", back, 15.5, 6.0)
         diorama.DioramaSpriteRequestBus(bus.Event, "SetBillboard", back, False)
         diorama.DioramaSpriteRequestBus(bus.Event, "SetTint", back, 0.05, 0.12, 0.18, 1.0)
 
     cam_types = ([cam_ctrl] if cam_ctrl else []) + ([atom_cam] if atom_cam else [])
-    make_entity("DemoCamera", math.Vector3(0.0, -8.0, 0.0), cam_types)
+    make_entity("DemoCamera", math.Vector3(0.0, -12.0, 0.0), cam_types)
 
     general.idle_wait_frames(30)
     if now_in(LEVEL_NAME):
@@ -179,8 +195,8 @@ def main():
             log("save raised: {}".format(e))
     patch_prefab(LEVEL_NAME, bake_config)
 
-    log("Built a rippling Water panel + Backdrop + DemoCamera in '{}'.".format(LEVEL_NAME))
-    log("Be DemoCamera to watch the ripple loop.")
+    log("Built WaterFlow / WaterSurge / WaterSea panels + Backdrop + DemoCamera in '{}'.".format(LEVEL_NAME))
+    log("Be DemoCamera to compare progress, weight-envelope, and 1D-blend clips side by side.")
     log("done")
 
 

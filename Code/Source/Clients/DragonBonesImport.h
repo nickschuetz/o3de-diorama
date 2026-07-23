@@ -12,6 +12,7 @@
 #include <AzCore/Math/MathUtils.h>
 #include <AzCore/base.h>
 #include <AzCore/std/containers/vector.h>
+#include <AzCore/std/limits.h>
 #include <AzCore/std/string/string.h>
 #include <AzCore/std/string/string_view.h>
 
@@ -225,7 +226,35 @@ namespace Diorama::DragonBones
     {
         AZStd::string m_targetName;
         int m_targetIndex = -1; //!< resolved against the armature's animations; -1 if absent
+        float m_positionX = 0.0f; //!< blend position (the timeline's "x") when the owner is a 1D blend host
         AZStd::vector<Keyframe> m_values;
+    };
+
+    //! One AnimationWeight channel (DragonBones type 41): a strength envelope on a named
+    //! sub-animation's whole contribution over time. The keyframe value (`.x`) is the weight
+    //! (1 = full strength); a missing value defaults to 1.
+    struct WeightTimeline
+    {
+        AZStd::string m_targetName;
+        int m_targetIndex = -1; //!< resolved against the armature's animations; -1 if absent
+        AZStd::vector<Keyframe> m_values;
+    };
+
+    //! One AnimationParameter channel (DragonBones type 42): drives the 1D blend parameter of a
+    //! named sub-animation (a `blendType` "1D" host) over time. The keyframe `.x` is the
+    //! parameter; the host distributes weight across its progress children by their positions.
+    struct ParameterTimeline
+    {
+        AZStd::string m_targetName;
+        int m_targetIndex = -1; //!< resolved against the armature's animations; -1 if absent
+        AZStd::vector<Keyframe> m_values;
+    };
+
+    //! How an animation blends its progress children (DragonBones `blendType`).
+    enum class BlendType : AZ::u8
+    {
+        None = 0, //!< every child composes at full weight (as before)
+        Blend1D, //!< children carry positions; a parameter picks the nearest pair to blend
     };
 
     //! One authored animation clip: its name, length, whether it loops, and per-bone timelines.
@@ -234,9 +263,12 @@ namespace Diorama::DragonBones
         AZStd::string m_name;
         float m_durationSeconds = 0.0f;
         bool m_loop = true; //!< DragonBones playTimes 0 loops; >0 plays that many times
+        BlendType m_blendType = BlendType::None; //!< how progress children blend ("1D" hosts)
         AZStd::vector<BoneTimeline> m_bones;
         AZStd::vector<DeformTimeline> m_deforms; //!< FFD / surface deform channels
         AZStd::vector<ProgressTimeline> m_progress; //!< AnimationProgress (type 40) channels
+        AZStd::vector<WeightTimeline> m_weights; //!< AnimationWeight (type 41) channels
+        AZStd::vector<ParameterTimeline> m_parameters; //!< AnimationParameter (type 42) channels
     };
 
     //! The sampled pose delta for one bone: what to add to / multiply the bind components by.
@@ -472,40 +504,151 @@ namespace Diorama::DragonBones
         return nullptr;
     }
 
-    //! One (animation, time) contribution: an animation index paired with the time to sample it.
+    //! One (animation, time, weight) contribution: an animation index, the time to sample it,
+    //! and the strength its deltas compose at (1 = full; type-41 envelopes and 1D blends lower it).
     struct AnimationSample
     {
         int m_animIndex = -1;
         float m_time = 0.0f;
+        float m_weight = 1.0f;
     };
+
+    //! Contributions below this weight are pruned: they are visually nil and sampling them
+    //! (bone tracks + deform frames) is pure cost.
+    inline constexpr float kMinContributionWeight = 1.0e-4f;
 
     //! Expand the type-40 AnimationProgress tree rooted at `rootIndex` (sampled at `rootTime`)
     //! into `out`: the root itself, then, for each of its progress channels, the PARAM_*
     //! sub-animation it scrubs sampled at (progress * that sub-animation's duration), recursively.
-    //! `maxDepth` bounds the recursion (and so guards against cyclic progress references). The
-    //! playing clip's bone deltas and surface deforms then compose over `out`. Pure; unit tested.
+    //! `maxDepth` bounds the recursion (and so guards against cyclic progress references).
+    //!
+    //! Weights compose multiplicatively down the tree: a type-41 AnimationWeight channel in the
+    //! driving clip scales its target child's whole subtree, and when this animation is a 1D
+    //! blend host (`m_blendType`), `rootParameter` (driven by the parent's type-42 channel)
+    //! distributes weight across the progress children by the reference nearest-left/right rule
+    //! (left = dR / (dL + dR), right = 1 - left; a lone side takes it all). Near-zero subtrees
+    //! are pruned. The playing clip's bone deltas and surface deforms then compose over `out`,
+    //! each scaled by its sample's weight. Pure; unit tested.
     inline void CollectProgressContributions(
-        const Armature& armature, int rootIndex, float rootTime, int maxDepth, AZStd::vector<AnimationSample>& out)
+        const Armature& armature,
+        int rootIndex,
+        float rootTime,
+        int maxDepth,
+        AZStd::vector<AnimationSample>& out,
+        float rootWeight = 1.0f,
+        float rootParameter = 0.0f)
     {
-        if (rootIndex < 0 || rootIndex >= static_cast<int>(armature.m_animations.size()))
+        if (rootIndex < 0 || rootIndex >= static_cast<int>(armature.m_animations.size()) || rootWeight < kMinContributionWeight)
         {
             return;
         }
-        out.push_back(AnimationSample{ rootIndex, rootTime });
+        out.push_back(AnimationSample{ rootIndex, rootTime, rootWeight });
         if (maxDepth <= 0)
         {
             return;
         }
         const Animation& anim = armature.m_animations[rootIndex];
-        for (const ProgressTimeline& progress : anim.m_progress)
+        const int animCount = static_cast<int>(armature.m_animations.size());
+
+        // 1D blend host: find the children nearest the parameter on each side, then split the
+        // weight between them by proximity (exactly the reference runtime's rule).
+        int blendLeft = -1;
+        int blendRight = -1;
+        float blendLeftWeight = 0.0f;
+        float blendRightWeight = 0.0f;
+        if (anim.m_blendType == BlendType::Blend1D)
         {
-            if (progress.m_targetIndex < 0 || progress.m_targetIndex >= static_cast<int>(armature.m_animations.size()))
+            float dL = AZStd::numeric_limits<float>::max();
+            float dR = AZStd::numeric_limits<float>::max();
+            for (size_t i = 0; i < anim.m_progress.size(); ++i)
+            {
+                const ProgressTimeline& progress = anim.m_progress[i];
+                if (progress.m_targetIndex < 0 || progress.m_targetIndex >= animCount)
+                {
+                    continue;
+                }
+                const float d = rootParameter - progress.m_positionX;
+                if (d >= 0.0f)
+                {
+                    if (d < dL)
+                    {
+                        dL = d;
+                        blendLeft = static_cast<int>(i);
+                    }
+                }
+                else if (-d < dR)
+                {
+                    dR = -d;
+                    blendRight = static_cast<int>(i);
+                }
+            }
+            if (blendLeft >= 0 && blendRight >= 0)
+            {
+                blendLeftWeight = (dL + dR > 0.0f) ? (dR / (dL + dR)) : 1.0f;
+                blendRightWeight = 1.0f - blendLeftWeight;
+            }
+            else if (blendLeft >= 0)
+            {
+                blendLeftWeight = 1.0f; // parameter right of every child: nearest takes it all
+            }
+            else if (blendRight >= 0)
+            {
+                blendRightWeight = 1.0f; // parameter left of every child: nearest takes it all
+            }
+        }
+
+        for (size_t i = 0; i < anim.m_progress.size(); ++i)
+        {
+            const ProgressTimeline& progress = anim.m_progress[i];
+            if (progress.m_targetIndex < 0 || progress.m_targetIndex >= animCount)
             {
                 continue;
             }
+
+            float childWeight = rootWeight;
+            if (anim.m_blendType == BlendType::Blend1D)
+            {
+                const int idx = static_cast<int>(i);
+                if (idx == blendLeft)
+                {
+                    childWeight *= blendLeftWeight;
+                }
+                else if (idx == blendRight)
+                {
+                    childWeight *= blendRightWeight;
+                }
+                else
+                {
+                    continue; // outside the blended pair
+                }
+            }
+            for (const WeightTimeline& weight : anim.m_weights)
+            {
+                if (weight.m_targetIndex == progress.m_targetIndex)
+                {
+                    childWeight *= SampleTrack(weight.m_values, rootTime, AZ::Vector2(1.0f, 1.0f)).GetX();
+                    break;
+                }
+            }
+            if (childWeight < kMinContributionWeight)
+            {
+                continue;
+            }
+
+            float childParameter = 0.0f;
+            for (const ParameterTimeline& parameter : anim.m_parameters)
+            {
+                if (parameter.m_targetIndex == progress.m_targetIndex)
+                {
+                    childParameter = SampleTrack(parameter.m_values, rootTime, AZ::Vector2::CreateZero()).GetX();
+                    break;
+                }
+            }
+
             const Animation& sub = armature.m_animations[progress.m_targetIndex];
             const float v = SampleTrack(progress.m_values, rootTime, AZ::Vector2::CreateZero()).GetX();
-            CollectProgressContributions(armature, progress.m_targetIndex, v * sub.m_durationSeconds, maxDepth - 1, out);
+            CollectProgressContributions(
+                armature, progress.m_targetIndex, v * sub.m_durationSeconds, maxDepth - 1, out, childWeight, childParameter);
         }
     }
 

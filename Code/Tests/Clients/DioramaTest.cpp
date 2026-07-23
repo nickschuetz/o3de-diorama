@@ -1721,6 +1721,163 @@ namespace Diorama
         EXPECT_EQ(out[1].m_animIndex, 1);
     }
 
+    TEST(DragonBonesImportTest, ParsesWeightAndParameterChannels)
+    {
+        constexpr const char* kJson = R"JSON(
+        {
+          "name": "p", "frameRate": 30,
+          "armature": [{
+            "name": "rig",
+            "bone": [ { "name": "root" } ],
+            "animation": [
+              { "name": "PARAM_X", "duration": 10, "playTimes": 0 },
+              { "name": "BLEND_HOST", "duration": 10, "playTimes": 0, "blendType": "1D",
+                "timeline": [
+                  { "name": "PARAM_X", "type": 40, "x": -1.5, "frame": [ { "value": 0.25 } ] } ] },
+              { "name": "idle", "duration": 30, "playTimes": 0,
+                "timeline": [
+                  { "name": "BLEND_HOST", "type": 40, "frame": [ { "value": 0.0 } ] },
+                  { "name": "BLEND_HOST", "type": 41, "frame": [
+                    { "duration": 15, "tweenEasing": 0, "value": 1.0 },
+                    { "duration": 15, "tweenEasing": 0, "value": 0.0 } ] },
+                  { "name": "BLEND_HOST", "type": 42, "frame": [
+                    { "duration": 30, "tweenEasing": 0, "x": -2.0, "y": 0.0 } ] } ] }
+            ]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kJson, doc));
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0];
+        ASSERT_EQ(arm.m_animations.size(), 3u);
+
+        // BLEND_HOST is a 1D host and its progress child carries its blend position ("x").
+        const Diorama::DragonBones::Animation* host = Diorama::DragonBones::FindAnimation(arm, "BLEND_HOST");
+        ASSERT_NE(host, nullptr);
+        EXPECT_EQ(host->m_blendType, Diorama::DragonBones::BlendType::Blend1D);
+        ASSERT_EQ(host->m_progress.size(), 1u);
+        EXPECT_NEAR(host->m_progress[0].m_positionX, -1.5f, 1e-4f);
+
+        // idle carries a weight envelope (type 41) and a parameter track (type 42), both
+        // resolved to BLEND_HOST (animation 1).
+        const Diorama::DragonBones::Animation* idle = Diorama::DragonBones::FindAnimation(arm, "idle");
+        ASSERT_NE(idle, nullptr);
+        EXPECT_EQ(idle->m_blendType, Diorama::DragonBones::BlendType::None);
+        ASSERT_EQ(idle->m_weights.size(), 1u);
+        EXPECT_EQ(idle->m_weights[0].m_targetName, "BLEND_HOST");
+        EXPECT_EQ(idle->m_weights[0].m_targetIndex, 1);
+        ASSERT_EQ(idle->m_weights[0].m_values.size(), 2u);
+        EXPECT_NEAR(idle->m_weights[0].m_values[1].m_value.GetX(), 0.0f, 1e-4f);
+        ASSERT_EQ(idle->m_parameters.size(), 1u);
+        EXPECT_EQ(idle->m_parameters[0].m_targetIndex, 1);
+        EXPECT_NEAR(idle->m_parameters[0].m_values[0].m_value.GetX(), -2.0f, 1e-4f);
+    }
+
+    TEST(DragonBonesImportTest, WeightEnvelopeScalesSubtreeAndPrunesZero)
+    {
+        constexpr const char* kJson = R"JSON(
+        {
+          "name": "p", "frameRate": 1,
+          "armature": [{
+            "name": "rig",
+            "bone": [ { "name": "root" } ],
+            "animation": [
+              { "name": "PARAM_B", "duration": 10, "playTimes": 0 },
+              { "name": "PARAM_A", "duration": 20, "playTimes": 0,
+                "timeline": [ { "name": "PARAM_B", "type": 40, "frame": [ { "value": 0.5 } ] } ] },
+              { "name": "idle", "duration": 30, "playTimes": 0,
+                "timeline": [
+                  { "name": "PARAM_A", "type": 40, "frame": [ { "value": 0.5 } ] },
+                  { "name": "PARAM_A", "type": 41, "frame": [
+                    { "duration": 10, "tweenEasing": 0, "value": 1.0 },
+                    { "duration": 10, "tweenEasing": 0, "value": 0.0 } ] } ] }
+            ]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kJson, doc));
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0]; // PARAM_B=0, PARAM_A=1, idle=2
+
+        // At t=0 the envelope is 1: the whole tree composes at full weight (which is also the
+        // inherited weight of the nested PARAM_B).
+        AZStd::vector<Diorama::DragonBones::AnimationSample> out;
+        Diorama::DragonBones::CollectProgressContributions(arm, 2, 0.0f, 4, out);
+        ASSERT_EQ(out.size(), 3u);
+        EXPECT_NEAR(out[0].m_weight, 1.0f, 1e-4f);
+        EXPECT_NEAR(out[1].m_weight, 1.0f, 1e-4f);
+        EXPECT_NEAR(out[2].m_weight, 1.0f, 1e-4f); // multiplies down: 1 * 1
+
+        // The first frame's value holds at its start and interpolates toward the next frame
+        // over its duration, so the fade runs 1 -> 0 across t=0..10. Halfway (t=5) the envelope
+        // is 0.5 and both PARAM_A and its nested PARAM_B compose at half strength.
+        out.clear();
+        Diorama::DragonBones::CollectProgressContributions(arm, 2, 5.0f, 4, out);
+        ASSERT_EQ(out.size(), 3u);
+        EXPECT_NEAR(out[1].m_weight, 0.5f, 1e-3f);
+        EXPECT_NEAR(out[2].m_weight, 0.5f, 1e-3f);
+
+        // From t=10 on the envelope is 0: the subtree is pruned entirely (sampling it would be
+        // pure cost for a nil contribution).
+        out.clear();
+        Diorama::DragonBones::CollectProgressContributions(arm, 2, 15.0f, 4, out);
+        ASSERT_EQ(out.size(), 1u);
+        EXPECT_EQ(out[0].m_animIndex, 2);
+    }
+
+    TEST(DragonBonesImportTest, Blend1DDistributesWeightByParameter)
+    {
+        constexpr const char* kJson = R"JSON(
+        {
+          "name": "p", "frameRate": 1,
+          "armature": [{
+            "name": "rig",
+            "bone": [ { "name": "root" } ],
+            "animation": [
+              { "name": "POSE_L", "duration": 10, "playTimes": 0 },
+              { "name": "POSE_R", "duration": 10, "playTimes": 0 },
+              { "name": "HOST", "duration": 10, "playTimes": 0, "blendType": "1D",
+                "timeline": [
+                  { "name": "POSE_L", "type": 40, "x": -1.0, "frame": [ { "value": 0.0 } ] },
+                  { "name": "POSE_R", "type": 40, "x": 1.0, "frame": [ { "value": 0.0 } ] } ] },
+              { "name": "idle", "duration": 30, "playTimes": 0,
+                "timeline": [
+                  { "name": "HOST", "type": 40, "frame": [ { "value": 0.0 } ] },
+                  { "name": "HOST", "type": 42, "frame": [
+                    { "duration": 30, "tweenEasing": 0, "x": 0.5, "y": 0.0 } ] } ] }
+            ]
+          }]
+        })JSON";
+        Diorama::DragonBones::Document doc;
+        ASSERT_TRUE(Diorama::DragonBones::ParseDocument(kJson, doc));
+        const Diorama::DragonBones::Armature& arm = doc.m_armatures[0]; // POSE_L=0, POSE_R=1, HOST=2, idle=3
+
+        // Parameter 0.5 between positions -1 and +1: dL=1.5, dR=0.5, so the left child gets
+        // dR/(dL+dR) = 0.25 and the right child 0.75 (the reference nearest-pair rule).
+        AZStd::vector<Diorama::DragonBones::AnimationSample> out;
+        Diorama::DragonBones::CollectProgressContributions(arm, 3, 0.0f, 4, out);
+        ASSERT_EQ(out.size(), 4u); // idle, HOST, POSE_L, POSE_R
+        EXPECT_EQ(out[1].m_animIndex, 2);
+        EXPECT_NEAR(out[1].m_weight, 1.0f, 1e-4f);
+        EXPECT_EQ(out[2].m_animIndex, 0);
+        EXPECT_NEAR(out[2].m_weight, 0.25f, 1e-3f);
+        EXPECT_EQ(out[3].m_animIndex, 1);
+        EXPECT_NEAR(out[3].m_weight, 0.75f, 1e-3f);
+
+        // A parameter past the last position: the lone nearest side takes the full weight.
+        // Expanding HOST directly with parameter 5 (right of both children) keeps only POSE_R...
+        out.clear();
+        Diorama::DragonBones::CollectProgressContributions(arm, 2, 0.0f, 4, out, 1.0f, 5.0f);
+        ASSERT_EQ(out.size(), 2u);
+        EXPECT_EQ(out[1].m_animIndex, 1);
+        EXPECT_NEAR(out[1].m_weight, 1.0f, 1e-4f);
+
+        // ...and parameter -5 (left of both) keeps only POSE_L.
+        out.clear();
+        Diorama::DragonBones::CollectProgressContributions(arm, 2, 0.0f, 4, out, 1.0f, -5.0f);
+        ASSERT_EQ(out.size(), 2u);
+        EXPECT_EQ(out[1].m_animIndex, 0);
+        EXPECT_NEAR(out[1].m_weight, 1.0f, 1e-4f);
+    }
+
     TEST(DragonBonesImportTest, RemapsGlobalBonesToLocalSlotsWithBindWorlds)
     {
         Diorama::DragonBones::Document doc;

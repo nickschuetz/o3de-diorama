@@ -435,7 +435,7 @@ namespace Diorama
                 const size_t n = AZ::GetMin(target.size(), m_deformScratch.size());
                 for (size_t k = 0; k < n; ++k)
                 {
-                    target[k] += m_deformScratch[k];
+                    target[k] += m_deformScratch[k] * contrib.m_weight;
                 }
             }
         }
@@ -546,12 +546,17 @@ namespace Diorama
         for (const DragonBones::AnimationSample& contrib : m_activeContribs)
         {
             DragonBones::SampleAnimation(m_armature->m_animations[contrib.m_animIndex], contrib.m_time, boneCount, m_poseAccum);
+            // The contribution's weight (type-41 envelope / 1D blend) scales its deltas:
+            // translate / rotate / skew linearly, scale toward identity ((s - 1) * w + 1,
+            // the reference runtime's blended-scale rule).
+            const float w = contrib.m_weight;
+            const AZ::Vector2 one(1.0f, 1.0f);
             for (int i = 0; i < boneCount; ++i)
             {
-                m_poseScratch[i].m_translate += m_poseAccum[i].m_translate;
-                m_poseScratch[i].m_rotateDegrees += m_poseAccum[i].m_rotateDegrees;
-                m_poseScratch[i].m_skewDegrees += m_poseAccum[i].m_skewDegrees;
-                m_poseScratch[i].m_scale *= m_poseAccum[i].m_scale;
+                m_poseScratch[i].m_translate += m_poseAccum[i].m_translate * w;
+                m_poseScratch[i].m_rotateDegrees += m_poseAccum[i].m_rotateDegrees * w;
+                m_poseScratch[i].m_skewDegrees += m_poseAccum[i].m_skewDegrees * w;
+                m_poseScratch[i].m_scale *= one + (m_poseAccum[i].m_scale - one) * w;
             }
         }
 
