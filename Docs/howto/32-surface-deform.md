@@ -77,6 +77,16 @@ parameters together. The generated `flow` clip in `scripts/gen_water_rig.py` dem
 the surface path: `flow` ripples the water entirely through a type-40 channel driving
 `PARAM_WAVE`.
 
-Not yet handled (future work): the type-41 *AnimationWeight* (per-parameter strength
-envelope) and type-42 *AnimationParameter* (1D blend) channels. Every parameter composes at
-full weight; that suffices for a straight idle.
+The weight and blend channels compose too. A `type 41` *AnimationWeight* channel is a
+strength envelope on one parameter: the driven sub-animation's whole contribution (bone
+deltas and surface deltas, nested children included) scales by the sampled weight, so a
+parameter can swell in and fade out over the driving clip. A `type 42` *AnimationParameter*
+channel drives the 1D blend of a `"blendType": "1D"` host: the host's children each carry a
+blend position (the `x` on their progress entry) and the parameter picks the nearest pair,
+splitting the weight by proximity (a parameter outside the range gives the nearest child the
+full weight). Weights multiply down the tree, and near-zero contributions are pruned rather
+than sampled. Bone scale blends toward identity (`(s - 1) * w + 1`), matching the reference
+runtime; translate, rotate, skew, and deform deltas scale linearly. The generated `surge`
+clip in the water rig demonstrates the envelope: it scrubs the same `PARAM_WAVE` as `flow`
+under a type-41 channel that swells 0 to 1 and back, so the water starts calm, ripples at
+full strength mid-clip, and settles again. Set the component's Animation to `surge` to see it.

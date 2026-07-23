@@ -132,6 +132,25 @@ def build_ske():
                     {"duration": 0, "value": 1.0},
                 ]}],
             },
+            # Enveloped: "surge" runs the same wave under a type-41 AnimationWeight channel
+            # that swells 0 -> 1 -> 0 over the clip, so the water starts calm, ripples at
+            # full strength mid-clip, and settles again. Demos the weight envelope.
+            {
+                "name": "surge",
+                "duration": 2 * CYCLE_FRAMES,
+                "playTimes": 0,
+                "timeline": [
+                    {"name": "PARAM_WAVE", "type": 40, "frame": [
+                        {"duration": 2 * CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
+                        {"duration": 0, "value": 1.0},
+                    ]},
+                    {"name": "PARAM_WAVE", "type": 41, "frame": [
+                        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 0.0},
+                        {"duration": CYCLE_FRAMES, "tweenEasing": 0, "value": 1.0},
+                        {"duration": 0, "value": 0.0},
+                    ]},
+                ],
+            },
         ],
     }
     return {"frameRate": FRAME_RATE, "name": "water", "armature": [armature]}

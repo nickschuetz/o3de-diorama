@@ -8,8 +8,10 @@ decode, per-frame `SampleDeform` + `BuildSurfaceGrids` (incl. nested-surface war
 the presenter, and the [how-to](../howto/32-surface-deform.md) + rippling-water example.
 The DragonBones type-40 `AnimationProgress` layer is composed too: a clip's whole progress
 tree (nested params included) is walked once per frame, and each contribution's bone
-transforms and surface deforms compose over the base. Remaining follow-up: type-41/42
-weight/blend channels.
+transforms and surface deforms compose over the base. The type-41 `AnimationWeight`
+(per-parameter strength envelope) and type-42 `AnimationParameter` (1D blend) channels are
+in as well: every contribution carries a multiplicative weight, 1D hosts split weight
+across their positioned children by parameter proximity, and near-zero subtrees are pruned.
 
 ## Goal
 

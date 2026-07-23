@@ -567,12 +567,37 @@ namespace Diorama::DragonBones
                     {
                         ProgressTimeline pt;
                         pt.m_targetName = GetString(tl, "name");
+                        pt.m_positionX = GetFloat(tl, "x", 0.0f); // blend position when the owner is a 1D host
                         const auto framesIt = tl.FindMember("frame");
                         if (framesIt != tl.MemberEnd() && framesIt->value.IsArray())
                         {
                             ParseFrameTrack(framesIt->value, fps, "value", "value", 0.0f, pt.m_values);
                         }
                         animation.m_progress.push_back(AZStd::move(pt));
+                        continue;
+                    }
+                    if (type == 41) // AnimationWeight: strength envelope on a named sub-animation
+                    {
+                        WeightTimeline wt;
+                        wt.m_targetName = GetString(tl, "name");
+                        const auto framesIt = tl.FindMember("frame");
+                        if (framesIt != tl.MemberEnd() && framesIt->value.IsArray())
+                        {
+                            ParseFrameTrack(framesIt->value, fps, "value", "value", 1.0f, wt.m_values);
+                        }
+                        animation.m_weights.push_back(AZStd::move(wt));
+                        continue;
+                    }
+                    if (type == 42) // AnimationParameter: 1D blend parameter for a named sub-animation
+                    {
+                        ParameterTimeline pmt;
+                        pmt.m_targetName = GetString(tl, "name");
+                        const auto framesIt = tl.FindMember("frame");
+                        if (framesIt != tl.MemberEnd() && framesIt->value.IsArray())
+                        {
+                            ParseFrameTrack(framesIt->value, fps, "x", "y", 0.0f, pmt.m_values);
+                        }
+                        animation.m_parameters.push_back(AZStd::move(pmt));
                         continue;
                     }
                     if (type != 22 && type != 50) // 22 = SlotDeform (mesh FFD), 50 = Surface
@@ -625,17 +650,30 @@ namespace Diorama::DragonBones
                     }
                 }
 
-                // Resolve AnimationProgress targets to the sub-animation they drive, by name.
-                for (ProgressTimeline& pt : animation.m_progress)
+                // Resolve AnimationProgress / AnimationWeight / AnimationParameter targets to
+                // the sub-animation they drive, by name.
+                auto resolveAnimationTarget = [&armature](const AZStd::string& targetName) -> int
                 {
                     for (size_t i = 0; i < armature.m_animations.size(); ++i)
                     {
-                        if (armature.m_animations[i].m_name == pt.m_targetName)
+                        if (armature.m_animations[i].m_name == targetName)
                         {
-                            pt.m_targetIndex = static_cast<int>(i);
-                            break;
+                            return static_cast<int>(i);
                         }
                     }
+                    return -1;
+                };
+                for (ProgressTimeline& pt : animation.m_progress)
+                {
+                    pt.m_targetIndex = resolveAnimationTarget(pt.m_targetName);
+                }
+                for (WeightTimeline& wt : animation.m_weights)
+                {
+                    wt.m_targetIndex = resolveAnimationTarget(wt.m_targetName);
+                }
+                for (ParameterTimeline& pmt : animation.m_parameters)
+                {
+                    pmt.m_targetIndex = resolveAnimationTarget(pmt.m_targetName);
                 }
             }
         }
@@ -659,6 +697,7 @@ namespace Diorama::DragonBones
                 animation.m_name = GetString(animValue, "name");
                 animation.m_durationSeconds = GetFloat(animValue, "duration", 0.0f) / fps;
                 animation.m_loop = static_cast<int>(GetFloat(animValue, "playTimes", 0.0f)) == 0;
+                animation.m_blendType = (GetString(animValue, "blendType") == "1D") ? BlendType::Blend1D : BlendType::None;
 
                 const auto bonesIt = animValue.FindMember("bone");
                 if (bonesIt != animValue.MemberEnd() && bonesIt->value.IsArray())
