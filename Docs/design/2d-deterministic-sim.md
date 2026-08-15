@@ -20,6 +20,11 @@ screenshot.
 
 ## Scope boundary (complementary, not competing)
 
+See [2d-determinism-and-o3de-multiplayer.md](2d-determinism-and-o3de-multiplayer.md) for the
+sourced comparison with O3DE's Multiplayer gem (client-server prediction + server-authoritative
+correction, network-coupled, non-deterministic) and why this local, bit-exact, network-free
+simulation does not overlap it.
+
 - The gem makes **its own 2D simulation** deterministic and snapshot-capable, and
   exposes the hooks a rollback layer needs. The netcode itself -- transport, input
   delay scheduling, prediction policy, matchmaking -- is **not ours**: O3DE's
