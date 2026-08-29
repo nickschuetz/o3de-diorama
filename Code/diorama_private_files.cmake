@@ -18,6 +18,7 @@ set(FILES
     Source/Clients/SurfaceDeform.h
     Source/Clients/DragonBonesImport.h
     Source/Clients/DragonBonesImport.cpp
+    Source/Clients/SkinnedRigBinary.h
     Source/Clients/AsepriteImport.h
     Source/Clients/AsepriteImport.cpp
     Source/Clients/AsepriteSheetData.h
@@ -67,6 +68,8 @@ set(FILES
     Source/Clients/SkinnedSpritePresenter.cpp
     Source/Clients/SkinnedSpritePresenter.h
     Source/Clients/SkinnedSpriteBus.cpp
+    Source/Clients/DioramaSkinnedRigAsset.cpp
+    Source/Clients/DioramaSkinnedRigAsset.h
     Source/Clients/InputActionMap.h
     Source/Clients/MotionInput.h
     Source/Clients/HitboxFrames.h

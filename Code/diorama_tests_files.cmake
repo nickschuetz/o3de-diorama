@@ -28,5 +28,6 @@ set(FILES
     Tests/Clients/SimClockFreezeTest.cpp
     Tests/Clients/SimClockMigrationTest.cpp
     Tests/Clients/AnimStateMachineTest.cpp
+    Tests/Clients/SkinnedRigBinaryTest.cpp
     Tests/Clients/DioramaTestMain.cpp
 )

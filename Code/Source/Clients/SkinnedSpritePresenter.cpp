@@ -7,6 +7,9 @@
 
 #include <Clients/SkinnedSpritePresenter.h>
 
+#include <Clients/SkinnedRigBinary.h>
+
+#include <AzCore/Asset/AssetManager.h>
 #include <AzCore/Asset/AssetSerializer.h>
 #include <AzCore/Component/TransformBus.h>
 #include <AzCore/IO/FileIO.h>
@@ -50,7 +53,8 @@ namespace Diorama
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<DioramaSkinnedSpriteConfig>()
-                ->Version(1)
+                ->Version(2)
+                ->Field("rigAsset", &DioramaSkinnedSpriteConfig::m_rigAsset)
                 ->Field("sourcePath", &DioramaSkinnedSpriteConfig::m_sourcePath)
                 ->Field("armatureName", &DioramaSkinnedSpriteConfig::m_armatureName)
                 ->Field("texture", &DioramaSkinnedSpriteConfig::m_texture)
@@ -72,9 +76,17 @@ namespace Diorama
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
+                        &DioramaSkinnedSpriteConfig::m_rigAsset,
+                        "Rig Asset",
+                        "Compiled DragonBones rig product (.dskinrigc), baked by the AssetBuilder from a *_ske.json. "
+                        "Preferred over Source: loads from the compact binary (no runtime JSON parsing). Leave unset "
+                        "to load the Source path directly.")
+                    ->DataElement(
+                        AZ::Edit::UIHandlers::Default,
                         &DioramaSkinnedSpriteConfig::m_sourcePath,
                         "Source (ske.json)",
-                        "Path to the DragonBones armature JSON, via file IO aliases (e.g. @projectroot@/...).")
+                        "Path to the DragonBones armature JSON, via file IO aliases (e.g. @projectroot@/...). Used only "
+                        "when no Rig Asset is set.")
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
                         &DioramaSkinnedSpriteConfig::m_armatureName,
@@ -215,27 +227,45 @@ namespace Diorama
         m_playing = false;
         m_animTime = 0.0f;
 
-        const AZStd::string json = LoadTextFile(m_config.m_sourcePath);
-        if (json.empty() || !DragonBones::ParseDocument(json, m_document))
+        // Populate m_document. Prefer the compiled rig-asset product: it is a compact binary the
+        // AssetBuilder baked from the DragonBones JSON (atlas UVs already remapped in), so it
+        // loads with a fast bounds-checked decode and no runtime JSON parsing (the VISION
+        // efficiency goal). With no rig asset assigned, fall back to reading the "*_ske.json"
+        // source path directly (authoring / back-compat), applying the atlas remap at load.
+        if (m_config.m_rigAsset.GetId().IsValid())
         {
-            return false;
-        }
-
-        // Remap mesh UVs through the companion "*_tex.json" atlas: DragonBones stores mesh UVs
-        // normalized to each packed sub-texture, not to the whole page, so without this every
-        // mesh samples the entire atlas (art plus transparent gutters). The atlas path is
-        // derived from the source path (body_ske.json -> body_tex.json); if it is absent the
-        // UVs are left as authored.
-        AZStd::string atlasPath = m_config.m_sourcePath;
-        const size_t skePos = atlasPath.find("_ske.json");
-        if (skePos != AZStd::string::npos)
-        {
-            atlasPath.replace(skePos, 9, "_tex.json");
-            const AZStd::string atlasJson = LoadTextFile(atlasPath);
-            DragonBones::Atlas atlas;
-            if (!atlasJson.empty() && DragonBones::ParseAtlas(atlasJson, atlas))
+            AZ::Data::Asset<DioramaSkinnedRigAsset> rig = AZ::Data::AssetManager::Instance().GetAsset<DioramaSkinnedRigAsset>(
+                m_config.m_rigAsset.GetId(), AZ::Data::AssetLoadBehavior::PreLoad);
+            rig.BlockUntilLoadComplete();
+            if (!rig.IsReady() || rig.Get() == nullptr || !SkinnedRig::Decode(rig.Get()->m_payload, m_document))
             {
-                DragonBones::ApplyAtlasUVs(m_document, atlas);
+                return false;
+            }
+        }
+        else
+        {
+            const AZStd::string json = LoadTextFile(m_config.m_sourcePath);
+            if (json.empty() || !DragonBones::ParseDocument(json, m_document))
+            {
+                return false;
+            }
+
+            // Remap mesh UVs through the companion "*_tex.json" atlas: DragonBones stores mesh UVs
+            // normalized to each packed sub-texture, not to the whole page, so without this every
+            // mesh samples the entire atlas (art plus transparent gutters). The atlas path is
+            // derived from the source path (body_ske.json -> body_tex.json); if it is absent the
+            // UVs are left as authored. (The rig-asset path bakes this in at build time instead.)
+            AZStd::string atlasPath = m_config.m_sourcePath;
+            const size_t skePos = atlasPath.find("_ske.json");
+            if (skePos != AZStd::string::npos)
+            {
+                atlasPath.replace(skePos, 9, "_tex.json");
+                const AZStd::string atlasJson = LoadTextFile(atlasPath);
+                DragonBones::Atlas atlas;
+                if (!atlasJson.empty() && DragonBones::ParseAtlas(atlasJson, atlas))
+                {
+                    DragonBones::ApplyAtlasUVs(m_document, atlas);
+                }
             }
         }
 

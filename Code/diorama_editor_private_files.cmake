@@ -49,6 +49,8 @@ set(FILES
     Source/Builders/DioramaAsepriteBuilder.h
     Source/Builders/DioramaTilemapBuilder.cpp
     Source/Builders/DioramaTilemapBuilder.h
+    Source/Builders/DioramaSkinnedRigBuilder.cpp
+    Source/Builders/DioramaSkinnedRigBuilder.h
     Source/Builders/DioramaBuilderComponent.cpp
     Source/Builders/DioramaBuilderComponent.h
 )

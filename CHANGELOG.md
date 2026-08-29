@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Compiled skinned-rig product asset (no runtime JSON parsing).** A new AssetBuilder matches
+  the DragonBones `*_ske.json` source, parses the armature, bakes in the companion `*_tex.json`
+  atlas UV remap, and emits a compact, bounds-checked binary product (`.dskinrigc`, a
+  `DioramaSkinnedRigAsset`). The **Skinned Sprite (mesh deform)** component gains a **Rig Asset**
+  field (Inspector + serialized) that, when set, is preferred over the `Source (ske.json)` path:
+  the rig loads through the asset system and decodes with a fast binary read instead of parsing
+  JSON at load, so a level no longer ships (or re-parses) the DragonBones text. Closes the
+  VISION efficiency criterion "product assets load without runtime parsing"; the source-path load
+  stays as an authoring / back-compat fallback. The encode/decode is a pure, unit-tested core
+  (`SkinnedRigBinary.h`, round-trip + malformed-input rejection) that treats the product as
+  untrusted input (every read bounds-checked, every count capped). The committed example rigs
+  (`water`, `puppet`, `seaweed`) now also produce `.dskinrigc` products automatically.
 - **Character animation is rollback-exact (sim-clock migration).** The **Skeletal Clip**
   cutout player and the **Skinned Sprite (mesh deform)** player each gained a **Use
   Simulation Clock** option (Inspector + `SetUseSimClock` / `GetUseSimClock` bus verbs), so

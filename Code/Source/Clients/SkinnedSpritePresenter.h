@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <Clients/DioramaSkinnedRigAsset.h>
 #include <Clients/DragonBonesImport.h>
 #include <Clients/MeshSkin.h>
 #include <Clients/SimState.h>
@@ -39,6 +40,11 @@ namespace Diorama
         static void Reflect(AZ::ReflectContext* context);
         ~DioramaSkinnedSpriteConfig() override = default;
 
+        //! Compiled skinned-rig product (.dskinrigc) the AssetBuilder bakes from a DragonBones
+        //! "*_ske.json" (+ "*_tex.json"). When set it is PREFERRED over Source below: the rig
+        //! loads from the compact binary product (atlas UVs already baked in) with no runtime
+        //! JSON parsing. Leave unset to load the Source path directly (authoring / back-compat).
+        AZ::Data::Asset<DioramaSkinnedRigAsset> m_rigAsset{ AZ::Data::AssetLoadBehavior::PreLoad };
         //! Path to the DragonBones "*_ske.json" armature, resolved through the file IO
         //! aliases. For a shipped asset use the product path ("@products@/mygame/hero_ske.json"),
         //! which reads from the asset cache / pak; "@projectroot@/..." also works for a source

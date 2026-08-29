@@ -34,6 +34,7 @@ namespace Diorama
         ReflectAudioBuses(context);
         DioramaAsepriteSheetAsset::Reflect(context);
         DioramaTilemapAsset::Reflect(context);
+        DioramaSkinnedRigAsset::Reflect(context);
 
         if (auto serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
@@ -105,6 +106,11 @@ namespace Diorama
         m_tilemapHandler =
             AZStd::make_unique<AzFramework::GenericAssetHandler<DioramaTilemapAsset>>("Diorama Tilemap", "Diorama", "dtilemapc");
         m_tilemapHandler->Register();
+
+        // Register the loader for the .dskinrigc products the skinned-rig builder emits.
+        m_skinnedRigHandler =
+            AZStd::make_unique<AzFramework::GenericAssetHandler<DioramaSkinnedRigAsset>>("Diorama Skinned Rig", "Diorama", "dskinrigc");
+        m_skinnedRigHandler->Register();
     }
 
     void DioramaSystemComponent::Deactivate()
@@ -119,6 +125,12 @@ namespace Diorama
         {
             m_tilemapHandler->Unregister();
             m_tilemapHandler.reset();
+        }
+
+        if (m_skinnedRigHandler)
+        {
+            m_skinnedRigHandler->Unregister();
+            m_skinnedRigHandler.reset();
         }
 
         AZ::RPI::FeatureProcessorFactory::Get()->UnregisterFeatureProcessor<SpriteFeatureProcessor>();

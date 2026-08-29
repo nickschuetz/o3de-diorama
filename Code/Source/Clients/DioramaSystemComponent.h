@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Clients/DioramaAsepriteSheetAsset.h>
+#include <Clients/DioramaSkinnedRigAsset.h>
 #include <Diorama/DioramaTilemapAsset.h>
 
 #include <AzCore/Component/Component.h>
@@ -66,6 +67,9 @@ namespace Diorama
 
         //! Loads the .dtilemapc product the tilemap builder emits.
         AZStd::unique_ptr<AzFramework::GenericAssetHandler<DioramaTilemapAsset>> m_tilemapHandler;
+
+        //! Loads the .dskinrigc product the skinned-rig builder emits (a compiled DragonBones armature).
+        AZStd::unique_ptr<AzFramework::GenericAssetHandler<DioramaSkinnedRigAsset>> m_skinnedRigHandler;
     };
 
 } // namespace Diorama
