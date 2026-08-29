@@ -34,8 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   multiplies; surface deltas add). A real authored idle now plays its bone-driven and
   surface-driven parameters together instead of only its direct surface deforms. The
   progress-tree walk is a new pure `CollectProgressContributions` core (unit tested), and
-  the per-frame walk replaces the old per-surface re-sampling. (type-41 weight and type-42
-  blend channels remain future work.)
+  the per-frame walk replaces the old per-surface re-sampling.
+- **Weight and 1D blend channels (the rest of the animation-parameter layer).** The type-41
+  *AnimationWeight* channel is a strength envelope on one parameter: the driven
+  sub-animation's whole contribution (bone deltas and surface deltas, nested children
+  included) scales by the sampled weight. The type-42 *AnimationParameter* channel drives a
+  `blendType: "1D"` host: its children carry blend positions and the parameter picks the
+  nearest pair, splitting the weight by proximity. Weights compose multiplicatively down
+  the progress tree (bone scale blends toward identity, matching the reference runtime) and
+  near-zero contributions are pruned rather than sampled. The water demo stages all three
+  layers side by side: `flow` (progress), the new `surge` (weight envelope: calm, full
+  ripple, settle), and the new `seastate` (1D blend: gentle morphing to choppy and back).
 
 ## [0.6.0-beta] - 2026-07-08
 

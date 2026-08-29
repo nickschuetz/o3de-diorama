@@ -139,9 +139,9 @@ Twelve serialized parameters, grouped as the header and Inspector group them.
 ### Animation
 
 The rig plays authored DragonBones clips (per-bone translate / rotate / scale timelines
-with cubic-bezier easing, surface-deform channels, and the type-40 animation-parameter
-composition). These three fields seed playback at activation; at runtime the bus verbs
-below take over.
+with cubic-bezier easing, surface-deform channels, and the animation-parameter composition:
+type-40 progress, type-41 weight envelopes, and type-42 1D blends). These three fields seed
+playback at activation; at runtime the bus verbs below take over.
 
 #### Animation
 
