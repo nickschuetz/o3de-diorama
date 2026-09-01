@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Compiled skinned-rig product asset (no runtime JSON parsing).** A new AssetBuilder matches
+  the DragonBones `*_ske.json` source, parses the armature, bakes in the companion `*_tex.json`
+  atlas UV remap, and emits a compact, bounds-checked binary product (`.dskinrigc`, a
+  `DioramaSkinnedRigAsset`). The **Skinned Sprite (mesh deform)** component gains a **Rig Asset**
+  field (Inspector + serialized) that, when set, is preferred over the `Source (ske.json)` path:
+  the rig loads through the asset system and decodes with a fast binary read instead of parsing
+  JSON at load, so a level no longer ships (or re-parses) the DragonBones text. Closes the
+  VISION efficiency criterion "product assets load without runtime parsing"; the source-path load
+  stays as an authoring / back-compat fallback. The encode/decode is a pure, unit-tested core
+  (`SkinnedRigBinary.h`, round-trip + malformed-input rejection) that treats the product as
+  untrusted input (every read bounds-checked, every count capped). The committed example rigs
+  (`water`, `puppet`, `seaweed`) now also produce `.dskinrigc` products automatically.
 - **Character animation is rollback-exact (sim-clock migration).** The **Skeletal Clip**
   cutout player and the **Skinned Sprite (mesh deform)** player each gained a **Use
   Simulation Clock** option (Inspector + `SetUseSimClock` / `GetUseSimClock` bus verbs), so
@@ -34,8 +46,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   multiplies; surface deltas add). A real authored idle now plays its bone-driven and
   surface-driven parameters together instead of only its direct surface deforms. The
   progress-tree walk is a new pure `CollectProgressContributions` core (unit tested), and
-  the per-frame walk replaces the old per-surface re-sampling. (type-41 weight and type-42
-  blend channels remain future work.)
+  the per-frame walk replaces the old per-surface re-sampling.
+- **Weight and 1D blend channels (the rest of the animation-parameter layer).** The type-41
+  *AnimationWeight* channel is a strength envelope on one parameter: the driven
+  sub-animation's whole contribution (bone deltas and surface deltas, nested children
+  included) scales by the sampled weight. The type-42 *AnimationParameter* channel drives a
+  `blendType: "1D"` host: its children carry blend positions and the parameter picks the
+  nearest pair, splitting the weight by proximity. Weights compose multiplicatively down
+  the progress tree (bone scale blends toward identity, matching the reference runtime) and
+  near-zero contributions are pruned rather than sampled. The water demo stages all three
+  layers side by side: `flow` (progress), the new `surge` (weight envelope: calm, full
+  ripple, settle), and the new `seastate` (1D blend: gentle morphing to choppy and back).
 
 ## [0.6.0-beta] - 2026-07-08
 

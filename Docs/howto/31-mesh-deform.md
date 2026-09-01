@@ -37,13 +37,21 @@ deformed result. Config:
    *DragonBones* data. You get three files: `name_ske.json` (armature + animations),
    `name_tex.json` (atlas layout), and `name_tex.png` (the atlas image).
 2. Drop all three into a scanned asset folder (e.g. `YourProject/Assets/characters/`). The
-   Asset Processor copies the two JSON files to the product cache and turns the PNG into a
-   streaming-image asset.
-3. On the component, set **Source** to the `*_ske.json` product path (`@products@/...`) and
-   **Texture** to the atlas image. Set **Scale** so the character is a sensible world size.
+   Asset Processor turns the PNG into a streaming-image asset and, from the `*_ske.json`, bakes
+   a compiled rig product `name.dskinrigc` (the atlas UV remap is baked in at this step).
+3. On the component, set **Texture** to the atlas image and **Scale** so the character is a
+   sensible world size, then choose one of:
+   - **Rig Asset** (recommended, shipping): point it at `name.dskinrigc`. The rig loads from the
+     compact binary with no runtime JSON parsing. Leave **Source** empty.
+   - **Source (ske.json)** (authoring / back-compat): point it at the `*_ske.json` product path
+     (`@products@/...`). The rig parses the JSON at load. Used only when no Rig Asset is set.
 
-Only the **weighted-mesh** family is imported (bones + a mesh skinned to them). Surface /
-free-form-FFD deformation is out of scope for this version.
+   See [The compiled rig product](../reference/skinned-sprite-component.md#the-compiled-rig-product)
+   for the trade-off.
+
+The **weighted-mesh** family (bones + a mesh skinned to them) and **surface / FFD** rigs (a mesh
+warped by a control-point grid) are both imported; see [how-to 32](32-surface-deform.md) for the
+surface path and the animation-parameter layer.
 
 ## Playing animations
 

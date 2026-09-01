@@ -157,8 +157,12 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   IP-free rippling-water example ([howto/32-surface-deform.md](howto/32-surface-deform.md)).
   The type-41 `AnimationWeight` (per-parameter strength envelope) and type-42
   `AnimationParameter` (1D blend, `blendType: "1D"` hosts) channels compose too: every
-  contribution carries a weight that scales its bone and surface deltas. Remaining: a proper
-  compiled product asset (the importer currently reads the DragonBones JSON products directly).
+  contribution carries a weight that scales its bone and surface deltas. **Shipped (compiled
+  product)**: a **skinned-rig AssetBuilder** matches `*_ske.json`, parses + bakes the atlas UV
+  remap, and emits a compact bounds-checked binary product (`.dskinrigc`, a `DioramaSkinnedRigAsset`)
+  on the pure tested `SkinnedRigBinary.h` codec; the component's new **Rig Asset** field loads it
+  with no runtime JSON parsing (the source `ske.json` path stays for authoring / back-compat). The
+  animation-parameter layer (type-40/41/42) is now complete and the rig ships as a compiled asset.
 - **2D particle system** (M). A real emitter component (the sample's heart-burst
   pool, generalized): rate/burst, velocity/gravity/drag, size/color over life,
   blend modes. **Design done** ([design/2d-particles.md](design/2d-particles.md)):

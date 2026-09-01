@@ -32,16 +32,34 @@ a read-only `GetSkinnedSpriteInfo` snapshot, the AI/human parity Info-getter tha
 script, Script Canvas, or agent inspect the loaded rig the same way it reads sprites and
 cameras.
 
-The rig is loaded from `Source (ske.json)` at activation: the armature JSON is parsed, the
-companion `*_tex.json` atlas (same path with `_ske` swapped for `_tex`) remaps the mesh
-UVs, and the meshes are built. The `Texture` atlas image the UVs address is a separate
+The rig is loaded at activation from the `Rig Asset` (a compiled `.dskinrigc` product,
+decoded from a compact binary with the atlas UV remap already baked in) or, when no Rig
+Asset is set, from `Source (ske.json)` (the armature JSON is parsed and the companion
+`*_tex.json` atlas, same path with `_ske` swapped for `_tex`, remaps the mesh UVs). Either
+way the meshes are then built. The `Texture` atlas image the UVs address is a separate
 streaming-image asset reference.
 
 ## Parameters
 
-Twelve serialized parameters, grouped as the header and Inspector group them.
+Thirteen serialized parameters, grouped as the header and Inspector group them.
 
 ### Source / Rig
+
+The rig geometry and clips come from one of two places. **Rig Asset** is the shipping path: a
+compiled `.dskinrigc` product the AssetBuilder bakes from the DragonBones source, loaded through
+the asset system with no JSON parsing at runtime. **Source (ske.json)** is the authoring / fallback
+path: the raw `*_ske.json` read directly through the file IO aliases. When both are set, the Rig
+Asset wins. See [The compiled rig product](#the-compiled-rig-product) below.
+
+#### Rig Asset
+
+| | |
+| --- | --- |
+| Inspector label | `Rig Asset` |
+| Config field | `m_rigAsset` (`AZ::Data::Asset<DioramaSkinnedRigAsset>`) |
+| Bus setter | none (author-time) |
+| Default | none (unassigned) |
+| Notes | Compiled DragonBones rig product (`.dskinrigc`) baked by the AssetBuilder from a `*_ske.json` (with its `*_tex.json` atlas UV remap already applied). Preferred over Source: the rig loads through the asset cache and decodes from a compact binary rather than parsing JSON at load, so the level neither ships nor re-parses the DragonBones text. Leave unset to load the Source path directly. |
 
 #### Source (ske.json)
 
@@ -51,7 +69,7 @@ Twelve serialized parameters, grouped as the header and Inspector group them.
 | Config field | `m_sourcePath` (`AZStd::string`) |
 | Bus setter | none (author-time) |
 | Default | empty (no rig) |
-| Notes | Path to the DragonBones `*_ske.json` armature, resolved through the file IO aliases. For a shipped asset use the product path (`@products@/mygame/hero_ske.json`), which reads from the asset cache / pak; `@projectroot@/...` also works for a source file during authoring. The companion `*_tex.json` atlas is loaded from the same path with `_ske` swapped for `_tex`. |
+| Notes | Path to the DragonBones `*_ske.json` armature, resolved through the file IO aliases. Used only when no **Rig Asset** is set. For a shipped asset use the product path (`@products@/mygame/hero_ske.json`), which reads from the asset cache / pak; `@projectroot@/...` also works for a source file during authoring. The companion `*_tex.json` atlas is loaded from the same path with `_ske` swapped for `_tex`. |
 
 #### Armature
 
@@ -139,9 +157,9 @@ Twelve serialized parameters, grouped as the header and Inspector group them.
 ### Animation
 
 The rig plays authored DragonBones clips (per-bone translate / rotate / scale timelines
-with cubic-bezier easing, surface-deform channels, and the type-40 animation-parameter
-composition). These three fields seed playback at activation; at runtime the bus verbs
-below take over.
+with cubic-bezier easing, surface-deform channels, and the animation-parameter composition:
+type-40 progress, type-41 weight envelopes, and type-42 1D blends). These three fields seed
+playback at activation; at runtime the bus verbs below take over.
 
 #### Animation
 
@@ -182,6 +200,38 @@ below take over.
 | Bus setter | `SetUseSimClock(enabled)` (read back with `GetUseSimClock`) |
 | Default | `false` |
 | Notes | Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) instead of the render tick, and capture the play state in the clock's snapshot. Falls back to the render tick with no clock in the level (editor preview included). See [how-to 30](../howto/30-deterministic-sim.md). |
+
+## The compiled rig product
+
+DragonBones ships a rig as two JSON files: `NAME_ske.json` (the armature, bones, meshes, and
+clips) and `NAME_tex.json` (the atlas layout). Reading and parsing those at load, plus remapping
+every mesh UV through the atlas, is work that never changes between runs. The **skinned-rig
+AssetBuilder** does it once, offline:
+
+1. It matches any `*_ske.json` in the project's asset scan folders.
+2. It parses the armature, reads the companion `*_tex.json`, and bakes the atlas sub-texture UV
+   remap into the mesh UVs.
+3. It rejects a source with no drawable mesh (so a broken rig fails the build instead of shipping
+   an empty product).
+4. It writes a compact binary product, `NAME.dskinrigc` (a `DioramaSkinnedRigAsset`), whose
+   payload is the fully-imported document.
+
+At runtime, pointing the component's **Rig Asset** field at that product loads the rig through the
+asset cache and decodes it with a fast, bounds-checked binary read -- no JSON parsing, no atlas
+remap, and the DragonBones text never has to ship. That is the VISION efficiency criterion
+"product assets load without runtime parsing". The decode treats the product as untrusted input:
+every read is bounds-checked and every length capped, so a truncated or hostile `.dskinrigc` fails
+the load cleanly (the rig simply does not build) rather than reading out of bounds.
+
+The `Source (ske.json)` path still works and is unchanged -- it is the authoring loop (edit the
+JSON, see it live) and the back-compat path for existing scenes. When both a Rig Asset and a Source
+are set, the Rig Asset wins.
+
+**Using it:** the committed example rigs under `Assets/Diorama/Examples/Skinned/` are processed
+automatically, so `water.dskinrigc`, `puppet.dskinrigc`, and `seaweed.dskinrigc` appear in the
+asset browser. Drop one into **Rig Asset** (or assign it from the reflected property in a build
+script) and leave **Source** empty. For your own rig, drop its `*_ske.json` + `*_tex.json` into a
+scanned folder; the `.dskinrigc` appears once the AssetProcessor finishes.
 
 ## Runtime API
 

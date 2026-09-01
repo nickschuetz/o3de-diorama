@@ -214,6 +214,11 @@ namespace Diorama
     inline constexpr const char* DioramaSkinnedSpriteRequestsTypeId = "{EAD95AC3-1D6D-4627-A0DB-991942A3CEBE}";
     inline constexpr const char* SkinnedSpriteInfoTypeId = "{F57BF5F1-0E46-433F-BEFB-3904E6D1511E}";
 
+    // Compiled skinned-rig product asset + builder. The AssetBuilder parses the DragonBones
+    // "*_ske.json" (+ "*_tex.json" atlas) source and bakes a compact, bounds-checked binary
+    // product (.dskinrigc) the runtime loads with no JSON parsing (SkinnedRigBinary core).
+    inline constexpr const char* DioramaSkinnedRigAssetTypeId = "{2E4F6A8B-1C3D-4E5F-9A0B-7C8D9E0F1A2B}";
+
     // Simulation state marker TypeIds (enrolls an entity in snapshot/restore capture)
     inline constexpr const char* DioramaSimStateComponentTypeId = "{034F5837-545F-4930-AA58-F728EFBC0F73}";
     inline constexpr const char* EditorDioramaSimStateComponentTypeId = "{C8908981-1387-4055-ACB5-4B189AC1F486}";
