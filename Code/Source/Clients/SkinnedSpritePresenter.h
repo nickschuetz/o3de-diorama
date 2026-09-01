@@ -88,15 +88,23 @@ namespace Diorama
     //! one, so the character deforms identically in game and in the editor viewport preview
     //! (the same pattern SpritePresenter uses for sprites). No Qt / tools dependency, so it
     //! lives in the runtime client code and the editor module reuses it.
-    class SkinnedSpritePresenter
+    class SkinnedSpritePresenter : private AZ::Data::AssetBus::Handler
     {
     public:
         SkinnedSpritePresenter() = default;
-        ~SkinnedSpritePresenter() = default;
+        ~SkinnedSpritePresenter() override;
 
         //! Store the config and (re)build the rig from it. Safe to call from Activate or on
         //! an editor property edit. Returns true if the armature loaded.
         bool SetConfig(const DioramaSkinnedSpriteConfig& config);
+
+        //! Rebuild the rig from the current config, carrying the playback state (current clip,
+        //! time, playing/loop flags, and per-bone pose overrides) across the rebuild via the
+        //! rollback snapshot machinery. This is what the compiled-rig hot reload runs when the
+        //! Asset Processor republishes the product; public so tools and tests can trigger the
+        //! same rebuild. A re-authored rig whose clip list shrank comes back stopped (the
+        //! snapshot restore clamps the stale clip index) instead of reading past the end.
+        void RebuildPreservingPlayback();
 
         //! Begin presenting for the given entity. Records the entity (its transform is read
         //! each tick) and clears any prior feature-processor handles.
@@ -150,6 +158,11 @@ namespace Diorama
             int m_surfaceBoneIndex = -1;
             AZStd::vector<AZ::u32> m_indices;
         };
+
+        // AZ::Data::AssetBus::Handler: the presenter watches its compiled rig product (when one
+        // is assigned) so an Asset Processor reprocess hot-reloads the rig in place, in game and
+        // in the editor preview alike.
+        void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 
         bool BuildRig();
         bool TryAcquireFeatureProcessor();

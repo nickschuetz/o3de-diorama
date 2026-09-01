@@ -41,13 +41,17 @@ deformed result. Config:
    a compiled rig product `name.dskinrigc` (the atlas UV remap is baked in at this step).
 3. On the component, set **Texture** to the atlas image and **Scale** so the character is a
    sensible world size, then choose one of:
-   - **Rig Asset** (recommended, shipping): point it at `name.dskinrigc`. The rig loads from the
-     compact binary with no runtime JSON parsing. Leave **Source** empty.
-   - **Source (ske.json)** (authoring / back-compat): point it at the `*_ske.json` product path
-     (`@products@/...`). The rig parses the JSON at load. Used only when no Rig Asset is set.
+   - **Rig Asset** (recommended): point it at `name.dskinrigc`. The rig loads from the
+     compact binary with no runtime JSON parsing, and it hot reloads: re-export from
+     DragonBones Pro and, as soon as the Asset Processor finishes, every live rig rebuilds in
+     place (still playing) in game mode and the editor preview alike. Leave **Source** empty.
+   - **Source (ske.json)** (back-compat): point it at the `*_ske.json` product path
+     (`@products@/...`). The rig parses the JSON at load and only re-reads it on a property
+     edit or reactivate. Used only when no Rig Asset is set.
 
    See [The compiled rig product](../reference/skinned-sprite-component.md#the-compiled-rig-product)
-   for the trade-off.
+   for the trade-off. The rippling-water demo (`Docs/examples/water_demo.py`) bakes the compiled
+   rig into its panels, so it is also a live hot-reload testbed.
 
 The **weighted-mesh** family (bones + a mesh skinned to them) and **surface / FFD** rigs (a mesh
 warped by a control-point grid) are both imported; see [how-to 32](32-surface-deform.md) for the

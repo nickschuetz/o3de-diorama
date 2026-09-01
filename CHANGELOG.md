@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   (`SkinnedRigBinary.h`, round-trip + malformed-input rejection) that treats the product as
   untrusted input (every read bounds-checked, every count capped). The committed example rigs
   (`water`, `puppet`, `seaweed`) now also produce `.dskinrigc` products automatically.
+- **Compiled rigs hot reload, with playback preserved.** A skinned sprite with a **Rig Asset**
+  assigned watches the product: when the Asset Processor reprocesses the `.dskinrigc` (the
+  DragonBones source was re-exported or its atlas repacked), the rig rebuilds in place -- in game
+  mode and in the editor viewport preview alike -- carrying the current clip, its elapsed time,
+  and any per-bone pose overrides across the rebuild via the rollback snapshot machinery. A
+  re-authored rig whose clip list changed comes back stopped in bind pose instead of playing the
+  wrong clip. The rippling-water demo (`Docs/examples/water_demo.py`) now bakes the compiled rig
+  into its panels (source path kept as the baked-in fallback), making it a live hot-reload
+  testbed and the first demo on the no-JSON-at-load path.
 - **Character animation is rollback-exact (sim-clock migration).** The **Skeletal Clip**
   cutout player and the **Skinned Sprite (mesh deform)** player each gained a **Use
   Simulation Clock** option (Inspector + `SetUseSimClock` / `GetUseSimClock` bus verbs), so

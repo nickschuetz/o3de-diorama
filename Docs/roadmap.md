@@ -161,7 +161,8 @@ What makes a 2D game look modern/AAA, and what pure-2D engines do awkwardly:
   product)**: a **skinned-rig AssetBuilder** matches `*_ske.json`, parses + bakes the atlas UV
   remap, and emits a compact bounds-checked binary product (`.dskinrigc`, a `DioramaSkinnedRigAsset`)
   on the pure tested `SkinnedRigBinary.h` codec; the component's new **Rig Asset** field loads it
-  with no runtime JSON parsing (the source `ske.json` path stays for authoring / back-compat). The
+  with no runtime JSON parsing (the source `ske.json` path stays for authoring / back-compat), and
+  hot reloads it in place (playback preserved) when the Asset Processor reprocesses the product. The
   animation-parameter layer (type-40/41/42) is now complete and the rig ships as a compiled asset.
 - **2D particle system** (M). A real emitter component (the sample's heart-burst
   pool, generalized): rate/burst, velocity/gravity/drag, size/color over life,
