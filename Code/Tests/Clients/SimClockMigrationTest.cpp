@@ -22,6 +22,7 @@
 #include <Clients/DioramaSkeletalClipComponent.h>
 #include <Clients/DioramaSkinnedSpriteComponent.h>
 #include <Clients/SimStateBus.h>
+#include <Clients/SkinnedSpritePresenter.h>
 #include <Clients/SpriteComponent.h>
 
 // Sim-clock migration acceptance: components flagged "Use Simulation Clock"
@@ -143,6 +144,52 @@ namespace Diorama
                   "bonePose": [1, 1, 0, 0, 1, 10, 0, 2, 1, 0, 0, 1, 15, 0],
                   "weights": [1, 1, 1, 2, 1, 0.25, 2, 0.75, 1, 2, 1]
                 }]
+              }]
+            }]
+          }]
+        })JSON";
+
+        //! The same armature with one animated clip ("wave", 24 frames at frameRate 24 = 1s,
+        //! looping), so a test can play a clip, advance it, and check playback survives a
+        //! rig rebuild (the hot-reload path).
+        constexpr const char* kSkinnedRigAnimatedJson = R"JSON(
+        {
+          "name": "puppet",
+          "frameRate": 24,
+          "armature": [{
+            "name": "arm",
+            "bone": [
+              { "name": "root" },
+              { "name": "upper", "parent": "root", "transform": { "x": 10, "y": 0, "skX": 90, "skY": 90 } },
+              { "name": "lower", "parent": "upper", "transform": { "x": 5, "y": 0 } }
+            ],
+            "slot": [ { "name": "behind" }, { "name": "limb" } ],
+            "skin": [{
+              "slot": [{
+                "name": "limb",
+                "display": [{
+                  "type": "mesh",
+                  "name": "puppet/limb",
+                  "vertices": [0, 0, 2, 0, 4, 0],
+                  "uvs": [0, 0, 0.5, 0, 1, 0],
+                  "triangles": [0, 1, 2],
+                  "slotPose": [1, 0, 0, 1, 100, 0],
+                  "bonePose": [1, 1, 0, 0, 1, 10, 0, 2, 1, 0, 0, 1, 15, 0],
+                  "weights": [1, 1, 1, 2, 1, 0.25, 2, 0.75, 1, 2, 1]
+                }]
+              }]
+            }],
+            "animation": [{
+              "name": "wave",
+              "duration": 24,
+              "playTimes": 0,
+              "bone": [{
+                "name": "upper",
+                "rotateFrame": [
+                  { "duration": 12, "tweenEasing": 0, "rotate": 0 },
+                  { "duration": 12, "tweenEasing": 0, "rotate": 30 },
+                  { "rotate": 0 }
+                ]
               }]
             }]
           }]
@@ -595,6 +642,63 @@ namespace Diorama
         // The pose override is back to exactly what the clock captured (byte-identical chunk).
         const AZStd::vector<AZ::u8> afterRestore = SaveMigrationChunks(id);
         EXPECT_TRUE(afterRestore == posed);
+
+        m_fileIO.Remove(rigPath.c_str());
+    }
+
+    TEST_F(SimClockMigrationTest, SkinnedRigRebuildPreservesPlayback)
+    {
+        // The compiled-rig hot reload runs RebuildPreservingPlayback when the Asset Processor
+        // republishes the product. Drive it directly against a source-path rig (the asset and
+        // source branches share BuildRig): the played clip, elapsed time, and per-bone pose
+        // overrides must survive a rebuild byte-identically, and a re-authored rig with no
+        // clips must clamp the stale clip clean instead of indexing past the end.
+        const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "diorama_skinned_reload_ske.json";
+        const AZStd::string rigPath(tmp.string().c_str());
+        ASSERT_TRUE(WriteTextFile(rigPath.c_str(), kSkinnedRigAnimatedJson));
+
+        DioramaSkinnedSpriteConfig config;
+        config.m_sourcePath = rigPath;
+        config.m_autoPlay = false;
+        SkinnedSpritePresenter presenter;
+        ASSERT_TRUE(presenter.SetConfig(config));
+
+        presenter.PlayAnimation("wave", true);
+        presenter.Tick(0.25f); // advances the clip; the scene-less feature-processor push no-ops
+        presenter.SetBoneRotation("upper", 45.0f);
+
+        AZStd::vector<AZ::u8> before;
+        {
+            SimState::Writer writer(before);
+            presenter.SaveState(writer);
+        }
+        ASSERT_FALSE(before.empty());
+
+        presenter.RebuildPreservingPlayback();
+
+        AZStd::vector<AZ::u8> after;
+        {
+            SimState::Writer writer(after);
+            presenter.SaveState(writer);
+        }
+        EXPECT_TRUE(after == before);
+        EXPECT_TRUE(presenter.GetInfo().m_loaded);
+
+        // Re-author the rig with no animations at all: the rebuild must load the new rig and
+        // clear the stale clip (SaveState then opens with clip index -1, all-0xFF as S64).
+        ASSERT_TRUE(WriteTextFile(rigPath.c_str(), kSkinnedRigJson));
+        presenter.RebuildPreservingPlayback();
+        EXPECT_TRUE(presenter.GetInfo().m_loaded);
+        AZStd::vector<AZ::u8> reauthored;
+        {
+            SimState::Writer writer(reauthored);
+            presenter.SaveState(writer);
+        }
+        ASSERT_GE(reauthored.size(), 8u);
+        for (size_t i = 0; i < 8; ++i)
+        {
+            EXPECT_EQ(reauthored[i], 0xFF);
+        }
 
         m_fileIO.Remove(rigPath.c_str());
     }

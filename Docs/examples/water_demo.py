@@ -12,10 +12,13 @@ carries a horizontal traveling wave. The panels differ only in which clip they p
 - WaterSea ("seastate"): a type-42 AnimationParameter 1D blend sweeping between a gentle
   and a choppy wave, so the water morphs gentle -> choppy -> gentle.
 
-The component reads the DragonBones "*_ske.json" + "*_tex.json" from the product cache via
-the @products@ alias (so it works packaged), and the atlas PNG is a normal texture asset.
-Those refs plus the animation name are baked into the saved prefab (live string-property
-edits are unreliable in this build).
+The panels load the rig through the compiled product asset (water.dskinrigc, baked by the
+skinned-rig AssetBuilder), so the level ships the compact binary and never parses the
+DragonBones JSON at load; the "*_ske.json" source path is baked in as well so clearing the
+Rig Asset in the Inspector falls back to the authoring path. The compiled rig also hot
+reloads: re-export the water rig while the level is open and every panel rebuilds in place,
+still playing. The atlas PNG is a normal texture asset. Those refs plus the animation name
+are baked into the saved prefab (live string-property edits are unreliable in this build).
 
 After running, be DemoCamera (or Game -> Simulate) to watch the panels side by side; in edit
 mode the animated geometry keeps the viewport live, so it also plays in the editor preview.
@@ -39,6 +42,7 @@ diorama = azlmbr.diorama
 
 LEVEL_NAME = "DioramaWaterDemo"
 SKE_SOURCE = "@products@/diorama/examples/skinned/water_ske.json"
+RIG_PRODUCT = "diorama/examples/skinned/water.dskinrigc"
 TEX_PRODUCT = "diorama/examples/skinned/water_tex.png.streamingimage"
 
 # Panel entity name -> the rig clip it plays (config baked into the saved prefab).
@@ -105,7 +109,7 @@ def make_entity(name, position, type_ids):
     return eid
 
 
-def resolve_texture(product_path):
+def resolve_product(product_path):
     aid = azlmbr.asset.AssetCatalogRequestBus(bus.Broadcast, "GetAssetIdByPath", product_path, math.Uuid(), False)
     if aid is None or not aid.is_valid():
         return None
@@ -115,9 +119,12 @@ def resolve_texture(product_path):
 
 
 def bake_config(doc):
-    tex = resolve_texture(TEX_PRODUCT)
+    tex = resolve_product(TEX_PRODUCT)
     if tex is None:
         log("NOTE: water texture not found; reprocess assets and re-run")
+    rig = resolve_product(RIG_PRODUCT)
+    if rig is None:
+        log("NOTE: compiled rig product not found; panels will use the JSON source path")
     for entity in doc.get("Entities", {}).values():
         clip = PANELS.get(entity.get("Name") or "")
         if clip is None:
@@ -125,6 +132,10 @@ def bake_config(doc):
         for comp in entity.get("Components", {}).values():
             if "SkinnedSprite" in comp.get("$type", ""):
                 cfg = comp.setdefault("Config", {})
+                # The compiled rig product is preferred at load; the source path stays baked
+                # in as the fallback (clearing Rig Asset in the Inspector re-enables it).
+                if rig is not None:
+                    cfg["rigAsset"] = rig
                 cfg["sourcePath"] = SKE_SOURCE
                 cfg["scale"] = 0.011
                 cfg["animationName"] = clip

@@ -59,7 +59,7 @@ Asset wins. See [The compiled rig product](#the-compiled-rig-product) below.
 | Config field | `m_rigAsset` (`AZ::Data::Asset<DioramaSkinnedRigAsset>`) |
 | Bus setter | none (author-time) |
 | Default | none (unassigned) |
-| Notes | Compiled DragonBones rig product (`.dskinrigc`) baked by the AssetBuilder from a `*_ske.json` (with its `*_tex.json` atlas UV remap already applied). Preferred over Source: the rig loads through the asset cache and decodes from a compact binary rather than parsing JSON at load, so the level neither ships nor re-parses the DragonBones text. Leave unset to load the Source path directly. |
+| Notes | Compiled DragonBones rig product (`.dskinrigc`) baked by the AssetBuilder from a `*_ske.json` (with its `*_tex.json` atlas UV remap already applied). Preferred over Source: the rig loads through the asset cache and decodes from a compact binary rather than parsing JSON at load, so the level neither ships nor re-parses the DragonBones text. Hot reloads: when the Asset Processor reprocesses the product, the rig rebuilds in place with playback preserved (see [The compiled rig product](#the-compiled-rig-product)). Leave unset to load the Source path directly. |
 
 #### Source (ske.json)
 
@@ -223,9 +223,18 @@ remap, and the DragonBones text never has to ship. That is the VISION efficiency
 every read is bounds-checked and every length capped, so a truncated or hostile `.dskinrigc` fails
 the load cleanly (the rig simply does not build) rather than reading out of bounds.
 
-The `Source (ske.json)` path still works and is unchanged -- it is the authoring loop (edit the
-JSON, see it live) and the back-compat path for existing scenes. When both a Rig Asset and a Source
-are set, the Rig Asset wins.
+The compiled rig **hot reloads**: the presenter watches its assigned product, so when the Asset
+Processor reprocesses the `.dskinrigc` (you re-exported the `*_ske.json` or repacked the
+`*_tex.json`), every live rig rebuilds in place -- in game mode and in the editor viewport preview
+alike. Playback carries across the rebuild: the current clip, its elapsed time, and any per-bone
+pose overrides are snapshotted with the rollback machinery and restored onto the new rig. If the
+re-authored rig no longer has the playing clip (the clip list changed), the rig comes back stopped
+in its bind pose rather than playing the wrong clip.
+
+The `Source (ske.json)` path still works and is unchanged -- it is the authoring fallback and the
+back-compat path for existing scenes (it is read once at activate / property edit and does not hot
+reload; that is one more reason to prefer the product). When both a Rig Asset and a Source are set,
+the Rig Asset wins.
 
 **Using it:** the committed example rigs under `Assets/Diorama/Examples/Skinned/` are processed
 automatically, so `water.dskinrigc`, `puppet.dskinrigc`, and `seaweed.dskinrigc` appear in the

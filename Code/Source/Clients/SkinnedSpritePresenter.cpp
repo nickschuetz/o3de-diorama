@@ -149,9 +149,27 @@ namespace Diorama
         }
     }
 
+    SkinnedSpritePresenter::~SkinnedSpritePresenter()
+    {
+        AZ::Data::AssetBus::Handler::BusDisconnect();
+    }
+
     bool SkinnedSpritePresenter::SetConfig(const DioramaSkinnedSpriteConfig& config)
     {
+        // Watch the compiled rig product for hot reload: when the Asset Processor republishes
+        // the .dskinrigc (its DragonBones source was re-exported), OnAssetReloaded rebuilds the
+        // rig in place. Reconnect only when the assigned asset actually changed, so the
+        // reload-triggered SetConfig (same id) never churns the bus connection mid-dispatch.
+        const bool rigAssetChanged = config.m_rigAsset.GetId() != m_config.m_rigAsset.GetId();
         m_config = config;
+        if (rigAssetChanged)
+        {
+            AZ::Data::AssetBus::Handler::BusDisconnect();
+            if (m_config.m_rigAsset.GetId().IsValid())
+            {
+                AZ::Data::AssetBus::Handler::BusConnect(m_config.m_rigAsset.GetId());
+            }
+        }
         // Kick off the atlas load so the mesh is textured (not the white fallback) as soon
         // as it is ready; this also drives the editor viewport preview, which otherwise has
         // nothing to trigger the load.
@@ -174,6 +192,30 @@ namespace Diorama
             }
         }
         return built;
+    }
+
+    void SkinnedSpritePresenter::RebuildPreservingPlayback()
+    {
+        // Snapshot playback with the rollback machinery, rebuild, then restore. RestoreState
+        // already clamps a stale clip index and stale bone counts against a re-authored rig,
+        // so a rig whose clip list changed comes back stopped rather than indexing past the
+        // end, and a failed rebuild (bad product) restores onto the empty rig harmlessly.
+        AZStd::vector<AZ::u8> state;
+        SimState::Writer writer(state);
+        SaveState(writer);
+        const DioramaSkinnedSpriteConfig config = m_config; // copy: SetConfig(m_config) would self-assign
+        SetConfig(config);
+        SimState::Reader reader(state.data(), state.size());
+        RestoreState(reader);
+    }
+
+    void SkinnedSpritePresenter::OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset)
+    {
+        if (asset.GetId() != m_config.m_rigAsset.GetId())
+        {
+            return;
+        }
+        RebuildPreservingPlayback();
     }
 
     void SkinnedSpritePresenter::Connect(AZ::EntityId entityId)
@@ -241,6 +283,9 @@ namespace Diorama
             {
                 return false;
             }
+            // Hold the generation just decoded: after a hot reload the serialized handle still
+            // points at the pre-reload data, and keeping it would pin the stale payload alive.
+            m_config.m_rigAsset = rig;
         }
         else
         {
