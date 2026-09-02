@@ -703,6 +703,55 @@ namespace Diorama
         m_fileIO.Remove(rigPath.c_str());
     }
 
+    TEST_F(SimClockMigrationTest, SkinnedBoneWorldQueriesFollowThePose)
+    {
+        // HasBone / GetBoneWorld drive bone-attached hitboxes and effect anchors, and the
+        // pose behind them is computed with no renderer (headless == rendered). The fixture
+        // rig is root -> upper (at (10,0), rotated 90) -> lower (at (5,0) along upper), so
+        // the invariants below hold without hand-deriving the mesh recentering.
+        const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "diorama_skinned_bone_ske.json";
+        const AZStd::string rigPath(tmp.string().c_str());
+        ASSERT_TRUE(WriteTextFile(rigPath.c_str(), kSkinnedRigJson));
+
+        DioramaSkinnedSpriteConfig config;
+        config.m_sourcePath = rigPath;
+        config.m_scale = 1.0f;
+        config.m_flipVertical = false;
+        config.m_autoPlay = false;
+        SkinnedSpritePresenter presenter;
+        ASSERT_TRUE(presenter.SetConfig(config));
+
+        EXPECT_TRUE(presenter.HasBone("upper"));
+        EXPECT_FALSE(presenter.HasBone("fist"));
+        AZ::Vector3 unused;
+        EXPECT_FALSE(presenter.GetBoneWorld("fist", unused));
+
+        // Bind pose: bones sit at distinct positions, mapped into the entity's (x, z)
+        // plane (no entity transform in this fixture, so y stays 0).
+        AZ::Vector3 root;
+        AZ::Vector3 upper;
+        AZ::Vector3 lowerBefore;
+        ASSERT_TRUE(presenter.GetBoneWorld("root", root));
+        ASSERT_TRUE(presenter.GetBoneWorld("upper", upper));
+        ASSERT_TRUE(presenter.GetBoneWorld("lower", lowerBefore));
+        EXPECT_FALSE(root.IsClose(upper));
+        EXPECT_FLOAT_EQ(root.GetY(), 0.0f);
+        EXPECT_FLOAT_EQ(upper.GetY(), 0.0f);
+
+        // Posing the parent moves the child: rotating "upper" swings "lower", while
+        // "root" (its ancestor) must not move.
+        presenter.SetBoneRotation("upper", 90.0f);
+        presenter.Tick(0.0f);
+        AZ::Vector3 rootAfter;
+        AZ::Vector3 lowerAfter;
+        ASSERT_TRUE(presenter.GetBoneWorld("root", rootAfter));
+        ASSERT_TRUE(presenter.GetBoneWorld("lower", lowerAfter));
+        EXPECT_TRUE(root.IsClose(rootAfter));
+        EXPECT_FALSE(lowerBefore.IsClose(lowerAfter));
+
+        m_fileIO.Remove(rigPath.c_str());
+    }
+
     TEST_F(SimClockMigrationTest, SkinnedSpriteUseSimClockVerbToggles)
     {
         DioramaSkinnedSpriteConfig config;

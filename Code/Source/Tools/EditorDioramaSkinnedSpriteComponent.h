@@ -54,6 +54,8 @@ namespace Diorama
         void SetBoneRotation(const AZStd::string& boneName, float degrees) override;
         void SetBoneTranslation(const AZStd::string& boneName, float x, float y) override;
         void ResetPose() override;
+        bool HasBone(const AZStd::string& boneName) override;
+        AZ::Vector3 GetBoneWorldPosition(const AZStd::string& boneName) override;
         SkinnedSpriteInfo GetSkinnedSpriteInfo() override;
         void SetUseSimClock(bool enabled) override;
         bool GetUseSimClock() override;

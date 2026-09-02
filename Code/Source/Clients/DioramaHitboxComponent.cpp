@@ -11,6 +11,7 @@
 #include <Diorama/SpriteComponentConfig.h>
 
 #include <Diorama/Collision2DBus.h> // Diorama2DCollisionRequestBus (OverlapBox)
+#include <Diorama/DioramaSkinnedSpriteBus.h> // skinned (DragonBones) bone lookup for bone-attached boxes
 
 #include <Atom/RPI.Public/Scene.h>
 #include <AzCore/Component/ComponentApplicationBus.h> // FindEntity (bone-name resolution)
@@ -162,9 +163,10 @@ namespace Diorama
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
                         &DioramaHitboxData::m_boneName,
-                        "Bone (entity name)",
-                        "Optional 2D-skeletal bone to ride: a descendant entity whose world position the box follows "
-                        "(Offset is then a local nudge). Empty = a static box at Offset on the rig.");
+                        "Bone (name)",
+                        "Optional bone to ride: a descendant entity of that name (2D-skeletal rig), or, when none matches, "
+                        "a bone of the Skinned Sprite on this entity (DragonBones rig). The box follows the bone's world "
+                        "position (Offset is then a local nudge). Empty = a static box at Offset on the rig.");
             }
         }
     }
@@ -395,10 +397,12 @@ namespace Diorama
     {
         const float facing = m_config.m_facing < 0 ? -1.0f : 1.0f;
 
-        // Bone-attached: ride the named 2D-skeletal bone's world position (resolved and
-        // cached lazily; a bone may not exist yet at activation). An empty or
-        // unresolved name falls back to the rig origin (the v1 static path), so adding
-        // a bone name never breaks a box whose bone is missing.
+        // Bone-attached: ride the named bone's world position. A 2D-skeletal bone is a
+        // descendant entity (resolved and cached lazily; a bone may not exist yet at
+        // activation); a skinned (DragonBones) rig's bones are internal to its presenter,
+        // so when no entity matches, ask the skinned sprite on this entity for the posed
+        // bone instead. An empty or unresolved name falls back to the rig origin (the v1
+        // static path), so adding a bone name never breaks a box whose bone is missing.
         AZ::Vector2 base = origin;
         if (!box.m_boneName.empty() && index < m_boneEntities.size())
         {
@@ -411,6 +415,18 @@ namespace Diorama
                 AZ::Vector3 boneWorld = AZ::Vector3::CreateZero();
                 AZ::TransformBus::EventResult(boneWorld, m_boneEntities[index], &AZ::TransformBus::Events::GetWorldTranslation);
                 base = PlaneProject(boneWorld);
+            }
+            else
+            {
+                bool hasBone = false;
+                DioramaSkinnedSpriteRequestBus::EventResult(hasBone, GetEntityId(), &DioramaSkinnedSpriteRequests::HasBone, box.m_boneName);
+                if (hasBone)
+                {
+                    AZ::Vector3 boneWorld = AZ::Vector3::CreateZero();
+                    DioramaSkinnedSpriteRequestBus::EventResult(
+                        boneWorld, GetEntityId(), &DioramaSkinnedSpriteRequests::GetBoneWorldPosition, box.m_boneName);
+                    base = PlaneProject(boneWorld);
+                }
             }
         }
 

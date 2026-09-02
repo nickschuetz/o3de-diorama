@@ -7,6 +7,7 @@
 
 #include <Tools/EditorDioramaSkinnedSpriteComponent.h>
 
+#include <AzCore/Component/TransformBus.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/EditContextConstants.inl>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -73,6 +74,22 @@ namespace Diorama
     void EditorDioramaSkinnedSpriteComponent::ResetPose()
     {
         m_presenter.ResetPose();
+    }
+
+    bool EditorDioramaSkinnedSpriteComponent::HasBone(const AZStd::string& boneName)
+    {
+        return m_presenter.HasBone(boneName);
+    }
+
+    AZ::Vector3 EditorDioramaSkinnedSpriteComponent::GetBoneWorldPosition(const AZStd::string& boneName)
+    {
+        AZ::Vector3 world = AZ::Vector3::CreateZero();
+        if (m_presenter.GetBoneWorld(boneName, world))
+        {
+            return world;
+        }
+        AZ::TransformBus::EventResult(world, GetEntityId(), &AZ::TransformBus::Events::GetWorldTranslation);
+        return world;
     }
 
     SkinnedSpriteInfo EditorDioramaSkinnedSpriteComponent::GetSkinnedSpriteInfo()

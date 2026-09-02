@@ -73,6 +73,15 @@ namespace Diorama
                     { "x", "Extra X translation (armature units) added at the bone." },
                     { "y", "Extra Y translation (armature units) added at the bone." } } })
             ->Event("ResetPose", &DioramaSkinnedSpriteRequestBus::Events::ResetPose)
+            ->Event(
+                "HasBone",
+                &DioramaSkinnedSpriteRequestBus::Events::HasBone,
+                { { { "boneName", "Bone name to look up in the loaded armature." } } })
+            ->Event(
+                "GetBoneWorldPosition",
+                &DioramaSkinnedSpriteRequestBus::Events::GetBoneWorldPosition,
+                { { { "boneName",
+                      "Bone whose posed world position to return; an unknown name returns the entity's world translation." } } })
             ->Event("GetSkinnedSpriteInfo", &DioramaSkinnedSpriteRequestBus::Events::GetSkinnedSpriteInfo)
             ->Event(
                 "SetUseSimClock",

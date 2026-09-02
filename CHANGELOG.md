@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Hitboxes ride skinned (DragonBones) bones, and bones are queryable from scripts.** The
+  frame-data hitbox rig's per-box **Bone** field now also resolves against a **Skinned Sprite
+  (mesh deform)** rig on the same entity: when no descendant entity matches the name, the box
+  asks the skinned component for the posed bone, so a mesh-deform fighter gets a fist-riding
+  hitbox exactly like a 2D-skeletal one (empty or unknown names keep the static-offset
+  fallback). Two new bus verbs power it and are reflected for scripts, Script Canvas, and
+  agents: `HasBone(name)` and `GetBoneWorldPosition(name)` (the posed bone through the
+  entity's basis, exactly the mesh-vertex mapping; billboard is visual-only), which also
+  anchors effects and attachments to a deforming limb. The bone pose is now computed every
+  tick independent of the renderer (the pose step moved out of the draw path), so bone
+  positions are headless-exact and, with **Use Simulation Clock** on, rollback-exact.
 - **Compiled skinned-rig product asset (no runtime JSON parsing).** A new AssetBuilder matches
   the DragonBones `*_ske.json` source, parses the armature, bakes in the companion `*_tex.json`
   atlas UV remap, and emits a compact, bounds-checked binary product (`.dskinrigc`, a

@@ -191,6 +191,9 @@ namespace Diorama
                 m_loop = clip->m_loop;
             }
         }
+        // Pose immediately so bone worlds are queryable from activation on (a hitbox or an
+        // effect may read a bone before the first tick).
+        ComputePose();
         return built;
     }
 
@@ -581,6 +584,11 @@ namespace Diorama
             }
         }
 
+        // Pose before the renderer gate: bone worlds (GetBoneWorld, and anything riding a
+        // bone, like a hitbox) must be current headlessly and under the simulation clock,
+        // exactly like playback advance ("headless == rendered").
+        ComputePose();
+
         if (!TryAcquireFeatureProcessor())
         {
             return;
@@ -606,15 +614,16 @@ namespace Diorama
         m_config.m_speed = speed;
     }
 
-    void SkinnedSpritePresenter::SkinAndPush()
+    void SkinnedSpritePresenter::ComputePose()
     {
-        AZ::Transform worldTransform = AZ::Transform::CreateIdentity();
-        AZ::TransformBus::EventResult(worldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
-
         // Compose the active clip and every PARAM_* it scrubs (the type-40 progress tree, walked
         // once here) into per-bone deltas: translate / rotate / skew add, scale multiplies, over an
         // identity base (so a parameter at its neutral value contributes nothing). Identity when
         // nothing is playing. The surface grids below reuse the same contribution list.
+        if (!m_rigBuilt || m_armature == nullptr)
+        {
+            return;
+        }
         const int boneCount = static_cast<int>(m_bones.size());
         BuildActiveContributions();
         m_poseScratch.assign(static_cast<size_t>(boneCount), DragonBones::BonePoseDelta{});
@@ -660,6 +669,12 @@ namespace Diorama
         // Rebuild the surface grids for this frame's pose (bind control points + animated
         // deform deltas), so surface meshes warp with the animation.
         BuildSurfaceGrids();
+    }
+
+    void SkinnedSpritePresenter::SkinAndPush()
+    {
+        AZ::Transform worldTransform = AZ::Transform::CreateIdentity();
+        AZ::TransformBus::EventResult(worldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
 
         const float scaleX = m_config.m_scale;
         const float scaleY = m_config.m_flipVertical ? -m_config.m_scale : m_config.m_scale;
@@ -802,6 +817,37 @@ namespace Diorama
         {
             t = AZ::Vector2::CreateZero();
         }
+    }
+
+    bool SkinnedSpritePresenter::HasBone(const AZStd::string& boneName) const
+    {
+        return m_rigBuilt && m_boneNameToIndex.find(boneName) != m_boneNameToIndex.end();
+    }
+
+    bool SkinnedSpritePresenter::GetBoneWorld(const AZStd::string& boneName, AZ::Vector3& outWorld) const
+    {
+        if (!m_rigBuilt)
+        {
+            return false;
+        }
+        const auto it = m_boneNameToIndex.find(boneName);
+        if (it == m_boneNameToIndex.end() || it->second < 0 || it->second >= static_cast<int>(m_world.size()))
+        {
+            return false;
+        }
+
+        // The bone's posed armature position through the exact vertex mapping: recenter,
+        // scale (with the vertical flip), then the entity transform's local (x, z) plane -
+        // origin + right * x + up * y, which TransformPoint reproduces for (x, 0, y).
+        // Deliberately the non-billboard basis: billboard only turns the drawn quad.
+        const MeshSkin::Affine2D& world = m_world[static_cast<size_t>(it->second)];
+        const float localX = (world.m_tx - m_center.GetX()) * m_config.m_scale;
+        const float localY = (world.m_ty - m_center.GetY()) * (m_config.m_flipVertical ? -m_config.m_scale : m_config.m_scale);
+
+        AZ::Transform worldTransform = AZ::Transform::CreateIdentity();
+        AZ::TransformBus::EventResult(worldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
+        outWorld = worldTransform.TransformPoint(AZ::Vector3(localX, 0.0f, localY));
+        return true;
     }
 
     SkinnedSpriteInfo SkinnedSpritePresenter::GetInfo() const

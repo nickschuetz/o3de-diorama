@@ -134,6 +134,17 @@ namespace Diorama
         //! Read-only snapshot of the loaded rig and draw state.
         SkinnedSpriteInfo GetInfo() const;
 
+        //! Whether the loaded armature has a bone with this name.
+        bool HasBone(const AZStd::string& boneName) const;
+
+        //! World-space position of the named bone in the current pose, mapped through the
+        //! entity's basis exactly like the mesh's vertices (recenter, scale, flip, then
+        //! origin + right * x + up * y). Billboard is a visual effect and does not move
+        //! bones: gameplay attachments live in the entity's plane like every collider.
+        //! Returns false (out untouched) for an unknown bone or an unbuilt rig. The pose is
+        //! computed every Tick with no renderer dependency, so this is headless-exact.
+        bool GetBoneWorld(const AZStd::string& boneName, AZ::Vector3& outWorld) const;
+
         //! Write / read the runtime play state (current clip, time, playing, loop, speed, and the
         //! per-bone pose overrides) for the 2D Simulation Clock's rollback snapshot. The armature
         //! and meshes are config, not state.
@@ -166,6 +177,11 @@ namespace Diorama
 
         bool BuildRig();
         bool TryAcquireFeatureProcessor();
+        //! Compose the playing contributions and rebuild every bone's world affine
+        //! (m_world) and the surface grids for the current animation time and overrides.
+        //! Pure math on loaded state: no feature processor, no renderer, so the pose (and
+        //! GetBoneWorld) stays current headlessly and under the simulation clock alike.
+        void ComputePose();
         void SkinAndPush();
         //! Rebuild m_surfaceGrids for each surface bone from its bind control points plus the
         //! current animated deform deltas; nested surfaces are warped through their parent.

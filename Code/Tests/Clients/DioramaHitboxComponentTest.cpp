@@ -10,9 +10,15 @@
 #include <AzCore/Component/ComponentApplication.h>
 #include <AzCore/Component/Entity.h>
 #include <AzCore/Component/TickBus.h>
+#include <AzCore/IO/FileIO.h>
+#include <AzFramework/IO/LocalFileIO.h>
+
+#include <cstring>
+#include <filesystem>
 
 #include <Clients/Collision2DSystemComponent.h>
 #include <Clients/DioramaHitboxComponent.h>
+#include <Clients/DioramaSkinnedSpriteComponent.h>
 #include <Diorama/DioramaHitboxBus.h>
 
 // Integration test for the engine-coupled hit path that the pure HitboxFrames core
@@ -125,10 +131,20 @@ namespace Diorama
 
             m_app.RegisterComponentDescriptor(Collision2DSystemComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(DioramaHitboxComponent::CreateDescriptor());
+            m_app.RegisterComponentDescriptor(DioramaSkinnedSpriteComponent::CreateDescriptor());
             m_app.RegisterComponentDescriptor(HitboxTransformStub::CreateDescriptor());
 
             m_systemEntity->Init();
             m_systemEntity->Activate();
+
+            // The skinned-bone test loads a rig source file; the bare ComponentApplication
+            // installs no FileIOBase, so provide one (the SimClockMigrationTest pattern).
+            m_prevFileIO = AZ::IO::FileIOBase::GetInstance();
+            if (m_prevFileIO != nullptr)
+            {
+                AZ::IO::FileIOBase::SetInstance(nullptr);
+            }
+            AZ::IO::FileIOBase::SetInstance(&m_fileIO);
 
             m_worldEntity = aznew AZ::Entity("Collision2DWorld");
             m_worldEntity->CreateComponent<Collision2DSystemComponent>();
@@ -147,6 +163,12 @@ namespace Diorama
 
             m_worldEntity->Deactivate();
             delete m_worldEntity;
+
+            AZ::IO::FileIOBase::SetInstance(nullptr);
+            if (m_prevFileIO != nullptr)
+            {
+                AZ::IO::FileIOBase::SetInstance(m_prevFileIO);
+            }
             m_app.Destroy();
         }
 
@@ -186,6 +208,8 @@ namespace Diorama
         }
 
         AZ::ComponentApplication m_app;
+        AZ::IO::LocalFileIO m_fileIO;
+        AZ::IO::FileIOBase* m_prevFileIO = nullptr;
         AZ::Entity* m_systemEntity = nullptr;
         AZ::Entity* m_worldEntity = nullptr;
         AZStd::vector<AZ::Entity*> m_entities;
@@ -673,5 +697,112 @@ namespace Diorama
         EXPECT_EQ(atk.m_lastTarget, target);
 
         atk.Stop();
+    }
+
+    namespace
+    {
+        //! A minimal skinned rig whose "fist" bone sits at armature (2, 0): root, fist, and
+        //! one quad mesh weighted to root with identity poses (so the mesh recenters to the
+        //! origin and the bone's world position is exactly (2, 0) at scale 1). Names are
+        //! file-unique because unity builds merge test translation units.
+        constexpr const char* kHitboxBoneRigJson = R"JSON(
+        {
+          "name": "boneRig",
+          "frameRate": 24,
+          "armature": [{
+            "name": "arm",
+            "bone": [
+              { "name": "root" },
+              { "name": "fist", "parent": "root", "transform": { "x": 2, "y": 0 } }
+            ],
+            "slot": [ { "name": "body" } ],
+            "skin": [{
+              "slot": [{
+                "name": "body",
+                "display": [{
+                  "type": "mesh",
+                  "name": "boneRig/body",
+                  "vertices": [-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5],
+                  "uvs": [0, 0, 1, 0, 1, 1, 0, 1],
+                  "triangles": [0, 1, 2, 0, 2, 3],
+                  "slotPose": [1, 0, 0, 1, 0, 0],
+                  "bonePose": [0, 1, 0, 0, 1, 0, 0],
+                  "weights": [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1]
+                }]
+              }]
+            }]
+          }]
+        })JSON";
+
+        bool WriteHitboxRigFile(const char* path, const char* text)
+        {
+            AZ::IO::FileIOBase* io = AZ::IO::FileIOBase::GetInstance();
+            AZ::IO::HandleType handle = AZ::IO::InvalidHandle;
+            if (io == nullptr || !io->Open(path, AZ::IO::OpenMode::ModeWrite, handle))
+            {
+                return false;
+            }
+            const size_t length = strlen(text);
+            AZ::u64 written = 0;
+            io->Write(handle, text, length, &written);
+            io->Close(handle);
+            return written == length;
+        }
+    } // namespace
+
+    TEST_F(DioramaHitboxComponentTest, HitboxRidesASkinnedRigBone)
+    {
+        // A box that names a bone with no matching descendant entity, on an entity that
+        // carries a skinned (DragonBones) rig, rides the rig's posed bone. The target
+        // hurtbox is placed so the static-offset fallback would MISS (origin box spans
+        // [-0.5, 0.5]; target spans [1.7, 2.7]); only the bone position at x = 2 (box
+        // spans [1.5, 2.5]) lands the hit, proving the bone drove the placement.
+        const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "diorama_hitbox_bone_ske.json";
+        const AZStd::string rigPath(tmp.string().c_str());
+        ASSERT_TRUE(WriteHitboxRigFile(rigPath.c_str(), kHitboxBoneRigJson));
+
+        DioramaSkinnedSpriteConfig skinnedCfg;
+        skinnedCfg.m_sourcePath = rigPath;
+        skinnedCfg.m_scale = 1.0f;
+        skinnedCfg.m_flipVertical = false;
+        skinnedCfg.m_autoPlay = false;
+
+        DioramaHitboxData jab = Box(HitboxFrames::BoxKind::Hitbox, 0.0f, 0, 9);
+        jab.m_boneName = "fist";
+
+        DioramaHitboxConfig attackerCfg;
+        attackerCfg.m_hurtLayer = HurtLayer;
+        attackerCfg.m_targetMask = HurtLayer;
+        attackerCfg.m_boxes = { jab };
+
+        AZ::Entity* attackerEntity = aznew AZ::Entity("Attacker");
+        attackerEntity->CreateComponent<HitboxTransformStub>();
+        attackerEntity->CreateComponent<DioramaSkinnedSpriteComponent>(skinnedCfg);
+        attackerEntity->CreateComponent<DioramaHitboxComponent>(attackerCfg);
+        attackerEntity->Init();
+        attackerEntity->Activate();
+        m_entities.push_back(attackerEntity);
+        const AZ::EntityId attacker = attackerEntity->GetId();
+
+        // The rig must be loaded with the bone resolvable, or the test is vacuous.
+        bool hasBone = false;
+        DioramaSkinnedSpriteRequestBus::EventResult(hasBone, attacker, &DioramaSkinnedSpriteRequests::HasBone, "fist");
+        ASSERT_TRUE(hasBone);
+
+        DioramaHitboxConfig targetCfg;
+        targetCfg.m_hurtLayer = HurtLayer;
+        targetCfg.m_targetMask = HurtLayer;
+        targetCfg.m_boxes = { Box(HitboxFrames::BoxKind::Hurtbox, 2.2f, 0, 99) };
+        const AZ::EntityId target = MakeRig("Target", targetCfg);
+
+        TestHitListener atk;
+        atk.Listen(attacker);
+        Tick();
+
+        EXPECT_EQ(atk.m_hitCount, 1);
+        EXPECT_EQ(atk.m_lastTarget, target);
+
+        atk.Stop();
+        m_fileIO.Remove(rigPath.c_str());
     }
 } // namespace Diorama

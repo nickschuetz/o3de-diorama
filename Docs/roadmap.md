@@ -347,7 +347,8 @@ Missing table-stakes (no design doc yet):
   hit/block/hit-stop frames, pushback, guard height, launch, priority) delivered on a
   new `OnBoxEvent`, a clash/armor/throw resolution matrix (pure core), and a
   world-space color-coded **box overlay** (the training-mode display + frame-data
-  tuning loop). Boxes can also ride a 2D-skeletal bone. Genre-neutral internals; the
+  tuning loop). Boxes can also ride a 2D-skeletal bone, or a skinned (DragonBones) rig
+  bone via the `HasBone` / `GetBoneWorldPosition` verbs. Genre-neutral internals; the
   SF6/GGST-class systems (meters, scaling, cancels) stay game-side. Follow-on sprite /
   clock juice also shipped: afterimage trails, a luminance palette-recolor for team
   colors, and a super-freeze (`FreezeFor`) cinematic pause on the clock.

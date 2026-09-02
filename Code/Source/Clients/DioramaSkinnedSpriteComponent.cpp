@@ -7,6 +7,7 @@
 
 #include <Clients/DioramaSkinnedSpriteComponent.h>
 
+#include <AzCore/Component/TransformBus.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 
@@ -111,6 +112,24 @@ namespace Diorama
     void DioramaSkinnedSpriteComponent::ResetPose()
     {
         m_presenter.ResetPose();
+    }
+
+    bool DioramaSkinnedSpriteComponent::HasBone(const AZStd::string& boneName)
+    {
+        return m_presenter.HasBone(boneName);
+    }
+
+    AZ::Vector3 DioramaSkinnedSpriteComponent::GetBoneWorldPosition(const AZStd::string& boneName)
+    {
+        AZ::Vector3 world = AZ::Vector3::CreateZero();
+        if (m_presenter.GetBoneWorld(boneName, world))
+        {
+            return world;
+        }
+        // Unknown bone / no rig: degrade to the rig origin so a caller always gets a
+        // sensible anchor (HasBone distinguishes the cases).
+        AZ::TransformBus::EventResult(world, GetEntityId(), &AZ::TransformBus::Events::GetWorldTranslation);
+        return world;
     }
 
     SkinnedSpriteInfo DioramaSkinnedSpriteComponent::GetSkinnedSpriteInfo()
