@@ -10,6 +10,7 @@
 #include <Diorama/DioramaTypeIds.h>
 
 #include <AzCore/Component/ComponentBus.h>
+#include <AzCore/Math/Vector3.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/RTTI/RTTI.h>
 #include <AzCore/std/string/string.h>
@@ -68,6 +69,17 @@ namespace Diorama
 
         //! Clear every pose override, returning the rig to its bind pose.
         virtual void ResetPose() = 0;
+
+        //! Whether the loaded armature has a bone with this name.
+        virtual bool HasBone(const AZStd::string& boneName) = 0;
+
+        //! World-space position of the named bone in the current pose (bind pose plus the
+        //! playing clip plus any overrides), mapped through the entity's own basis exactly
+        //! like the mesh's vertices (billboard is a visual effect and does not move bones).
+        //! This is what pins a hitbox, an effect, or an attachment to a deforming limb.
+        //! An unknown bone (or no loaded rig) returns the entity's world translation, so a
+        //! caller that skipped HasBone degrades to the rig origin rather than garbage.
+        virtual AZ::Vector3 GetBoneWorldPosition(const AZStd::string& boneName) = 0;
 
         //! Read-only snapshot of the loaded rig and draw state.
         virtual SkinnedSpriteInfo GetSkinnedSpriteInfo() = 0;

@@ -130,7 +130,7 @@ pair splits the gap and converges. Put pushboxes on their own **Push Layer**.
 ### Boxes that ride the skeleton
 
 If the character is a [2D skeletal rig](18-skeletal.md), a box can **follow a bone**
-instead of sitting at a fixed offset: set the box's **Bone (entity name)** to the name
+instead of sitting at a fixed offset: set the box's **Bone (name)** to the name
 of a skeletal bone (a descendant entity), and its center tracks that bone's world
 position each frame, with **Offset** applied as a local nudge. Put the hitbox on the
 fist bone and it stays on the fist through the whole swing, no per-frame offset
@@ -139,6 +139,19 @@ name falls back to it, so a missing bone never breaks the box. (The bone's posit
 comes from the skeletal animation. Turn on **Use Simulation Clock** on the Skeletal Clip
 player so it advances on the fixed step, and the bone-attached box is rollback-exact along
 with it; on the render tick it tracks the bone visually but is not rollback-exact.)
+
+The same field also rides a **skinned (DragonBones) rig**: when no descendant entity
+matches the name, the box asks the [Skinned Sprite (mesh deform)](31-mesh-deform.md)
+component on the same entity for that bone. A DragonBones rig's bones are internal to
+the component (they are not entities), so this is how a mesh-deform fighter gets a
+fist-riding hitbox. The posed bone position is computed with no renderer dependency,
+so it is headless-exact; with **Use Simulation Clock** on the Skinned Sprite it is
+rollback-exact like the skeletal case. Scripts can read the same positions over the
+bus (`HasBone` / `GetBoneWorldPosition`), which also anchors effects to a limb:
+
+```lua
+local fist = diorama.DioramaSkinnedSpriteRequestBus.Event.GetBoneWorldPosition(self.entityId, "fist")
+```
 
 Demo: `Docs/examples/bone_demo.py` builds a runnable `DioramaBoneDemo` level with the
 overlay on - a static green hurtbox plus a red hitbox whose **Bone** is a sliding child

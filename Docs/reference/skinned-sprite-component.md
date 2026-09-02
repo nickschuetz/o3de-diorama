@@ -255,6 +255,8 @@ agent drives the rig by entity id, the same way it drives every other Diorama fe
 | `SetBoneRotation` | `boneName: string, degrees: float` | void | Add an extra rotation at the named bone, on top of the animated (or bind) pose, rotating that bone and its descendants about the bone's own origin. The primitive that bends a limb; unknown bone names are ignored. |
 | `SetBoneTranslation` | `boneName: string, x: float, y: float` | void | Add an extra translation (armature units) at the named bone, on top of its bind pose. Unknown bone names are ignored. |
 | `ResetPose` | -- | void | Clear every pose override, returning the rig to its bind (or animated) pose. |
+| `HasBone` | `boneName: string` | `bool` | Whether the loaded armature has a bone with this name. |
+| `GetBoneWorldPosition` | `boneName: string` | `Vector3` | World-space position of the bone in the current pose (bind plus the playing clip plus overrides), mapped through the entity's basis exactly like the mesh's vertices; billboard is visual-only and does not move bones. Unknown names return the entity's world translation (use `HasBone` to distinguish). Pins a hitbox, an effect, or an attachment to a deforming limb; the pose behind it is computed without the renderer, so it is headless-exact. |
 | `GetSkinnedSpriteInfo` | -- | `SkinnedSpriteInfo` | Read-only snapshot of the loaded rig and draw state. |
 | `SetUseSimClock` | `enabled: bool` | void | Advance on the 2D Simulation Clock (deterministic / rollback-exact) vs the render tick; see the [Use simulation clock](#use-simulation-clock) parameter. |
 | `GetUseSimClock` | -- | `bool` | Whether the rig advances on the simulation clock. |

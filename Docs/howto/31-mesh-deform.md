@@ -80,7 +80,10 @@ DioramaSkinnedSpriteRequestBus.Event.ResetPose(self.entityId)
 ```
 
 `GetSkinnedSpriteInfo` returns whether the rig loaded and is drawing, plus its bone, mesh,
-and vertex counts.
+and vertex counts. `HasBone(name)` and `GetBoneWorldPosition(name)` read the posed rig
+back: the bone's world-space position (billboard is visual-only and does not move bones),
+which anchors an effect, an attachment, or a frame-data hitbox to a deforming limb - see
+[the fighting how-to](21-fighting.md) for boxes that ride a skinned bone.
 
 For a fighting game or any deterministic scene, tick **Use Simulation Clock** (or call
 `SetUseSimClock(true)`) so the character advances on the

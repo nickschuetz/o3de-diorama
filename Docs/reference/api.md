@@ -369,6 +369,8 @@ component's author-time parameters (source, texture, scale, tint, and the rest),
 | `SetBoneRotation` | `boneName: string, degrees: float` | void | Unknown bone ignored. | Add an extra rotation at the bone (and its descendants), on top of the animated pose. |
 | `SetBoneTranslation` | `boneName: string, x: float, y: float` | void | Unknown bone ignored. | Add an extra translation (armature units) at the bone, on top of the animated pose. |
 | `ResetPose` | (none) | void | None. | Clear every bone override, returning to the animated (or bind) pose. |
+| `HasBone` | `boneName: string` | `bool` | n/a | Whether the loaded armature has a bone with this name. |
+| `GetBoneWorldPosition` | `boneName: string` | `Vector3` | Unknown name returns the entity's world translation. | World-space position of the posed bone (bind + playing clip + overrides), mapped like the mesh's vertices through the entity's basis (billboard is visual-only). Pins hitboxes, effects, and attachments to a deforming limb. |
 | `GetSkinnedSpriteInfo` | (none) | `SkinnedSpriteInfo` | n/a | Snapshot: `loaded` (rig parsed), `visible` (registered + drawing), `boneCount`, `meshCount`, `vertexCount`. |
 | `SetUseSimClock` | `enabled: bool` | void | None. | Advance on the 2D Simulation Clock's fixed steps (deterministic / rollback-exact) instead of the render tick (no clock: render tick still advances). |
 | `GetUseSimClock` | (none) | `bool` | n/a | Whether the rig advances on the simulation clock. |
