@@ -6,12 +6,15 @@ command, instead of wiring a project up by hand.
 
 ## One-time setup
 
-Register the Diorama gem and the template with your engine (from a clone of this repo):
+Register the Diorama gem with your engine (from a clone of this repo):
 
 ```bash
-o3de register --gem-path <path-to>/o3de-diorama/Code
-o3de register --template-path <path-to>/o3de-diorama/Templates/Diorama2DGame
+o3de register --gem-path <path-to>/o3de-diorama
 ```
+
+The gem lists the template in its `gem.json` (`"templates"`), so registering the gem
+is enough for O3DE to discover `Diorama2DGame`: `create-project --template-name` finds
+it and the Project Manager lists it, with no separate `register --template-path` step.
 
 (Use the `o3de` CLI that ships with your engine: `scripts\o3de.bat` on Windows,
 `scripts/o3de.sh` on Linux. On an RPM SDK install it is the versioned CLI, e.g.
