@@ -3,7 +3,8 @@
 This project was created from the **Diorama 2.5D Game** template, so the
 [Diorama](https://github.com/nickschuetz/o3de-diorama) gem is already enabled: a
 world-space 2D/2.5D toolkit (sprites, tilemaps, a 2D camera, lighting, particles,
-parallax, collision, a HUD, post-processing, plus skeletal and Aseprite animation),
+parallax, collision, world-space HUD elements, post-processing, plus skeletal and Aseprite
+animation),
 each drivable from script through a typed request bus.
 
 ## Build and run
@@ -51,7 +52,7 @@ request bus you call from script or an agent). The gem ships step-by-step how-to
 - 2.5D Quick-Start, animated sprites, sprite atlases
 - Tilemaps (with an in-editor paint tool), parallax layers
 - 2D camera (follow / deadzone / shake), lighting, particles
-- UI / HUD, audio, post-processing glow, retro CRT overlay
+- World-space HUD (in-world bars and icons), audio, post-processing glow, retro CRT overlay
 - Skeletal cutout animation, Aseprite sprite-sheet import
 
 See the gem's `Docs/howto/` (start with `17-quickstart.md`) and the programmatic API

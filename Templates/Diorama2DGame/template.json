@@ -5,7 +5,7 @@
     "license": "Apache-2.0 OR MIT",
     "license_url": "https://opensource.org/licenses/Apache-2.0",
     "display_name": "Diorama 2.5D Game",
-    "summary": "A starter project for a world-space 2D/2.5D game with the Diorama gem enabled: sprites, tilemaps, the 2D camera, lighting, particles, parallax, collision, HUD, post-processing, skeletal and Aseprite animation, all drivable from script. Ships 2.5D starter assets and a first-steps guide.",
+    "summary": "A starter project for a world-space 2D/2.5D game with the Diorama gem enabled: sprites, tilemaps, the 2D camera, lighting, particles, parallax, collision, world-space HUD elements, post-processing, skeletal and Aseprite animation, all drivable from script. Ships 2.5D starter assets and a first-steps guide.",
     "canonical_tags": [
         "Template",
         "Project"
