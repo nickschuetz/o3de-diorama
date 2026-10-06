@@ -122,7 +122,9 @@ back to the prefab), and is by design rather than a pending fix.
 
 ## Requirements
 
-- Open 3D Engine **26.05** (built and verified against the 26.05 SDK).
+- Open 3D Engine **26.05** (built and verified against the 26.05 SDK). The gem also
+  builds and passes its unit tests against the **26.10** stabilization branch (zero
+  source changes), but 26.10 is not a release yet and CI does not cover it.
 - The **Atom_RPI** gem (a Diorama dependency, included with O3DE).
 - A C++ toolchain and CMake matching your O3DE setup. Linux and Windows are
   verified (the gem builds and its unit tests pass on both); macOS is targeted
