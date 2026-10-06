@@ -4,7 +4,8 @@
 -- Diorama Sprite component, then enter game mode.
 --
 -- This is the smallest possible "it works" example. See the Diorama how-tos for the
--- full feature set (animation, tilemaps, camera, lighting, particles, HUD, and more);
+-- full feature set (animation, tilemaps, camera, lighting, particles, world-space HUD
+-- elements, and more);
 -- every feature has a request bus you drive exactly like this.
 
 local starter_sprite = {
