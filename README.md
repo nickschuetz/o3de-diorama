@@ -175,11 +175,12 @@ at runtime.
 
 ### Start a whole project from the template
 
-To scaffold a fresh 2.5D project with the gem already enabled, register the
-bundled project template once and create a project from it:
+To scaffold a fresh 2.5D project with the gem already enabled, create a project
+from the bundled project template. The gem lists the template in its `gem.json`,
+so registering the gem (step 1 of [Install](#install)) is all O3DE needs to find
+it, from the CLI and in the Project Manager:
 
 ```bash
-<engine>/scripts/o3de.sh register --template-path /path/to/o3de-diorama/Templates/Diorama2DGame
 <engine>/scripts/o3de.sh create-project --project-path /path/to/MyGame --template-name Diorama2DGame
 ```
 

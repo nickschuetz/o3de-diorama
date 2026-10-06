@@ -78,6 +78,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   layers side by side: `flow` (progress), the new `surge` (weight envelope: calm, full
   ripple, settle), and the new `seastate` (1D blend: gentle morphing to choppy and back).
 
+### Fixed
+- **The `Diorama2DGame` project template is now discovered from the gem.** The gem's
+  `gem.json` did not list the template, so `o3de create-project --template-name
+  Diorama2DGame` failed with "Could not find the template path using name Diorama2DGame"
+  and the Project Manager did not show it unless the template had been registered by hand
+  with `o3de register --template-path`. `gem.json` now carries `"templates":
+  ["Templates/Diorama2DGame"]`, so registering the gem is enough. The template how-to and
+  README drop the extra register step, and the how-to's gem path is corrected to the repo
+  root (it pointed at `Code/`, which has no `gem.json`). Reported by the community (#160).
+
 ## [0.6.0-beta] - 2026-07-08
 
 ### Added
