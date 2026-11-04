@@ -357,9 +357,11 @@ without physically moving them in depth.
 `Sort Offset` only matters for transparent draws (a sprite with alpha below 1.0,
 or otherwise on the transparent path). Two overlapping translucent sprites at
 the same depth will resolve their order by `Sort Offset`: give the foreground
-one a larger value. This is the same draw-order bias the Tilemap component
-exposes, so sprites and tilemap layers can be interleaved by sort offset to
-build a consistent back-to-front stack.
+one a larger value. This is the same draw-order bias the Tilemap and Skinned
+Sprite (mesh deform) components expose, so sprites, tilemap layers, and
+mesh-deform characters can all be interleaved by sort offset to build a
+consistent back-to-front stack (a sprite with a higher sort offset draws in
+front of a skinned character, and vice versa).
 
 ### Animation
 

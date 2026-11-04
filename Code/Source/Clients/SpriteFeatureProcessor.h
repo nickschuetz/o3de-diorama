@@ -253,17 +253,23 @@ namespace Diorama
             AZStd::vector<AZ::u32> m_indices;
         };
 
-        //! Draw every registered deformed mesh, one DrawIndexed per mesh, ordered by sort
-        //! offset (then far-to-near) and starting at the given sort key so meshes layer
-        //! after the sprite batches. Runs after the sprite loop in Render().
-        void DrawMeshes(AZ::RHI::DrawItemSortKey startSortKey, const AZ::Transform& cameraTransform);
+        //! Draw one registered deformed mesh as a single DrawIndexed at the given sort key,
+        //! billboarding its CPU-skinned vertices like sprite corners. Render() interleaves
+        //! these mesh draws with the sprite batches by sort offset, so an explicit sort
+        //! offset layers a sprite and a mesh relative to each other (a mesh no longer
+        //! unconditionally draws over every sprite).
+        void DrawSingleMesh(
+            const MeshEntry* entry,
+            AZ::RHI::DrawItemSortKey sortKey,
+            const AZ::Transform& cameraTransform,
+            const AZ::Data::Instance<AZ::RPI::Image>& fallbackImage);
 
         AZStd::unordered_map<MeshHandle, MeshEntry> m_meshes;
         MeshHandle m_nextMeshHandle = 1;
 
-        // Reused per-frame scratch for the mesh pass (runs after the sprite batch loop, so
-        // it could reuse the sprite scratch, but a separate buffer keeps the two paths
-        // independent and equally allocation-free in steady state).
+        // Reused per-frame scratch for the mesh draws (interleaved with the sprite batches
+        // by sort offset in Render(); a separate buffer keeps the two paths independent
+        // and equally allocation-free in steady state).
         AZStd::vector<SpriteVertex> m_meshVertexScratch;
         AZStd::vector<const MeshEntry*> m_meshOrderScratch;
     };

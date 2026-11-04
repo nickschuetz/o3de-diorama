@@ -91,6 +91,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
   ["Templates/Diorama2DGame"]`, so registering the gem is enough. The template how-to and
   README drop the extra register step, and the how-to's gem path is corrected to the repo
   root (it pointed at `Code/`, which has no `gem.json`). Reported by the community (#160).
+- **Sort offset now orders sprites against skinned (mesh-deform) characters.** The sprite
+  feature processor drew every deformed mesh after every sprite batch, so a skinned character
+  always painted over any sprite regardless of sort offset: the hitbox training overlay on a
+  mesh-deform fighter was invisible, buried under the character's own mesh, and no sprite
+  could be layered in front of one. Mesh draws are now interleaved with the sprite batches by
+  sort offset, matching the documented contract (a higher offset draws on top, across sprites
+  and meshes alike).
 
 ## [0.6.0-beta] - 2026-07-08
 
