@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/). Before
 ## [Unreleased]
 
 ### Added
+- **Skinned-bone hitbox demo** (`Docs/examples/skinned_hitbox_demo.py`): a `DioramaSkinnedHitbox`
+  level where the humanoid puppet rig (via the compiled `.dskinrigc` product) idles with a
+  hitbox riding its `armR_lo` forearm bone, overlay on, and a training dummy's hurtbox at the
+  edge of the swing; the runnable example for the bone-riding hitbox feature below.
 - **Hitboxes ride skinned (DragonBones) bones, and bones are queryable from scripts.** The
   frame-data hitbox rig's per-box **Bone** field now also resolves against a **Skinned Sprite
   (mesh deform)** rig on the same entity: when no descendant entity matches the name, the box

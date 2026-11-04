@@ -156,6 +156,10 @@ local fist = diorama.DioramaSkinnedSpriteRequestBus.Event.GetBoneWorldPosition(s
 Demo: `Docs/examples/bone_demo.py` builds a runnable `DioramaBoneDemo` level with the
 overlay on - a static green hurtbox plus a red hitbox whose **Bone** is a sliding child
 marker, so in game mode the red box tracks the bone while the green box stays put.
+Its skinned counterpart is `Docs/examples/skinned_hitbox_demo.py`: a
+`DioramaSkinnedHitbox` level where the humanoid puppet rig idles with a hitbox riding
+its `armR_lo` forearm bone, and a training dummy's hurtbox stands at the edge of the
+swing, so at full extension the riding box clips it.
 
 ## Seeing the boxes (training-mode overlay)
 
